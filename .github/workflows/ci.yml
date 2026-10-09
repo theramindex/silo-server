@@ -37,6 +37,7 @@ jobs:
     permissions:
       actions: write
       contents: read
-    uses: Silo-Server/silo-server/.github/workflows/trusted-linux-ci.yml@main
+    # theramindex fork: pinned to the synced upstream commit; bump on each upstream sync.
+    uses: Silo-Server/silo-server/.github/workflows/trusted-linux-ci.yml@88dac5cdae81d52f215a64d5ea079cc189ea93f2
     with:
       self_hosted: false
