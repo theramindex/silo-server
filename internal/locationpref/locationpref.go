@@ -10,6 +10,7 @@ package locationpref
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 )
@@ -45,9 +46,10 @@ func Parse(raw string) (Prefixes, []string) {
 }
 
 // Set installs p as the server-wide list and returns a func that reinstates
-// the previous one. The server calls it once at startup; tests pass the
-// returned func to t.Cleanup.
+// the previous one. It stores a copy, so the caller may reuse its slice. The
+// server calls it once at startup; tests pass the returned func to t.Cleanup.
 func Set(p Prefixes) (restore func()) {
+	p = slices.Clone(p)
 	prev := current.Swap(&p)
 	return func() { current.Store(prev) }
 }

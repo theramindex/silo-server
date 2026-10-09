@@ -83,3 +83,17 @@ func TestSetRestores(t *testing.T) {
 		t.Fatal("restore did not reinstate the previous value")
 	}
 }
+
+func TestSetCopiesPrefixes(t *testing.T) {
+	p := Prefixes{"/mnt/ceph", "/mnt/cloud"}
+	t.Cleanup(Set(p))
+
+	p[0] = "/mnt/other"
+
+	if got := Rank("/mnt/ceph/movie.mkv"); got != 0 {
+		t.Fatalf("Rank(ceph) = %d after caller mutated its slice, want 0", got)
+	}
+	if got := Rank("/mnt/other/movie.mkv"); got != 2 {
+		t.Fatalf("Rank(other) = %d after caller mutated its slice, want 2", got)
+	}
+}
