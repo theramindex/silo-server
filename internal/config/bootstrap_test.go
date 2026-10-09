@@ -19,3 +19,17 @@ func TestLoadDatabaseURLNeedsNoSecretKey(t *testing.T) {
 		t.Fatal("LoadDatabaseURL accepted a missing DATABASE_URL")
 	}
 }
+
+func TestLoadBootstrapReadsPreferredPathPrefixes(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://example.invalid/silo")
+	t.Setenv("SECRET_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("SILO_PREFERRED_PATH_PREFIXES", "/mnt/ceph,/mnt/cloud")
+
+	bc, err := LoadBootstrap("")
+	if err != nil {
+		t.Fatalf("LoadBootstrap: %v", err)
+	}
+	if bc.PreferredPathPrefixes != "/mnt/ceph,/mnt/cloud" {
+		t.Fatalf("PreferredPathPrefixes = %q", bc.PreferredPathPrefixes)
+	}
+}

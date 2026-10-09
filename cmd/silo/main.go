@@ -72,6 +72,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/libraryingest"
 	"github.com/Silo-Server/silo-server/internal/librarymonitor"
 	"github.com/Silo-Server/silo-server/internal/literaryworks"
+	"github.com/Silo-Server/silo-server/internal/locationpref"
 	"github.com/Silo-Server/silo-server/internal/logfilter"
 	"github.com/Silo-Server/silo-server/internal/logredact"
 	"github.com/Silo-Server/silo-server/internal/logstream"
@@ -756,6 +757,14 @@ func main() {
 	bc, err := config.LoadBootstrap(*envFile)
 	if err != nil {
 		log.Fatalf("bootstrap: %v", err)
+	}
+	preferredPrefixes, prefixWarnings := locationpref.Parse(bc.PreferredPathPrefixes)
+	for _, w := range prefixWarnings {
+		slog.Warn("SILO_PREFERRED_PATH_PREFIXES", "problem", w)
+	}
+	locationpref.Set(preferredPrefixes)
+	if locationpref.Configured() {
+		slog.Info("preferred storage prefixes loaded", "prefixes", preferredPrefixes)
 	}
 	stopDebugListener, err := startBootstrapDebugListener(!*migrateOnly && !*migrateStatus && *migrateDownTo < 0)
 	if err != nil {

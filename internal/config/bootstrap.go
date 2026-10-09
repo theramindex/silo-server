@@ -23,6 +23,10 @@ type BootstrapConfig struct {
 	// at-rest credential cipher derives its data key. It lives outside Postgres
 	// so encrypted secrets survive a full database compromise/dump.
 	SecretKey []byte
+	// PreferredPathPrefixes is the raw SILO_PREFERRED_PATH_PREFIXES value
+	// (theramindex fork): comma-separated storage prefixes, earliest preferred,
+	// used to choose between copies of equal quality. Empty disables it.
+	PreferredPathPrefixes string
 }
 
 // LoadDatabaseURL loads DATABASE_URL from a .env file (if it exists) and
@@ -72,13 +76,15 @@ func LoadBootstrap(envFile string) (*BootstrapConfig, error) {
 	}
 
 	redisURL := os.Getenv("REDIS_URL")
+	preferredPathPrefixes := os.Getenv("SILO_PREFERRED_PATH_PREFIXES")
 
 	return &BootstrapConfig{
-		DatabaseURL: dbURL,
-		RedisURL:    redisURL,
-		Listen:      ":" + port,
-		JFListen:    ":" + jfPort,
-		Mode:        mode,
-		SecretKey:   []byte(secretKey),
+		DatabaseURL:           dbURL,
+		RedisURL:              redisURL,
+		Listen:                ":" + port,
+		JFListen:              ":" + jfPort,
+		Mode:                  mode,
+		SecretKey:             []byte(secretKey),
+		PreferredPathPrefixes: preferredPathPrefixes,
 	}, nil
 }
