@@ -6,6 +6,7 @@ import (
 
 	"github.com/Silo-Server/silo-server/internal/access"
 	"github.com/Silo-Server/silo-server/internal/catalog"
+	"github.com/Silo-Server/silo-server/internal/locationpref"
 	"github.com/Silo-Server/silo-server/internal/playback"
 )
 
@@ -103,6 +104,9 @@ func roomVersionBetter(a, b catalog.FileVersion) bool {
 	}
 	if a.HDR != b.HDR {
 		return a.HDR
+	}
+	if ra, rb := locationpref.Rank(a.FilePath), locationpref.Rank(b.FilePath); ra != rb {
+		return ra < rb
 	}
 	if a.FileSize != b.FileSize {
 		return a.FileSize > b.FileSize
