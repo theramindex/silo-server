@@ -18,6 +18,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/artworkkey"
 	"github.com/Silo-Server/silo-server/internal/imagesize"
 	"github.com/Silo-Server/silo-server/internal/lang"
+	"github.com/Silo-Server/silo-server/internal/locationpref"
 	"github.com/Silo-Server/silo-server/internal/models"
 	"github.com/Silo-Server/silo-server/internal/overlays"
 	"github.com/Silo-Server/silo-server/internal/playback"
@@ -4122,6 +4123,9 @@ func sortFileVersions(versions []FileVersion) {
 		}
 		if a.HDR != b.HDR {
 			return a.HDR
+		}
+		if ra, rb := locationpref.Rank(a.FilePath), locationpref.Rank(b.FilePath); ra != rb {
+			return ra < rb
 		}
 		return a.FileSize > b.FileSize
 	})
