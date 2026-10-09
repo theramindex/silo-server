@@ -26,6 +26,21 @@ func TestPreferredByDefault_LocationPreference(t *testing.T) {
 			t.Fatalf("pick = %d, want cloud HDR %d", got.ID, cloudHDR.ID)
 		}
 	})
+	t.Run("configured: resolution beats location", func(t *testing.T) {
+		t.Cleanup(locationpref.Set(locationpref.Prefixes{"/mnt/ceph", "/mnt/cloud"}))
+		cloud2160 := &models.MediaFile{ID: 4, FilePath: "/mnt/cloud/movies/a.2160p.mkv", Resolution: "2160p"}
+		got := versionPreference{}.pick("movie-1", []*models.MediaFile{ceph, cloud2160})
+		if got.ID != cloud2160.ID {
+			t.Fatalf("pick = %d, want cloud 2160p %d", got.ID, cloud2160.ID)
+		}
+	})
+	t.Run("unset: HDR ignored, lowest ID wins", func(t *testing.T) {
+		t.Cleanup(locationpref.Set(nil))
+		got := versionPreference{}.pick("movie-1", []*models.MediaFile{cloudHDR, ceph})
+		if got.ID != ceph.ID {
+			t.Fatalf("pick = %d, want lowest ID SDR %d over higher-ID HDR %d", got.ID, ceph.ID, cloudHDR.ID)
+		}
+	})
 	t.Run("unset: lowest ID as upstream", func(t *testing.T) {
 		t.Cleanup(locationpref.Set(nil))
 		got := versionPreference{}.pick("movie-1", []*models.MediaFile{ceph, cloud})

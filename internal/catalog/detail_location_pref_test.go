@@ -46,6 +46,15 @@ func TestSortFileVersions_LocationPreference(t *testing.T) {
 			wantFirst: 2,
 		},
 		{
+			name:       "same storage: rank tie falls through to larger file",
+			configured: true,
+			versions: []FileVersion{
+				{FileID: 1, FilePath: "/mnt/ceph/Movies/A (2020)/A.1080p.mkv", Resolution: "1080p", FileSize: 1_000},
+				{FileID: 2, FilePath: ceph, Resolution: "1080p", FileSize: 9_000},
+			},
+			wantFirst: 2,
+		},
+		{
 			name:       "unset: larger file wins as upstream",
 			configured: false,
 			versions: []FileVersion{
