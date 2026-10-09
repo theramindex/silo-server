@@ -13,6 +13,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/access"
 	"github.com/Silo-Server/silo-server/internal/artworkurl"
 	"github.com/Silo-Server/silo-server/internal/catalog"
+	"github.com/Silo-Server/silo-server/internal/locationpref"
 	"github.com/Silo-Server/silo-server/internal/models"
 	"github.com/Silo-Server/silo-server/internal/userstore"
 )
@@ -1431,7 +1432,16 @@ func mediaItemToListItem(mi *models.MediaItem) upstreamListItem {
 func itemDetailToUpstream(d *catalog.ItemDetail) upstreamItemDetail {
 	versions := append([]catalog.FileVersion(nil), d.Versions...)
 	sort.SliceStable(versions, func(i, j int) bool {
-		return compatPrimaryVideoTrack(versions[i]).Width > compatPrimaryVideoTrack(versions[j]).Width
+		wi, wj := compatPrimaryVideoTrack(versions[i]).Width, compatPrimaryVideoTrack(versions[j]).Width
+		if wi != wj || !locationpref.Configured() {
+			return wi > wj
+		}
+		// theramindex fork: among equal widths, HDR then preferred storage,
+		// matching the catalog's default-version order.
+		if versions[i].HDR != versions[j].HDR {
+			return versions[i].HDR
+		}
+		return locationpref.Rank(versions[i].FilePath) < locationpref.Rank(versions[j].FilePath)
 	})
 	detail := upstreamItemDetail{
 		ContentID:        d.ContentID,
