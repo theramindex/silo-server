@@ -32,4 +32,13 @@ func TestLoadBootstrapReadsPreferredPathPrefixes(t *testing.T) {
 	if bc.PreferredPathPrefixes != "/mnt/ceph,/mnt/cloud" {
 		t.Fatalf("PreferredPathPrefixes = %q", bc.PreferredPathPrefixes)
 	}
+
+	t.Setenv("SILO_PREFERRED_PATH_PREFIXES", "")
+	bc, err = LoadBootstrap("")
+	if err != nil {
+		t.Fatalf("LoadBootstrap: %v", err)
+	}
+	if bc.PreferredPathPrefixes != "" {
+		t.Fatalf("PreferredPathPrefixes = %q, want empty when unset", bc.PreferredPathPrefixes)
+	}
 }

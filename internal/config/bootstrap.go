@@ -76,15 +76,15 @@ func LoadBootstrap(envFile string) (*BootstrapConfig, error) {
 	}
 
 	redisURL := os.Getenv("REDIS_URL")
-	preferredPathPrefixes := os.Getenv("SILO_PREFERRED_PATH_PREFIXES")
 
-	return &BootstrapConfig{
-		DatabaseURL:           dbURL,
-		RedisURL:              redisURL,
-		Listen:                ":" + port,
-		JFListen:              ":" + jfPort,
-		Mode:                  mode,
-		SecretKey:             []byte(secretKey),
-		PreferredPathPrefixes: preferredPathPrefixes,
-	}, nil
+	cfg := &BootstrapConfig{
+		DatabaseURL: dbURL,
+		RedisURL:    redisURL,
+		Listen:      ":" + port,
+		JFListen:    ":" + jfPort,
+		Mode:        mode,
+		SecretKey:   []byte(secretKey),
+	}
+	cfg.PreferredPathPrefixes = os.Getenv("SILO_PREFERRED_PATH_PREFIXES")
+	return cfg, nil
 }
