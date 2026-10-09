@@ -7,6 +7,7 @@ import (
 
 	"github.com/Silo-Server/silo-server/internal/access"
 	"github.com/Silo-Server/silo-server/internal/catalog"
+	"github.com/Silo-Server/silo-server/internal/locationpref"
 	"github.com/Silo-Server/silo-server/internal/models"
 	"github.com/Silo-Server/silo-server/internal/userstore"
 )
@@ -71,10 +72,20 @@ func (p versionPreference) seriesScore(f *models.MediaFile) int {
 
 // preferredByDefault orders files no preference separates: highest resolution
 // first (access.CompareQuality is the ordering playback uses), then lowest ID
-// so the choice never depends on query order.
+// so the choice never depends on query order. With preferred storage
+// configured (theramindex fork), HDR and then storage location are compared
+// before the ID, matching the catalog's default-version order.
 func preferredByDefault(a, b *models.MediaFile) bool {
 	if c := access.CompareQuality(a.Resolution, b.Resolution); c != 0 {
 		return c > 0
+	}
+	if locationpref.Configured() {
+		if a.HDR != b.HDR {
+			return a.HDR
+		}
+		if ra, rb := locationpref.Rank(a.FilePath), locationpref.Rank(b.FilePath); ra != rb {
+			return ra < rb
+		}
 	}
 	return a.ID < b.ID
 }
