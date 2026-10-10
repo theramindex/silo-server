@@ -4,6 +4,14 @@
 > 1.0. The frozen alpha `/api/v1` surface answers the same features through the pre-1.0 bridge
 > window and is then retired. See [the native API contract](architecture/api-contract.md).
 
+## Section browsing
+
+Catalog reads with `source=section` resolve the row on the acting profile's
+`home` or `library` page. This includes personal rows and the profile's overrides
+to server rows. Paging uses that effective row's configuration. A row hidden or
+removed by the profile, a row belonging to another profile, or a row in an
+inaccessible library answers `404`, as an unknown section does.
+
 ## People search
 
 `GET /api/v2/catalog/people` (`listPeople`) accepts a name query in `q` and
