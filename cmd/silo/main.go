@@ -833,6 +833,9 @@ func main() {
 	if *migrateOnly {
 		migCtx, migCancel := database.MigrationContext(ctx)
 		migErr := database.RunMigrations(migCtx, pool, migrations.FS, "sql")
+		if migErr == nil {
+			migErr = ensureAuditDetailIndexes(migCtx, pool)
+		}
 		migCancel()
 		if migErr != nil {
 			log.Fatalf("failed to run migrations: %v", migErr)
@@ -850,7 +853,11 @@ func main() {
 	isPrimaryNode := bc.Mode == "integrated" || bc.Mode == "api" || bc.Mode == ""
 	if isPrimaryNode {
 		migCtx, migCancel := database.MigrationContext(ctx)
-		if migErr := database.RunMigrations(migCtx, pool, migrations.FS, "sql"); migErr != nil {
+		migErr := database.RunMigrations(migCtx, pool, migrations.FS, "sql")
+		if migErr == nil {
+			migErr = ensureAuditDetailIndexes(migCtx, pool)
+		}
+		if migErr != nil {
 			migCancel()
 			log.Fatalf("failed to run migrations: %v", migErr)
 		}
@@ -4731,4 +4738,9 @@ type audiobooksSettingsAdapter struct {
 
 func (a *audiobooksSettingsAdapter) GetString(ctx context.Context, key string) (string, error) {
 	return a.repo.Get(ctx, key)
+}
+
+func ensureAuditDetailIndexes(ctx context.Context, pool *pgxpool.Pool) error {
+	return partman.NewManager(pool, "activity_log", partman.Weekly, 2).EnsureIndexes(ctx,
+		"activity_log_action_time_idx", "activity_log_target_time_idx")
 }

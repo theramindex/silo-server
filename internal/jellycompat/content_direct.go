@@ -1431,6 +1431,8 @@ func mediaItemToListItem(mi *models.MediaItem) upstreamListItem {
 
 func itemDetailToUpstream(d *catalog.ItemDetail) upstreamItemDetail {
 	versions := append([]catalog.FileVersion(nil), d.Versions...)
+	// applyListFileFields picks the same first version in SQL; keep the two
+	// orders in step.
 	sort.SliceStable(versions, func(i, j int) bool {
 		wi, wj := compatPrimaryVideoTrack(versions[i]).Width, compatPrimaryVideoTrack(versions[j]).Width
 		if wi != wj || !locationpref.Configured() {

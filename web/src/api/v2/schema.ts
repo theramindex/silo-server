@@ -12328,7 +12328,14 @@ export interface components {
       /** @description Whether the storage lock state was read successfully. When false, clients must not treat locked=false as permission to edit storage locations. */
       status_known: boolean;
     };
+    AdminAuditChange: {
+      after?: string;
+      before?: string;
+      field: string;
+    };
     AdminAuditLog: {
+      action?: string;
+      changes?: components["schemas"]["AdminAuditChange"][];
       client_ip: string;
       /** Format: int64 */
       duration_ms: number;
@@ -12343,6 +12350,8 @@ export interface components {
       session_id?: string;
       /** Format: int64 */
       status_code: number;
+      target_id?: string;
+      target_type?: string;
       /**
        * Format: date-time
        * @description RFC 3339 instant in UTC with millisecond precision
@@ -14705,6 +14714,8 @@ export interface components {
     AdminLogsSocketCapabilitiesOutputBody: {
       /** @description Whether the current principal may use the capability */
       allowed: boolean;
+      audit_actions: string[];
+      audit_change_details: boolean;
       available: boolean;
       protocol: string;
       /** @description Opaque revision of this document */
@@ -53136,6 +53147,8 @@ export interface operations {
   listAdminAuditLogs: {
     parameters: {
       query?: {
+        action?: string;
+        actor_user_id?: string;
         client_ip?: string;
         cursor?: string;
         from?: string;
@@ -53147,6 +53160,8 @@ export interface operations {
         request_id?: string;
         session_id?: string;
         status_code?: string;
+        target_id?: string;
+        target_type?: string;
         to?: string;
         user_id?: string;
       };
@@ -53256,6 +53271,10 @@ export interface operations {
   connectAdminLogsSocket: {
     parameters: {
       query: {
+        /** @description audit: domain action filter. */
+        action?: string;
+        /** @description audit: acting account, including an impersonator. */
+        actor_user_id?: string;
         /** @description audit: client address or prefix filter. */
         client_ip?: string;
         /** @description app: component filter. */
@@ -53286,6 +53305,10 @@ export interface operations {
         status_code?: number;
         /** @description Which log stream to snapshot and follow. */
         stream: "app" | "audit";
+        /** @description audit: affected entity identifier. */
+        target_id?: string;
+        /** @description audit: affected entity type. */
+        target_type?: string;
         /** @description Inclusive upper time bound. */
         to?: string;
         /** @description Account filter. */
