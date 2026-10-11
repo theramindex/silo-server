@@ -95,7 +95,10 @@ func (r *pluginLiveTVRoutes) ListProviders(ctx context.Context) ([]LiveTVProvide
 
 // servesLiveTVChannels reports whether a descriptor answers GET on the
 // livetv/v1 channels route, by exact path or "/*" wildcard prefix. Matching
-// mirrors plugins.HTTPProxy.
+// mirrors plugins.HTTPProxy. Descriptor access is deliberately ignored: the
+// bridge calls contract routes in-process and is their authorizer, and
+// providers declare stream and info admin-only to keep them off the public
+// proxy.
 func servesLiveTVChannels(descriptors []*pluginv1.HttpRouteDescriptor) bool {
 	for _, d := range descriptors {
 		if m := d.GetMethod(); m != "" && m != "*" && m != http.MethodGet {
@@ -116,6 +119,9 @@ func servesLiveTVChannels(descriptors []*pluginv1.HttpRouteDescriptor) bool {
 // Call sends one request to an installation's plugin routes. Callers with a
 // user id carry it, with their role and profile, as X-Silo-* headers, the same
 // identity plugins get through the HTTP proxy. A zero status becomes 200.
+// The route's descriptor access is not enforced here: the bridge has already
+// authorized the caller, and contract stream and info routes are admin-only so
+// that only this in-process path can reach them for ordinary users.
 func (r *pluginLiveTVRoutes) Call(ctx context.Context, installationID int, caller LiveTVCaller, method, path string, query map[string]string) (int, []byte, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc

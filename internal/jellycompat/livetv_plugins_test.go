@@ -191,6 +191,56 @@ func TestPluginLiveTVRoutesSetsIdentityHeaders(t *testing.T) {
 	}
 }
 
+// Contract stream and info routes are admin-only so the public plugin proxy
+// cannot leak credentialed URLs; discovery and in-process calls must still
+// work for ordinary users.
+func TestPluginLiveTVRoutesIgnoreDescriptorAccess(t *testing.T) {
+	installs := &fakeLiveTVInstallations{
+		installs: []*plugins.Installation{{ID: 7, PluginID: "silo.ramindex.xtream", Kind: plugins.KindPlugin}},
+		capabilities: map[int][]*plugins.Capability{
+			7: {{InstallationID: 7, Type: "http_routes.v1", ID: "routes-cap"}},
+		},
+	}
+	svc := &fakeLiveTVPluginService{descriptors: map[int][]*pluginv1.HttpRouteDescriptor{
+		7: {
+			{Method: "GET", Path: liveTVPathInfo, Access: "admin"},
+			{Method: "GET", Path: liveTVPathChannels, Access: "authenticated"},
+			{Method: "GET", Path: liveTVPathStream, Access: "admin"},
+		},
+	}}
+	var reqs []*pluginv1.HandleHTTPRequest
+	routes := &pluginLiveTVRoutes{
+		svc:           svc,
+		installations: installs,
+		handle: func(_ context.Context, _ liveTVPluginService, _ int, _ string, req *pluginv1.HandleHTTPRequest) (*pluginv1.HandleHTTPResponse, error) {
+			reqs = append(reqs, req)
+			return &pluginv1.HandleHTTPResponse{StatusCode: 200, Body: []byte(`{}`)}, nil
+		},
+	}
+
+	got, err := routes.ListProviders(context.Background())
+	if err != nil {
+		t.Fatalf("ListProviders: %v", err)
+	}
+	if len(got) != 1 || got[0].InstallationID != 7 {
+		t.Fatalf("providers = %+v, want installation 7", got)
+	}
+
+	user := LiveTVCaller{UserID: 4}
+	for _, path := range []string{liveTVPathInfo, liveTVPathStream} {
+		status, _, err := routes.Call(context.Background(), 7, user, http.MethodGet, path, nil)
+		if err != nil || status != http.StatusOK {
+			t.Fatalf("Call %s as user = %d, %v", path, status, err)
+		}
+	}
+	if len(reqs) != 2 || reqs[0].GetPath() != liveTVPathInfo || reqs[1].GetPath() != liveTVPathStream {
+		t.Fatalf("handled requests = %v", reqs)
+	}
+	if reqs[1].GetHeaders()["X-Silo-User-Role"] != "user" {
+		t.Fatalf("stream call role = %q, want user", reqs[1].GetHeaders()["X-Silo-User-Role"])
+	}
+}
+
 func TestPluginLiveTVRoutesDefaultsStatus200(t *testing.T) {
 	routes, _, _ := capturingRoutes(&pluginv1.HandleHTTPResponse{Body: []byte("ok")}, nil)
 	status, body, err := routes.Call(context.Background(), 7, LiveTVCaller{}, http.MethodGet, liveTVPathInfo, nil)

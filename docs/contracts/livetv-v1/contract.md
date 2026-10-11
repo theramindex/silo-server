@@ -4,6 +4,13 @@ A Silo plugin that provides live TV serves these routes. Silo calls them in-proc
 headers `X-Silo-User-Id`, `X-Silo-User-Role` (`user`|`admin`) and `X-Silo-Profile-Id` when a
 user is known. Logo and lineup requests may arrive without identity headers.
 
+## Route access
+Plugins MUST declare `info` and `stream` with access `admin`: `stream` URLs may carry
+credentials and `info` reveals provider hosts, and Silo's plugin HTTP proxy serves every
+declared route to any user the access level admits. `channels` is declared `authenticated`;
+Silo discovers providers by it and it carries no secrets. Silo calls all three routes
+in-process regardless of the declared access.
+
 ## GET /silo-compat/livetv/v1/info
 200 `{"contractVersion":1,"name":"<display name>","streamHosts":["host[:port]",...]}`
 `streamHosts` lists every host the plugin may return in a `stream` URL. Silo refuses to fetch
