@@ -3693,6 +3693,22 @@ func main() {
 			}
 		}
 
+		// theramindex fork: Live TV bridge for Jellyfin clients (SILO_JELLYCOMPAT_LIVETV=off disables it).
+		if pluginService != nil && pluginInstallationStore != nil && jellycompat.LiveTVEnabledFromEnv(os.Getenv) {
+			// deps.PluginUserConfig may be nil; favorites then return 500 and listings still work.
+			// Branch so a nil pointer is not stored in the interface as a non-nil value.
+			var liveTVPrefs jellycompat.LiveTVPrefsStore
+			if deps.PluginUserConfig != nil {
+				liveTVPrefs = deps.PluginUserConfig
+			}
+			compatDeps.LiveTV = jellycompat.NewLiveTV(
+				jellycompat.NewPluginLiveTVRoutes(pluginService, pluginInstallationStore),
+				liveTVPrefs,
+				nil,
+			)
+			slog.Info("jellycompat: Live TV bridge enabled")
+		}
+
 		compat := jellycompat.NewServerWithDependencies(compatDeps)
 		compatServer.Store(compat)
 		compatTerminalRecoveryReady = compat.StartBackgroundTasks(context.Background())
