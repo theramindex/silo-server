@@ -132,8 +132,9 @@ type LiveTV struct {
 	relaySwept   time.Time
 }
 
-// NewLiveTV returns a LiveTV over routes. httpClient fetches provider stream
-// URLs; nil means a default client.
+// NewLiveTV returns a LiveTV over routes. Provider streams are fetched with
+// newLiveStreamClient, which checks every address it dials, so httpClient's
+// transport is not used for them.
 func NewLiveTV(routes LiveTVRouteCaller, prefs LiveTVPrefsStore, httpClient *http.Client) *LiveTV {
 	return &LiveTV{
 		routes:       routes,
@@ -141,7 +142,7 @@ func NewLiveTV(routes LiveTVRouteCaller, prefs LiveTVPrefsStore, httpClient *htt
 		httpClient:   httpClient,
 		now:          time.Now,
 		installs:     map[int]*liveInstall{},
-		streamClient: newLiveStreamClient(httpClient),
+		streamClient: newLiveStreamClient(),
 		plays:        map[string]*livePlay{},
 		relay:        map[string]*liveRelayEntry{},
 		relayByURL:   map[string]string{},

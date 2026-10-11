@@ -5,6 +5,7 @@ package jellycompat
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,8 +15,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/Silo-Server/silo-server/internal/netguard"
 )
 
 const (
@@ -165,10 +169,10 @@ func newLiveProvider(t *testing.T) *liveProvider {
 func (p *liveProvider) host() string { return strings.TrimPrefix(p.URL, "http://") }
 
 // newLiveStreamEnv serves the shared channel fixtures with the provider's host
-// as the only streamHost, and answers stream requests with stream. Logs go to
+// and extraHosts as the streamHosts, and answers stream requests with stream. Logs go to
 // the returned buffer, which keeps the request log out of test output; the
 // test fails if any line names liveSecret.
-func newLiveStreamEnv(t *testing.T, p *liveProvider, stream liveTVStream) (*liveTestEnv, *lockedWriter) {
+func newLiveStreamEnv(t *testing.T, p *liveProvider, stream liveTVStream, extraHosts ...string) (*liveTestEnv, *lockedWriter) {
 	t.Helper()
 	logs := captureLiveLogs(t)
 	t.Cleanup(func() {
@@ -177,8 +181,12 @@ func newLiveStreamEnv(t *testing.T, p *liveProvider, stream liveTVStream) (*live
 		}
 	})
 	env := newLiveTestEnv(t, true)
+	hosts, err := json.Marshal(append([]string{p.host()}, extraHosts...))
+	if err != nil {
+		t.Fatal(err)
+	}
 	env.routes.setResponse(liveTestInstall, liveTVPathInfo, http.StatusOK,
-		`{"contractVersion":1,"name":"Dispatcharr","streamHosts":["`+p.host()+`"]}`)
+		`{"contractVersion":1,"name":"Dispatcharr","streamHosts":`+string(hosts)+`}`)
 	env.setStream(t, stream)
 	return env, logs
 }
@@ -413,14 +421,15 @@ func TestLivePlaybackInfoBrowserGetsHLSRelay(t *testing.T) {
 
 func TestLiveHLSRelayNestedAndRedirectedPlaylists(t *testing.T) {
 	// The declared host redirects to a second host that serves the master and
-	// its variant; relayed children may use that final host.
+	// its variant. httptest servers are on loopback, which only a listed host
+	// may reach, so the second host is listed too.
 	cdn := newLiveProvider(t)
 	cdn.playlist["/"+liveSecret+"/master.m3u8"] = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\nlow/index.m3u8\n"
 	cdn.playlist["/"+liveSecret+"/low/index.m3u8"] = "#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n"
 	cdn.segments["/"+liveSecret+"/low/seg1.ts"] = []byte("LOW-ONE")
 	origin := newLiveProvider(t)
 	origin.Config.Handler = http.RedirectHandler(cdn.URL+"/"+liveSecret+"/master.m3u8", http.StatusFound)
-	env, _ := newLiveStreamEnv(t, origin, liveTVStream{URL: origin.URL + "/start.m3u8", Container: "hls", Mode: "server"})
+	env, _ := newLiveStreamEnv(t, origin, liveTVStream{URL: origin.URL + "/start.m3u8", Container: "hls", Mode: "server"}, cdn.host())
 	id := liveChannelIDFor("m3u:news.hd")
 
 	_, info := livePlaybackInfo(t, env.router, id, liveTVProfileBrowser)
@@ -573,18 +582,19 @@ func TestLivePlaysAndRelayAreBoundedAndExpire(t *testing.T) {
 		t.Errorf("tokens %s %s %s: want one stable token per play and URL", tok1, tok2, tok3)
 	}
 
-	clock.Advance(liveTVPlayTTL / 2)
+	clock.Advance(liveTVRelayTTL / 2)
 	if _, ok := l.relayEntry(tok1); !ok {
 		t.Fatal("entry expired early")
 	}
-	clock.Advance(liveTVPlayTTL / 2)
+	clock.Advance(liveTVRelayTTL / 2)
 	if _, ok := l.relayEntry(tok1); !ok {
 		t.Error("a read did not slide the entry's expiry")
 	}
-	clock.Advance(liveTVPlayTTL + 1)
+	clock.Advance(liveTVRelayTTL + 1)
 	if _, ok := l.relayEntry(tok1); ok {
 		t.Error("entry outlived its TTL")
 	}
+	clock.Advance(liveTVPlayTTL)
 	if _, ok := l.play(fmt.Sprint("ps", liveTVMaxPlays)); ok {
 		t.Error("play outlived its TTL")
 	}
@@ -625,5 +635,130 @@ func TestLivePlaybackRoutesAbsentWithoutBridge(t *testing.T) {
 	rec, _ := livePlaybackInfo(t, router, id, liveTVProfileTV)
 	if strings.Contains(rec.Body.String(), "IsInfiniteStream\":true") {
 		t.Errorf("PlaybackInfo without a bridge answered as Live TV: %s", rec.Body.String())
+	}
+}
+
+// deadlineRecorder counts the write deadlines a handler sets through
+// http.ResponseController.
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	deadlines atomic.Int32
+}
+
+func (d *deadlineRecorder) SetWriteDeadline(time.Time) error {
+	d.deadlines.Add(1)
+	return nil
+}
+
+func serveLiveMediaDeadlines(t *testing.T, router http.Handler, path string) *deadlineRecorder {
+	t.Helper()
+	rec := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+	return rec
+}
+
+func TestLiveRelaysRollTheWriteDeadline(t *testing.T) {
+	p := newLiveProvider(t)
+	p.playlist["/"+liveSecret+"/hls/index.m3u8"] = "#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n"
+	p.segments["/"+liveSecret+"/hls/seg1.ts"] = []byte("SEG")
+	env, _ := newLiveStreamEnv(t, p, liveTVStream{URL: p.URL + "/" + liveSecret + "/101.ts", Container: "ts", Mode: "server"})
+	id := liveChannelIDFor("m3u:news.hd")
+
+	_, info := livePlaybackInfo(t, env.router, id, liveTVProfileTV)
+	rec := serveLiveMediaDeadlines(t, env.router, info.MediaSources[0].DirectStreamURL)
+	if rec.Code != http.StatusOK || !bytes.Equal(rec.Body.Bytes(), p.ts) {
+		t.Fatalf("relay = %d, %d bytes", rec.Code, rec.Body.Len())
+	}
+	if rec.deadlines.Load() == 0 {
+		t.Error("the TS relay set no write deadline; a half-open client would hold the provider stream")
+	}
+
+	env.setStream(t, liveTVStream{URL: p.URL + "/" + liveSecret + "/hls/index.m3u8", Container: "hls", Mode: "server"})
+	_, info = livePlaybackInfo(t, env.router, id, liveTVProfileBrowser)
+	playlist := info.MediaSources[0].TranscodingURL
+	list := serveLiveMedia(t, env.router, http.MethodGet, playlist)
+	seg := serveLiveMediaDeadlines(t, env.router, relayPath(t, playlist, playlistURIs(list.Body.String())[0]))
+	if seg.Code != http.StatusOK || seg.Body.String() != "SEG" {
+		t.Fatalf("segment = %d %q", seg.Code, seg.Body.String())
+	}
+	if seg.deadlines.Load() == 0 {
+		t.Error("the segment relay set no write deadline")
+	}
+}
+
+func TestLiveStreamRedirectHosts(t *testing.T) {
+	listed := newLiveProvider(t)
+	unlisted := newLiveProvider(t)
+	p := newLiveProvider(t)
+	var redirectTo atomic.Pointer[string]
+	redirectTo.Store(&listed.URL)
+	p.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, *redirectTo.Load()+"/"+liveSecret+"/101.ts", http.StatusFound)
+	})
+	env, _ := newLiveStreamEnv(t, p, liveTVStream{URL: p.URL + "/" + liveSecret + "/start", Container: "ts", Mode: "server"}, listed.host())
+	id := liveChannelIDFor("m3u:news.hd")
+	_, info := livePlaybackInfo(t, env.router, id, liveTVProfileTV)
+	stream := info.MediaSources[0].DirectStreamURL
+
+	if rec := serveLiveMedia(t, env.router, http.MethodGet, stream); rec.Code != http.StatusOK || !bytes.Equal(rec.Body.Bytes(), listed.ts) {
+		t.Errorf("redirect to a listed host = %d, %d bytes, want the stream", rec.Code, rec.Body.Len())
+	}
+
+	// A loopback host the play does not list is the server's own network.
+	redirectTo.Store(&unlisted.URL)
+	rec := serveLiveMedia(t, env.router, http.MethodGet, stream)
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("redirect to an unlisted private host = %d, want 502", rec.Code)
+	}
+	if unlisted.hits.Load() != 0 {
+		t.Error("the unlisted private host was contacted")
+	}
+	assertNoProviderURL(t, unlisted, "502 body", rec.Body.String()+rec.Header().Get("Location"))
+
+	// The dialer refuses it too, which covers a name that resolved to a public
+	// address when the redirect was checked and to a private one when dialed.
+	req, err := http.NewRequestWithContext(withLiveHosts(t.Context(), []string{p.host()}), http.MethodGet, unlisted.URL+"/x", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp, err := env.bridge.streamClient.Do(req); err == nil || !errors.Is(err, netguard.ErrPrivateDestination) {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		t.Errorf("dial to an unlisted private host: err = %v, want ErrPrivateDestination", err)
+	}
+	if unlisted.hits.Load() != 0 {
+		t.Error("the unlisted private host was dialed")
+	}
+}
+
+func TestLivePlayOutlivesAPause(t *testing.T) {
+	p := newLiveProvider(t)
+	p.playlist["/"+liveSecret+"/hls/index.m3u8"] = "#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n"
+	p.segments["/"+liveSecret+"/hls/seg1.ts"] = []byte("SEG")
+	env, _ := newLiveStreamEnv(t, p, liveTVStream{URL: p.URL + "/" + liveSecret + "/hls/index.m3u8", Container: "hls", Mode: "server"})
+	clock := &liveTVTestClock{t: time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)}
+	env.bridge.now = clock.Now
+	id := liveChannelIDFor("m3u:news.hd")
+	_, info := livePlaybackInfo(t, env.router, id, liveTVProfileBrowser)
+	playlist := info.MediaSources[0].TranscodingURL
+
+	resume := func(what string) {
+		t.Helper()
+		rec := serveLiveMedia(t, env.router, http.MethodGet, playlist)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: playlist = %d", what, rec.Code)
+		}
+		if seg := serveLiveMedia(t, env.router, http.MethodGet, relayPath(t, playlist, playlistURIs(rec.Body.String())[0])); seg.Code != http.StatusOK {
+			t.Errorf("%s: segment = %d", what, seg.Code)
+		}
+	}
+	clock.Advance(10 * time.Minute)
+	resume("after a 10 minute pause")
+	clock.Advance(29 * time.Minute)
+	resume("29 minutes after the last request")
+	clock.Advance(31 * time.Minute)
+	if rec := serveLiveMedia(t, env.router, http.MethodGet, playlist); rec.Code != http.StatusNotFound {
+		t.Errorf("playlist after 31 idle minutes = %d, want 404", rec.Code)
 	}
 }

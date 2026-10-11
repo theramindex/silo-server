@@ -4,27 +4,37 @@ package jellycompat
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Silo-Server/silo-server/internal/clientip"
+	"github.com/Silo-Server/silo-server/internal/httpstream"
+	"github.com/Silo-Server/silo-server/internal/netguard"
 )
 
 const (
-	// liveTVPlayTTL is how long a play or relay token lives after its last
-	// use. Players refresh a live playlist every few seconds.
-	liveTVPlayTTL = 2 * time.Minute
+	// liveTVPlayTTL is how long a play lives after its last playlist, segment
+	// or stream request, long enough for a paused player to resume.
+	liveTVPlayTTL = 30 * time.Minute
+	// liveTVRelayTTL is how long a relay token lives after its last use.
+	// Players refresh a live playlist every few seconds, and a refresh
+	// re-registers every URI it still lists.
+	liveTVRelayTTL = 2 * time.Minute
 	// liveTVMaxPlays and liveTVMaxRelayEntries cap the tables; the entry that
 	// expires soonest is evicted first.
 	liveTVMaxPlays        = 4096
@@ -80,25 +90,18 @@ type liveRelayEntry struct {
 
 // newLiveStreamClient returns the client for provider streams: no overall
 // timeout, a response-header timeout, and at most liveTVMaxRedirects http(s)
-// redirects. A base client's Transport is reused.
-func newLiveStreamClient(base *http.Client) *http.Client {
-	var transport http.RoundTripper
-	switch t := baseTransport(base).(type) {
-	case nil:
-		dt := http.DefaultTransport.(*http.Transport).Clone()
-		dt.ResponseHeaderTimeout = liveTVStreamHeaderTimeout
-		transport = dt
-	case *http.Transport:
-		ct := t.Clone()
-		ct.ResponseHeaderTimeout = liveTVStreamHeaderTimeout
-		transport = ct
-	default:
-		transport = t
-	}
+// redirects. A request carries its play's allowed hosts (withLiveHosts); a
+// redirect may leave them only for a host that resolves to public addresses,
+// and liveStreamTransport enforces that again on every dial.
+func newLiveStreamClient() *http.Client {
 	return &http.Client{
-		Transport: transport,
+		Transport: &liveStreamTransport{allowed: newLiveGuardedTransport(true), public: newLiveGuardedTransport(false)},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) > liveTVMaxRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
+				return errLiveTVRedirect
+			}
+			ctx := req.Context()
+			if !liveHostAllowed(liveHostsFrom(ctx), req.URL.Host) && netguard.CheckURL(ctx, req.URL.String(), false) != nil {
 				return errLiveTVRedirect
 			}
 			return nil
@@ -106,11 +109,65 @@ func newLiveStreamClient(base *http.Client) *http.Client {
 	}
 }
 
-func baseTransport(c *http.Client) http.RoundTripper {
-	if c == nil {
-		return nil
+type liveHostsKey struct{}
+
+// withLiveHosts marks requests made with ctx as allowed to reach hosts, which
+// may be on the server's own network.
+func withLiveHosts(ctx context.Context, hosts []string) context.Context {
+	return context.WithValue(ctx, liveHostsKey{}, hosts)
+}
+
+func liveHostsFrom(ctx context.Context) []string {
+	hosts, _ := ctx.Value(liveHostsKey{}).([]string)
+	return hosts
+}
+
+// liveStreamTransport sends a request for one of its play's allowed hosts
+// through a pool that may dial private addresses, and every other request
+// through a pool that dials public addresses only. Checking at dial time
+// covers DNS answers that change after a redirect was checked, and the pools
+// never share connections.
+type liveStreamTransport struct {
+	allowed *http.Transport
+	public  *http.Transport
+}
+
+func (t *liveStreamTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if liveHostAllowed(liveHostsFrom(req.Context()), req.URL.Host) {
+		return t.allowed.RoundTrip(req)
 	}
-	return c.Transport
+	return t.public.RoundTrip(req)
+}
+
+// newLiveGuardedTransport mirrors netguard's guarded transport with the
+// stream response-header timeout. Blocked addresses are refused either way.
+func newLiveGuardedTransport(allowPrivate bool) *http.Transport {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return fmt.Errorf("checking dial address: %w", err)
+			}
+			addr, err := netip.ParseAddr(host)
+			if err != nil {
+				return fmt.Errorf("checking dial address: %w", err)
+			}
+			return netguard.CheckAddr(addr, allowPrivate)
+		},
+	}
+	return &http.Transport{
+		// No proxy: the dialer checks the address it connects to.
+		Proxy:                 nil,
+		DialContext:           dialer.DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: time.Second,
+		ResponseHeaderTimeout: liveTVStreamHeaderTimeout,
+	}
 }
 
 // pruneLiveTable makes room for one more entry under limit. Expired entries
@@ -178,7 +235,7 @@ func (l *LiveTV) registerRelay(rawURL, playSessionID string, hosts []string) (st
 	key := liveRelayKey(playSessionID, rawURL)
 	if token, ok := l.relayByURL[key]; ok {
 		if e := l.relay[token]; e != nil && e.Expires.After(now) {
-			e.Expires = now.Add(liveTVPlayTTL)
+			e.Expires = now.Add(liveTVRelayTTL)
 			return token, nil
 		}
 	}
@@ -194,7 +251,7 @@ func (l *LiveTV) registerRelay(rawURL, playSessionID string, hosts []string) (st
 		return "", err
 	}
 	token := hex.EncodeToString(raw[:])
-	l.relay[token] = &liveRelayEntry{URL: rawURL, PlaySessionID: playSessionID, Hosts: hosts, Expires: now.Add(liveTVPlayTTL)}
+	l.relay[token] = &liveRelayEntry{URL: rawURL, PlaySessionID: playSessionID, Hosts: hosts, Expires: now.Add(liveTVRelayTTL)}
 	l.relayByURL[key] = token
 	return token, nil
 }
@@ -208,7 +265,7 @@ func (l *LiveTV) relayEntry(token string) (liveRelayEntry, bool) {
 	if !ok || !e.Expires.After(now) {
 		return liveRelayEntry{}, false
 	}
-	e.Expires = now.Add(liveTVPlayTTL)
+	e.Expires = now.Add(liveTVRelayTTL)
 	return *e, true
 }
 
@@ -433,6 +490,9 @@ func (h *liveTVHandlers) wrapVideoStream(next http.HandlerFunc) http.HandlerFunc
 				return
 			}
 			play = livePlay{Channel: ch, Stream: stream, Caller: liveCaller(s)}
+			if info, err := h.bridge.Info(ctx, play.Caller, ch.InstallationID); err == nil {
+				play.Hosts = info.StreamHosts
+			}
 		}
 
 		if r.Method == http.MethodHead {
@@ -468,8 +528,10 @@ func liveURLHost(rawURL string) string {
 }
 
 // fetchLive GETs a provider URL with the stream client and requires a 2xx
-// answer. Failures are logged with the channel and host only.
-func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string) (*http.Response, bool) {
+// answer. The URL's own host and hosts may be on the server's network; a
+// redirect elsewhere must reach a public address. Failures are logged with the
+// channel and host only.
+func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string, hosts []string) (*http.Response, bool) {
 	ctx := r.Context()
 	logFailure := func(attrs ...any) {
 		slog.WarnContext(ctx, "jellycompat: livetv fetch failed", append([]any{
@@ -482,6 +544,11 @@ func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string
 		logFailure("error", "bad url")
 		return nil, false
 	}
+	allowed := slices.Clone(hosts)
+	if !liveHostAllowed(allowed, req.URL.Host) {
+		allowed = append(allowed, req.URL.Host)
+	}
+	req = req.WithContext(withLiveHosts(ctx, allowed))
 	resp, err := h.bridge.streamClient.Do(req)
 	if err != nil {
 		if ctx.Err() == nil {
@@ -495,6 +562,13 @@ func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string
 		return nil, false
 	}
 	return resp, true
+}
+
+// newLiveStreamWriter wraps a relayed body's writer so a client that stops
+// reading, even without closing, is cut off within the stall window instead of
+// holding a provider connection until TCP gives up.
+func newLiveStreamWriter(w http.ResponseWriter) http.ResponseWriter {
+	return httpstream.NewRollingDeadlineWriter(w)
 }
 
 // liveFlushWriter flushes the response every liveTVFlushEvery bytes so a live
@@ -515,9 +589,11 @@ func (f *liveFlushWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// relayTS copies a server-mode TS stream to the client.
+// relayTS copies a server-mode TS stream to the client. The rolling write
+// deadline ends the relay, and frees the provider stream, when the client
+// stops reading.
 func (h *liveTVHandlers) relayTS(w http.ResponseWriter, r *http.Request, play livePlay) {
-	resp, ok := h.fetchLive(r, play, play.Stream.URL)
+	resp, ok := h.fetchLive(r, play, play.Stream.URL, play.Hosts)
 	if !ok {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
@@ -526,9 +602,10 @@ func (h *liveTVHandlers) relayTS(w http.ResponseWriter, r *http.Request, play li
 	ctx := r.Context()
 	slog.DebugContext(ctx, "jellycompat: livetv relay started",
 		"component", "jellycompat", "channel_id", play.Channel.EncodedID)
-	w.Header().Set("Content-Type", "video/mp2t")
-	w.WriteHeader(http.StatusOK)
-	fw := &liveFlushWriter{w: w, rc: http.NewResponseController(w)}
+	rw := newLiveStreamWriter(w)
+	rw.Header().Set("Content-Type", "video/mp2t")
+	rw.WriteHeader(http.StatusOK)
+	fw := &liveFlushWriter{w: rw, rc: http.NewResponseController(rw)}
 	n, _ := io.Copy(fw, resp.Body)
 	_ = fw.rc.Flush()
 	slog.DebugContext(ctx, "jellycompat: livetv relay ended",
@@ -593,7 +670,7 @@ func (h *liveTVHandlers) HandleLivePlaylist(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusNotFound, "NotFound", "Stream not found")
 		return
 	}
-	resp, ok := h.fetchLive(r, play, play.Stream.URL)
+	resp, ok := h.fetchLive(r, play, play.Stream.URL, play.Hosts)
 	if !ok {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
@@ -614,7 +691,7 @@ func (h *liveTVHandlers) HandleLiveSegment(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusNotFound, "NotFound", "Stream not found")
 		return
 	}
-	resp, ok := h.fetchLive(r, play, entry.URL)
+	resp, ok := h.fetchLive(r, play, entry.URL, entry.Hosts)
 	if !ok {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
@@ -627,14 +704,15 @@ func (h *liveTVHandlers) HandleLiveSegment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer resp.Body.Close()
+	rw := newLiveStreamWriter(w)
 	if ct := resp.Header.Get("Content-Type"); ct != "" {
-		w.Header().Set("Content-Type", ct)
+		rw.Header().Set("Content-Type", ct)
 	}
 	if cl := resp.Header.Get("Content-Length"); cl != "" {
-		w.Header().Set("Content-Length", cl)
+		rw.Header().Set("Content-Length", cl)
 	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = io.Copy(w, resp.Body)
+	rw.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(rw, resp.Body)
 }
 
 // liveURITags are the playlist tags whose URI attribute names a resource. Every
