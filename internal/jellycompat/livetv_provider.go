@@ -117,17 +117,34 @@ type LiveTV struct {
 	// prefLocks maps a [2]int{userID, installationID} to the *sync.Mutex that
 	// serializes preference writes for that account.
 	prefLocks sync.Map
+
+	// streamClient fetches provider streams and playlists; see
+	// newLiveStreamClient. plays and relay hold negotiated plays and relayed
+	// HLS URLs by token, relayByURL maps a play and URL to its token, and the
+	// *Swept times record each table's last expiry sweep. All are guarded by
+	// streamMu; see livetv_stream.go.
+	streamClient *http.Client
+	streamMu     sync.Mutex
+	plays        map[string]*livePlay
+	relay        map[string]*liveRelayEntry
+	relayByURL   map[string]string
+	playsSwept   time.Time
+	relaySwept   time.Time
 }
 
 // NewLiveTV returns a LiveTV over routes. httpClient fetches provider stream
 // URLs; nil means a default client.
 func NewLiveTV(routes LiveTVRouteCaller, prefs LiveTVPrefsStore, httpClient *http.Client) *LiveTV {
 	return &LiveTV{
-		routes:     routes,
-		prefs:      prefs,
-		httpClient: httpClient,
-		now:        time.Now,
-		installs:   map[int]*liveInstall{},
+		routes:       routes,
+		prefs:        prefs,
+		httpClient:   httpClient,
+		now:          time.Now,
+		installs:     map[int]*liveInstall{},
+		streamClient: newLiveStreamClient(httpClient),
+		plays:        map[string]*livePlay{},
+		relay:        map[string]*liveRelayEntry{},
+		relayByURL:   map[string]string{},
 	}
 }
 

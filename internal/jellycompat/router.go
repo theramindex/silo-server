@@ -328,10 +328,10 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Post("/Sessions/Capabilities", playbackHandler.HandleCapabilitiesFull)
 			r.Post("/Sessions/Capabilities/Full", playbackHandler.HandleCapabilitiesFull)
 			r.Get("/Playback/BitrateTest", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Playback/BitrateTest", playbackHandler.HandleBitrateTest))
-			r.Get("/Items/{id}/PlaybackInfo", playbackHandler.HandlePlaybackInfo)
-			r.Post("/Items/{id}/PlaybackInfo", playbackHandler.HandlePlaybackInfo)
-			r.Get("/Users/{userId}/Items/{id}/PlaybackInfo", playbackHandler.HandlePlaybackInfo)
-			r.Post("/Users/{userId}/Items/{id}/PlaybackInfo", playbackHandler.HandlePlaybackInfo)
+			r.Get("/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                 // theramindex fork: Live TV playback
+			r.Post("/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                // theramindex fork: Live TV playback
+			r.Get("/Users/{userId}/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))  // theramindex fork: Live TV playback
+			r.Post("/Users/{userId}/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo)) // theramindex fork: Live TV playback
 			r.Post("/Sessions/Playing", playbackHandler.HandleSessionPlaying)
 			r.Post("/Sessions/Playing/Progress", playbackHandler.HandleSessionPlayingProgress)
 			r.Post("/Sessions/Playing/Stopped", playbackHandler.HandleSessionPlayingStopped)
@@ -353,16 +353,16 @@ func NewRouter(deps Dependencies) chi.Router {
 		r.Use(PlaybackSessionAuth(deps.SessionStore, deps.PlaybackStore, adminAPIKeyAuth))
 		r.Method(http.MethodHead, "/Items/{id}/Download", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Items/{id}/Download", playbackHandler.HandleDownload))
 		r.Get("/Items/{id}/Download", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Items/{id}/Download", playbackHandler.HandleDownload))
-		r.Method(http.MethodHead, "/Videos/{id}/stream", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Videos/{id}/stream", playbackHandler.HandleVideoStream))
+		r.Method(http.MethodHead, "/Videos/{id}/stream", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Videos/{id}/stream", liveTV.wrapVideoStream(playbackHandler.HandleVideoStream))) // theramindex fork: Live TV streams
 		r.Get("/Audio/{itemId}/stream", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Audio/{itemId}/stream", itemsHandler.HandleThemeAudio))
 		r.Head("/Audio/{itemId}/stream", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Audio/{itemId}/stream", itemsHandler.HandleThemeAudio))
 		r.Get("/Audio/{itemId}/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Audio/{itemId}/stream.{container}", itemsHandler.HandleThemeAudio))
 		r.Head("/Audio/{itemId}/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Audio/{itemId}/stream.{container}", itemsHandler.HandleThemeAudio))
 		r.Get("/Audio/{itemId}/universal", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Audio/{itemId}/universal", itemsHandler.HandleThemeAudio))
 		r.Head("/Audio/{itemId}/universal", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Audio/{itemId}/universal", itemsHandler.HandleThemeAudio))
-		r.Get("/Videos/{id}/stream", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{id}/stream", playbackHandler.HandleVideoStream))
-		r.Method(http.MethodHead, "/Videos/{id}/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Videos/{id}/stream.{container}", playbackHandler.HandleVideoStream))
-		r.Get("/Videos/{id}/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{id}/stream.{container}", playbackHandler.HandleVideoStream))
+		r.Get("/Videos/{id}/stream", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{id}/stream", liveTV.wrapVideoStream(playbackHandler.HandleVideoStream)))                                              // theramindex fork: Live TV streams
+		r.Method(http.MethodHead, "/Videos/{id}/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Videos/{id}/stream.{container}", liveTV.wrapVideoStream(playbackHandler.HandleVideoStream))) // theramindex fork: Live TV streams
+		r.Get("/Videos/{id}/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{id}/stream.{container}", liveTV.wrapVideoStream(playbackHandler.HandleVideoStream)))                      // theramindex fork: Live TV streams
 		r.Method(http.MethodHead, "/Videos/{id}/audio-v2/stream", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Videos/{id}/audio-v2/stream", playbackHandler.HandleAudioV2VideoStream))
 		r.Get("/Videos/{id}/audio-v2/stream", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{id}/audio-v2/stream", playbackHandler.HandleAudioV2VideoStream))
 		r.Method(http.MethodHead, "/Videos/{id}/audio-v2/stream.{container}", observeCompat(deps.StreamTelemetry, http.MethodHead, "/Videos/{id}/audio-v2/stream.{container}", playbackHandler.HandleAudioV2VideoStream))
@@ -389,6 +389,12 @@ func NewRouter(deps Dependencies) chi.Router {
 		r.Get("/Videos/{id}/{routeMediaSourceId}/Attachments/{routeIndex}", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{id}/{routeMediaSourceId}/Attachments/{routeIndex}", playbackHandler.HandleAttachment))
 		// Jellyfin subtitle routes encode the start position in ticks in this component.
 		r.Get("/Videos/{routeItemId}/{routeMediaSourceId}/Subtitles/{routeIndex}/{routeStartPositionTicks}/stream.{routeFormat}", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Videos/{routeItemId}/{routeMediaSourceId}/Subtitles/{routeIndex}/{routeStartPositionTicks}/stream.{routeFormat}", playbackHandler.HandleSubtitleStream))
+		// theramindex fork: Live TV HLS relay, mounted only when Live TV is on. Its
+		// URLs carry MediaSourceId and PlaySessionId, which the auth above grants.
+		if liveTV != nil {
+			r.Get("/Videos/{id}/live.m3u8", liveTV.HandleLivePlaylist)
+			r.Get("/Videos/{id}/live/{token}", liveTV.HandleLiveSegment)
+		}
 	})
 
 	r.Method(http.MethodHead, "/System/Info/Public", http.HandlerFunc(systemHandler.HandlePublicInfo))
