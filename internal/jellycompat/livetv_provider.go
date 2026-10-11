@@ -113,6 +113,10 @@ type LiveTV struct {
 	mu        sync.Mutex
 	providers liveCacheEntry[[]LiveTVProviderRef]
 	installs  map[int]*liveInstall
+
+	// prefLocks maps a [2]int{userID, installationID} to the *sync.Mutex that
+	// serializes preference writes for that account.
+	prefLocks sync.Map
 }
 
 // NewLiveTV returns a LiveTV over routes. httpClient fetches provider stream
