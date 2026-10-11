@@ -567,7 +567,7 @@ func TestLivePlaysAndRelayAreBoundedAndExpire(t *testing.T) {
 	}
 
 	for i := 0; i <= liveTVMaxRelayEntries; i++ {
-		if _, err := l.registerRelay(fmt.Sprint("http://h/", i), "ps", nil); err != nil {
+		if _, err := l.registerRelay(fmt.Sprint("http://h/", i), "ps", nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		clock.Advance(1)
@@ -575,9 +575,9 @@ func TestLivePlaysAndRelayAreBoundedAndExpire(t *testing.T) {
 	if n, m := len(l.relay), len(l.relayByURL); n != liveTVMaxRelayEntries || m != liveTVMaxRelayEntries {
 		t.Errorf("relay = %d (by URL %d), want capped at %d", n, m, liveTVMaxRelayEntries)
 	}
-	tok1, _ := l.registerRelay("http://h/same", "ps", nil)
-	tok2, _ := l.registerRelay("http://h/same", "ps", nil)
-	tok3, _ := l.registerRelay("http://h/same", "other", nil)
+	tok1, _ := l.registerRelay("http://h/same", "ps", nil, nil)
+	tok2, _ := l.registerRelay("http://h/same", "ps", nil, nil)
+	tok3, _ := l.registerRelay("http://h/same", "other", nil, nil)
 	if tok1 != tok2 || tok1 == tok3 {
 		t.Errorf("tokens %s %s %s: want one stable token per play and URL", tok1, tok2, tok3)
 	}
@@ -760,5 +760,100 @@ func TestLivePlayOutlivesAPause(t *testing.T) {
 	clock.Advance(31 * time.Minute)
 	if rec := serveLiveMedia(t, env.router, http.MethodGet, playlist); rec.Code != http.StatusNotFound {
 		t.Errorf("playlist after 31 idle minutes = %d, want 404", rec.Code)
+	}
+}
+
+// livePoolRecorder stands in for one of liveStreamTransport's pools. It records
+// which pool carried each request's host and answers from handlers by host
+// without dialing.
+type livePoolRecorder struct {
+	pool     string
+	handlers map[string]http.Handler
+	mu       *sync.Mutex
+	served   *[]string
+}
+
+func (p livePoolRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	p.mu.Lock()
+	*p.served = append(*p.served, p.pool+" "+req.URL.Host)
+	p.mu.Unlock()
+	h, ok := p.handlers[req.URL.Host]
+	if !ok {
+		return nil, fmt.Errorf("no handler for %s", req.URL.Host)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	resp := rec.Result()
+	resp.Request = req
+	return resp, nil
+}
+
+// A host admitted only by the public check (a redirect target, and so the
+// final playlist host) may serve relayed URIs, but every fetch from it goes
+// through the public-only pool. Only declared streamHosts use the pool that
+// may dial private addresses, so a promoted name that later resolves to a
+// private address is refused when dialed.
+func TestLiveHLSRelayPromotedHostsUsePublicPool(t *testing.T) {
+	const declared, promoted = "tuner.lan:5004", "8.8.8.8"
+	declaredMux := http.NewServeMux()
+	declaredMux.Handle("/"+liveSecret+"/start.m3u8",
+		http.RedirectHandler("http://"+promoted+"/"+liveSecret+"/master.m3u8", http.StatusFound))
+	declaredMux.HandleFunc("/"+liveSecret+"/seg2.ts", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "video/mp2t")
+		_, _ = w.Write([]byte("DECLARED-SEG"))
+	})
+	promotedMux := http.NewServeMux()
+	promotedMux.HandleFunc("/"+liveSecret+"/master.m3u8", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+		_, _ = w.Write([]byte("#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n#EXTINF:6.0,\nhttp://" + declared + "/" + liveSecret + "/seg2.ts\n"))
+	})
+	promotedMux.HandleFunc("/"+liveSecret+"/seg1.ts", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "video/mp2t")
+		_, _ = w.Write([]byte("PROMOTED-SEG"))
+	})
+
+	captureLiveLogs(t)
+	env := newLiveTestEnv(t, true)
+	env.routes.setResponse(liveTestInstall, liveTVPathInfo, http.StatusOK,
+		`{"contractVersion":1,"name":"Dispatcharr","streamHosts":["`+declared+`"]}`)
+	env.setStream(t, liveTVStream{URL: "http://" + declared + "/" + liveSecret + "/start.m3u8", Container: "hls", Mode: "server"})
+	handlers := map[string]http.Handler{declared: declaredMux, promoted: promotedMux}
+	var mu sync.Mutex
+	var served []string
+	env.bridge.streamClient.Transport = &liveStreamTransport{
+		private: livePoolRecorder{pool: "private", handlers: handlers, mu: &mu, served: &served},
+		public:  livePoolRecorder{pool: "public", handlers: handlers, mu: &mu, served: &served},
+	}
+	id := liveChannelIDFor("m3u:news.hd")
+
+	_, info := livePlaybackInfo(t, env.router, id, liveTVProfileBrowser)
+	playlist := info.MediaSources[0].TranscodingURL
+	rec := serveLiveMedia(t, env.router, http.MethodGet, playlist)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("playlist = %d %s", rec.Code, rec.Body.String())
+	}
+	uris := playlistURIs(rec.Body.String())
+	if len(uris) != 2 {
+		t.Fatalf("playlist URIs = %v", uris)
+	}
+	// seg1.ts is on the final playlist host, which is allowed though not
+	// declared.
+	for i, want := range []string{"PROMOTED-SEG", "DECLARED-SEG"} {
+		seg := serveLiveMedia(t, env.router, http.MethodGet, relayPath(t, playlist, uris[i]))
+		if seg.Code != http.StatusOK || seg.Body.String() != want {
+			t.Errorf("segment %d = %d %q, want %q", i, seg.Code, seg.Body.String(), want)
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{
+		"private " + declared, // start.m3u8
+		"public " + promoted,  // the redirect to master.m3u8
+		"public " + promoted,  // seg1.ts
+		"private " + declared, // seg2.ts
+	}
+	if strings.Join(served, ",") != strings.Join(want, ",") {
+		t.Errorf("pools used = %v, want %v", served, want)
 	}
 }

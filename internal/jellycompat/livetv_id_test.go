@@ -38,10 +38,10 @@ func TestLiveChannelIDIsStableAndDistinct(t *testing.T) {
 
 func TestLiveChannelIDDoesNotCollideWithUpstreamIDs(t *testing.T) {
 	codec := NewResourceIDCodec()
+	if EncodedIDLiveChannel <= EncodedIDThemeSong {
+		t.Fatalf("EncodedIDLiveChannel = %d reuses an upstream kind (last is %d)", EncodedIDLiveChannel, EncodedIDThemeSong)
+	}
 	for kind := EncodedIDLibrary; kind <= EncodedIDThemeSong; kind++ {
-		if kind == EncodedIDLiveChannel {
-			t.Fatal("kind value reused")
-		}
 		for _, v := range []int64{0, 1, 42, 1 << 40} {
 			if isLiveChannelID(codec.EncodeIntID(kind, v)) {
 				t.Fatalf("kind %d value %d decoded as live channel", kind, v)

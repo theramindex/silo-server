@@ -64,6 +64,14 @@ func newGuardRouter(t *testing.T, content ContentService, bridge *LiveTV, codec 
 // TestLiveTVOffMatchesUpstream: with SILO_JELLYCOMPAT_LIVETV=off the bridge is
 // nil, and a bridge without providers must be indistinguishable from that on
 // everything a client reads outside /LiveTv.
+//
+// Off-switch parity with upstream is identical except for path-segment
+// normalization of livetv/channels: path_normalization.go maps those segments
+// to LiveTv and Channels whether or not the bridge is on.
+//
+// With a bridge but no providers, /LiveTv/* answers 200 with empty content
+// rather than upstream's 404. Clients reach it only when they see the Live TV
+// policy flag, which is off without providers.
 func TestLiveTVOffMatchesUpstream(t *testing.T) {
 	content := &librariesContentService{}
 	off := newGuardRouter(t, content, nil, nil)

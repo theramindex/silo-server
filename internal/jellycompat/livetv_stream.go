@@ -80,22 +80,26 @@ type livePlay struct {
 }
 
 // liveRelayEntry is a provider URL a relayed playlist refers to by token.
-// Hosts are the hosts that URL's own playlist may point at.
+// Hosts (the play's declared streamHosts) and Promoted (hosts admitted because
+// they resolved to public addresses) are the hosts that URL's own playlist may
+// point at. Only Hosts may be fetched through the pool that dials private
+// addresses.
 type liveRelayEntry struct {
 	URL           string
 	PlaySessionID string
 	Hosts         []string
+	Promoted      []string
 	Expires       time.Time
 }
 
 // newLiveStreamClient returns the client for provider streams: no overall
 // timeout, a response-header timeout, and at most liveTVMaxRedirects http(s)
-// redirects. A request carries its play's allowed hosts (withLiveHosts); a
+// redirects. A request carries its play's declared hosts (withLiveHosts); a
 // redirect may leave them only for a host that resolves to public addresses,
 // and liveStreamTransport enforces that again on every dial.
 func newLiveStreamClient() *http.Client {
 	return &http.Client{
-		Transport: &liveStreamTransport{allowed: newLiveGuardedTransport(true), public: newLiveGuardedTransport(false)},
+		Transport: &liveStreamTransport{private: newLiveGuardedTransport(true), public: newLiveGuardedTransport(false)},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) > liveTVMaxRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
 				return errLiveTVRedirect
@@ -111,8 +115,8 @@ func newLiveStreamClient() *http.Client {
 
 type liveHostsKey struct{}
 
-// withLiveHosts marks requests made with ctx as allowed to reach hosts, which
-// may be on the server's own network.
+// withLiveHosts marks requests made with ctx as allowed to reach hosts on the
+// server's own network. Only a provider's declared streamHosts belong here.
 func withLiveHosts(ctx context.Context, hosts []string) context.Context {
 	return context.WithValue(ctx, liveHostsKey{}, hosts)
 }
@@ -122,19 +126,19 @@ func liveHostsFrom(ctx context.Context) []string {
 	return hosts
 }
 
-// liveStreamTransport sends a request for one of its play's allowed hosts
+// liveStreamTransport sends a request for one of its play's declared hosts
 // through a pool that may dial private addresses, and every other request
 // through a pool that dials public addresses only. Checking at dial time
 // covers DNS answers that change after a redirect was checked, and the pools
 // never share connections.
 type liveStreamTransport struct {
-	allowed *http.Transport
-	public  *http.Transport
+	private http.RoundTripper
+	public  http.RoundTripper
 }
 
 func (t *liveStreamTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if liveHostAllowed(liveHostsFrom(req.Context()), req.URL.Host) {
-		return t.allowed.RoundTrip(req)
+		return t.private.RoundTrip(req)
 	}
 	return t.public.RoundTrip(req)
 }
@@ -228,7 +232,7 @@ func liveRelayKey(playSessionID, rawURL string) string { return playSessionID + 
 // registerRelay returns the token for a provider URL within a play, reusing
 // the play's existing token for the same URL so playlist refreshes keep
 // stable segment URIs.
-func (l *LiveTV) registerRelay(rawURL, playSessionID string, hosts []string) (string, error) {
+func (l *LiveTV) registerRelay(rawURL, playSessionID string, hosts, promoted []string) (string, error) {
 	l.streamMu.Lock()
 	defer l.streamMu.Unlock()
 	now := l.now()
@@ -251,7 +255,7 @@ func (l *LiveTV) registerRelay(rawURL, playSessionID string, hosts []string) (st
 		return "", err
 	}
 	token := hex.EncodeToString(raw[:])
-	l.relay[token] = &liveRelayEntry{URL: rawURL, PlaySessionID: playSessionID, Hosts: hosts, Expires: now.Add(liveTVRelayTTL)}
+	l.relay[token] = &liveRelayEntry{URL: rawURL, PlaySessionID: playSessionID, Hosts: hosts, Promoted: promoted, Expires: now.Add(liveTVRelayTTL)}
 	l.relayByURL[key] = token
 	return token, nil
 }
@@ -528,10 +532,10 @@ func liveURLHost(rawURL string) string {
 }
 
 // fetchLive GETs a provider URL with the stream client and requires a 2xx
-// answer. The URL's own host and hosts may be on the server's network; a
-// redirect elsewhere must reach a public address. Failures are logged with the
-// channel and host only.
-func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string, hosts []string) (*http.Response, bool) {
+// answer. Only the declared hosts may be on the server's network; any other
+// host, the URL's own included, must reach a public address. Failures are
+// logged with the channel and host only.
+func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string, declared []string) (*http.Response, bool) {
 	ctx := r.Context()
 	logFailure := func(attrs ...any) {
 		slog.WarnContext(ctx, "jellycompat: livetv fetch failed", append([]any{
@@ -544,11 +548,7 @@ func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string
 		logFailure("error", "bad url")
 		return nil, false
 	}
-	allowed := slices.Clone(hosts)
-	if !liveHostAllowed(allowed, req.URL.Host) {
-		allowed = append(allowed, req.URL.Host)
-	}
-	req = req.WithContext(withLiveHosts(ctx, allowed))
+	req = req.WithContext(withLiveHosts(ctx, declared))
 	resp, err := h.bridge.streamClient.Do(req)
 	if err != nil {
 		if ctx.Err() == nil {
@@ -625,24 +625,26 @@ func readLivePlaylist(resp *http.Response) ([]byte, error) {
 }
 
 // relayPlaylist rewrites a fetched playlist so every URI points at the relay.
-// URIs may use the play's hosts or the host the playlist was finally served
-// from. prefix is the path from the playlist's own relay URL to the token
+// URIs may use the declared hosts, the promoted hosts, or the host the
+// playlist was finally served from. A final host that is not declared was
+// reached through the public-only pool, so it is promoted rather than
+// declared. prefix is the path from the playlist's own relay URL to the token
 // route.
-func (h *liveTVHandlers) relayPlaylist(w http.ResponseWriter, r *http.Request, play livePlay, hosts []string, resp *http.Response, prefix string) {
+func (h *liveTVHandlers) relayPlaylist(w http.ResponseWriter, r *http.Request, play livePlay, declared, promoted []string, resp *http.Response, prefix string) {
 	defer resp.Body.Close()
 	body, err := readLivePlaylist(resp)
 	if err == nil {
 		base := resp.Request.URL
-		allowed := slices.Clone(hosts)
-		if !liveHostAllowed(allowed, base.Host) {
-			allowed = append(allowed, base.Host)
+		if !liveHostAllowed(declared, base.Host) && !liveHostAllowed(promoted, base.Host) {
+			promoted = append(slices.Clone(promoted), base.Host)
 		}
 		query := liveMediaQuery(play.Channel.EncodedID, play.PlaySessionID)
 		body, err = rewriteLivePlaylist(body, base, func(abs *url.URL) (string, error) {
-			if (abs.Scheme != "http" && abs.Scheme != "https") || !liveHostAllowed(allowed, abs.Host) {
+			if (abs.Scheme != "http" && abs.Scheme != "https") ||
+				(!liveHostAllowed(declared, abs.Host) && !liveHostAllowed(promoted, abs.Host)) {
 				return "", errLiveTVRelayHost{host: abs.Host}
 			}
-			token, err := h.bridge.registerRelay(abs.String(), play.PlaySessionID, allowed)
+			token, err := h.bridge.registerRelay(abs.String(), play.PlaySessionID, declared, promoted)
 			if err != nil {
 				return "", err
 			}
@@ -675,7 +677,7 @@ func (h *liveTVHandlers) HandleLivePlaylist(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
 	}
-	h.relayPlaylist(w, r, play, play.Hosts, resp, "live/")
+	h.relayPlaylist(w, r, play, play.Hosts, nil, resp, "live/")
 }
 
 // HandleLiveSegment serves GET /Videos/{id}/live/{token}: a segment, key or
@@ -700,7 +702,7 @@ func (h *liveTVHandlers) HandleLiveSegment(w http.ResponseWriter, r *http.Reques
 		strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".m3u8") {
 		// A child playlist is served from .../live/{token}, so its relayed URIs
 		// are siblings of it.
-		h.relayPlaylist(w, r, play, entry.Hosts, resp, "")
+		h.relayPlaylist(w, r, play, entry.Hosts, entry.Promoted, resp, "")
 		return
 	}
 	defer resp.Body.Close()

@@ -528,3 +528,51 @@ func TestLiveTVLogoPrivateHostNotInStreamHosts404(t *testing.T) {
 		t.Error("a logo on a private host outside streamHosts was fetched")
 	}
 }
+
+// A declared host still goes through a guarded dialer: 0.0.0.0 dials loopback
+// on Linux, but it is a blocked address and is refused even for a declared
+// host.
+func TestLiveTVLogoDeclaredHostRefusesBlockedAddress(t *testing.T) {
+	fetched := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetched = true
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte("\x89PNG"))
+	}))
+	defer server.Close()
+	u, _ := url.Parse(server.URL)
+	host := "0.0.0.0:" + u.Port()
+
+	env := newLogoTestEnv(t, "http://"+host+"/logo.png", []string{host})
+	rec := serveLive(t, env.router, http.MethodGet, "/Items/"+liveChannelIDFor("logo:1")+"/Images/Primary", "")
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("logo on a blocked declared address = %d, want 502", rec.Code)
+	}
+	if fetched {
+		t.Error("a logo on a blocked address was fetched")
+	}
+}
+
+func TestLiveTVLogoRejectsNonImage(t *testing.T) {
+	contentType := "text/html"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", contentType)
+		_, _ = w.Write([]byte("<html>login</html>"))
+	}))
+	defer server.Close()
+	host := strings.TrimPrefix(server.URL, "http://")
+
+	env := newLogoTestEnv(t, server.URL+"/logo.png", []string{host})
+	path := "/Items/" + liveChannelIDFor("logo:1") + "/Images/Primary"
+	for _, ct := range []string{"text/html", "", "application/json"} {
+		contentType = ct
+		rec := serveLive(t, env.router, http.MethodGet, path, "")
+		if rec.Code != http.StatusBadGateway || strings.Contains(rec.Body.String(), "login") {
+			t.Errorf("logo with Content-Type %q = %d %q, want 502", ct, rec.Code, rec.Body.String())
+		}
+	}
+	contentType = "IMAGE/svg+xml; charset=utf-8"
+	if rec := serveLive(t, env.router, http.MethodGet, path, ""); rec.Code != http.StatusOK {
+		t.Errorf("logo with an image Content-Type = %d, want 200", rec.Code)
+	}
+}

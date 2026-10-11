@@ -26,9 +26,11 @@ type liveTVHandlers struct {
 	userData *UserDataHandler
 	playback *PlaybackHandler
 
-	// logoTransport fetches logos on a provider's declared streamHosts; nil is
-	// http.DefaultTransport. publicLogoClient fetches every other logo and
-	// refuses private addresses when it dials.
+	// logoTransport fetches logos on a provider's declared streamHosts. Like the
+	// stream transport, it dials private addresses only for the hosts the
+	// request carries (withLiveHosts) and refuses blocked addresses always.
+	// publicLogoClient fetches every other logo and refuses private addresses
+	// when it dials.
 	logoTransport    http.RoundTripper
 	publicLogoClient *http.Client
 }
@@ -45,6 +47,7 @@ func newLiveTVHandlers(bridge *LiveTV, serverID string, items *ItemsHandler, use
 		items:            items,
 		userData:         userData,
 		playback:         playback,
+		logoTransport:    &liveStreamTransport{private: newLiveGuardedTransport(true), public: newLiveGuardedTransport(false)},
 		publicLogoClient: netguard.NewClient(liveLogoTimeout),
 	}
 }
@@ -278,7 +281,8 @@ type liveLogoServer interface {
 // since they are often plain http and a browser would block mixed content. The
 // route is anonymous, so a logo is fetched only from one of the provider's
 // streamHosts or from a host whose every address is public; anything else is
-// a 404.
+// a 404. A successful answer that is not an image is a 502, so a login page or
+// error document is never served as a logo.
 func (h *liveTVHandlers) serveLiveLogo(w http.ResponseWriter, r *http.Request, rawID, imageType string) {
 	if !strings.EqualFold(imageType, compatImagePrimary) {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
@@ -289,12 +293,12 @@ func (h *liveTVHandlers) serveLiveLogo(w http.ResponseWriter, r *http.Request, r
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	client, ok := h.logoClient(r.Context(), rawID, logo)
+	ctx, client, ok := h.logoClient(r.Context(), rawID, logo)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, logo, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, logo, nil)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Failed to load image")
 		return
@@ -305,24 +309,33 @@ func (h *liveTVHandlers) serveLiveLogo(w http.ResponseWriter, r *http.Request, r
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Failed to load image")
 		return
 	}
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 && !liveImageContentType(resp.Header.Get("Content-Type")) {
+		_ = resp.Body.Close()
+		writeError(w, http.StatusBadGateway, "UpstreamError", "Failed to load image")
+		return
+	}
 	proxyImage(w, resp)
 }
 
-// logoClient picks the client allowed to fetch logo, or reports that it may
-// not be fetched. A logo on one of the provider's streamHosts may follow
-// redirects only to those hosts.
-func (h *liveTVHandlers) logoClient(ctx context.Context, rawID, logo string) (*http.Client, bool) {
+func liveImageContentType(contentType string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "image/")
+}
+
+// logoClient picks the client allowed to fetch logo, and the context to fetch
+// it with, or reports that it may not be fetched. A logo on one of the
+// provider's streamHosts may follow redirects only to those hosts.
+func (h *liveTVHandlers) logoClient(ctx context.Context, rawID, logo string) (context.Context, *http.Client, bool) {
 	target, err := parseRemoteImageURL(logo)
 	if err != nil {
-		return nil, false
+		return ctx, nil, false
 	}
 	key, ok := decodeLiveChannelID(rawID)
 	if !ok {
-		return nil, false
+		return ctx, nil, false
 	}
 	if info, err := h.bridge.Info(ctx, LiveTVCaller{}, key.InstallationID); err == nil && liveHostAllowed(info.StreamHosts, target.Host) {
 		hosts := info.StreamHosts
-		return &http.Client{
+		return withLiveHosts(ctx, hosts), &http.Client{
 			Timeout:   liveLogoTimeout,
 			Transport: h.logoTransport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -334,9 +347,9 @@ func (h *liveTVHandlers) logoClient(ctx context.Context, rawID, logo string) (*h
 		}, true
 	}
 	if netguard.CheckURL(ctx, logo, false) == nil {
-		return h.publicLogoClient, true
+		return ctx, h.publicLogoClient, true
 	}
-	return nil, false
+	return ctx, nil, false
 }
 
 func liveHostAllowed(hosts []string, host string) bool {
