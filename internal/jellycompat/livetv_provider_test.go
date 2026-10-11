@@ -34,6 +34,7 @@ type fakeLiveTVRoutes struct {
 	listCalls int
 	responses map[int]map[string]fakeRouteResponse // installation -> path -> response
 	calls     []fakeRouteCall
+	gate      chan struct{} // when non-nil, Call blocks until it is closed
 }
 
 func (f *fakeLiveTVRoutes) ListProviders(context.Context) ([]LiveTVProviderRef, error) {
@@ -48,13 +49,18 @@ func (f *fakeLiveTVRoutes) ListProviders(context.Context) ([]LiveTVProviderRef, 
 
 func (f *fakeLiveTVRoutes) Call(_ context.Context, id int, c LiveTVCaller, method, path string, q map[string]string) (int, []byte, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	query := make(map[string]string, len(q))
 	for k, v := range q {
 		query[k] = v
 	}
 	f.calls = append(f.calls, fakeRouteCall{installationID: id, caller: c, path: path, query: query})
 	resp, ok := f.responses[id][path]
+	gate := f.gate
+	f.mu.Unlock()
+	if gate != nil {
+		// A hung provider: ignores ctx and answers only once released.
+		<-gate
+	}
 	if !ok {
 		return 0, nil, fmt.Errorf("fakeLiveTVRoutes: no response for installation %d %s %s", id, method, path)
 	}
@@ -88,6 +94,17 @@ func (f *fakeLiveTVRoutes) callsTo(path string) []fakeRouteCall {
 		}
 	}
 	return out
+}
+
+// hang makes every later Call block until the test ends, like a provider that
+// never answers.
+func (f *fakeLiveTVRoutes) hang(t *testing.T) {
+	t.Helper()
+	gate := make(chan struct{})
+	f.mu.Lock()
+	f.gate = gate
+	f.mu.Unlock()
+	t.Cleanup(func() { close(gate) })
 }
 
 func (f *fakeLiveTVRoutes) listCallCount() int {
@@ -595,6 +612,249 @@ func TestLiveTVResolveStreamNeedsInfo(t *testing.T) {
 	ch, _ := l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "a"))
 	if _, err := l.ResolveStream(ctx, LiveTVCaller{}, ch, "any"); err == nil {
 		t.Fatal("ResolveStream succeeded without any way to check the stream host")
+	}
+}
+
+func TestLiveTVFirstProviderListErrorIsCached(t *testing.T) {
+	routes := &fakeLiveTVRoutes{listErr: errors.New("host unavailable")}
+	l, clock := newTestLiveTV(routes)
+	ctx := context.Background()
+
+	if l.Active(ctx) {
+		t.Error("Active = true although discovery failed and there is no earlier list")
+	}
+	l.Providers(ctx)
+	l.Lineup(ctx, LiveTVCaller{})
+	if n := routes.listCallCount(); n != 1 {
+		t.Fatalf("ListProviders called %d times within the TTL after a first-ever failure, want 1", n)
+	}
+	clock.Advance(61 * time.Second)
+	l.Active(ctx)
+	if n := routes.listCallCount(); n != 2 {
+		t.Errorf("ListProviders called %d times after the TTL, want 2", n)
+	}
+}
+
+func TestLiveTVInfoReturnsCopyOfStreamHosts(t *testing.T) {
+	routes := singleProviderRoutes(liveTVChannelsBody("a"))
+	routes.setResponse(1, liveTVPathInfo, 200, `{"contractVersion":1,"name":"X","streamHosts":["a.example:9191"]}`)
+	l, _ := newTestLiveTV(routes)
+	ctx := context.Background()
+
+	first, err := l.Info(ctx, LiveTVCaller{}, 1)
+	if err != nil || len(first.StreamHosts) != 1 {
+		t.Fatalf("Info = %+v, %v", first, err)
+	}
+	first.StreamHosts[0] = "evil.example"
+
+	second, err := l.Info(ctx, LiveTVCaller{}, 1)
+	if err != nil || len(second.StreamHosts) != 1 || second.StreamHosts[0] != "a.example:9191" {
+		t.Errorf("Info after the caller edited its copy = %+v, %v; want the cached hosts untouched", second, err)
+	}
+}
+
+func TestLiveTVBacksOffAfterFailedRefresh(t *testing.T) {
+	for _, withStale := range []bool{true, false} {
+		name := "no copy"
+		if withStale {
+			name = "stale copy"
+		}
+		t.Run(name, func(t *testing.T) {
+			routes := singleProviderRoutes(liveTVChannelsBody("a", "b"))
+			l, clock := newTestLiveTV(routes)
+			ctx := context.Background()
+			want := []string{}
+			if withStale {
+				assertLiveTVLineup(t, l.Lineup(ctx, LiveTVCaller{}), "1/a", "1/b")
+				clock.Advance(61 * time.Second)
+				want = []string{"1/a", "1/b"}
+			}
+			base := len(routes.callsTo(liveTVPathChannels))
+			routes.setResponse(1, liveTVPathChannels, 500, "")
+			callsSince := func() int { return len(routes.callsTo(liveTVPathChannels)) - base }
+
+			assertLiveTVLineup(t, l.Lineup(ctx, LiveTVCaller{}), want...)
+			assertLiveTVLineup(t, l.Lineup(ctx, LiveTVCaller{}), want...)
+			if n := callsSince(); n != 1 {
+				t.Fatalf("channels called %d times right after a failure, want 1", n)
+			}
+			clock.Advance(9 * time.Second)
+			assertLiveTVLineup(t, l.Lineup(ctx, LiveTVCaller{}), want...)
+			if n := callsSince(); n != 1 {
+				t.Fatalf("channels called %d times 9s after a failure, want 1", n)
+			}
+			clock.Advance(2 * time.Second)
+			assertLiveTVLineup(t, l.Lineup(ctx, LiveTVCaller{}), want...)
+			if n := callsSince(); n != 2 {
+				t.Fatalf("channels called %d times 11s after a failure, want 2", n)
+			}
+
+			// A recovered provider is picked up once the back-off ends.
+			routes.setResponse(1, liveTVPathChannels, 200, liveTVChannelsBody("c"))
+			clock.Advance(11 * time.Second)
+			assertLiveTVLineup(t, l.Lineup(ctx, LiveTVCaller{}), "1/c")
+		})
+	}
+}
+
+func TestLiveTVInfoBacksOffWithoutCopy(t *testing.T) {
+	routes := singleProviderRoutes(liveTVChannelsBody("a"))
+	routes.setResponse(1, liveTVPathInfo, 503, "")
+	l, clock := newTestLiveTV(routes)
+	ctx := context.Background()
+
+	for i := 0; i < 2; i++ {
+		if _, err := l.Info(ctx, LiveTVCaller{}, 1); err == nil {
+			t.Fatal("Info succeeded with a failing provider and no cached copy")
+		}
+	}
+	if n := len(routes.callsTo(liveTVPathInfo)); n != 1 {
+		t.Fatalf("info called %d times within the back-off, want 1", n)
+	}
+	clock.Advance(11 * time.Second)
+	l.Info(ctx, LiveTVCaller{}, 1)
+	if n := len(routes.callsTo(liveTVPathInfo)); n != 2 {
+		t.Errorf("info called %d times after the back-off, want 2", n)
+	}
+}
+
+func TestLiveTVHungProviderDoesNotHoldCallers(t *testing.T) {
+	cancelled := func() (context.Context, context.CancelFunc) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return ctx, cancel
+	}
+	short := func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(context.Background(), 30*time.Millisecond)
+	}
+	lineupWithin := func(t *testing.T, l *LiveTV, ctx context.Context) []liveChannel {
+		t.Helper()
+		done := make(chan []liveChannel, 1)
+		go func() { done <- l.Lineup(ctx, LiveTVCaller{}) }()
+		select {
+		case lineup := <-done:
+			return lineup
+		case <-time.After(3 * time.Second):
+			t.Fatal("Lineup is still waiting on a hung provider after its context ended")
+			return nil
+		}
+	}
+
+	t.Run("stale copy", func(t *testing.T) {
+		routes := singleProviderRoutes(liveTVChannelsBody("a", "b"))
+		l, clock := newTestLiveTV(routes)
+		assertLiveTVLineup(t, l.Lineup(context.Background(), LiveTVCaller{}), "1/a", "1/b")
+		clock.Advance(61 * time.Second)
+		routes.hang(t)
+
+		for name, mkCtx := range map[string]func() (context.Context, context.CancelFunc){"cancelled": cancelled, "deadline": short} {
+			ctx, cancel := mkCtx()
+			t.Cleanup(cancel)
+			t.Run(name, func(t *testing.T) {
+				assertLiveTVLineup(t, lineupWithin(t, l, ctx), "1/a", "1/b")
+			})
+		}
+	})
+
+	t.Run("no copy", func(t *testing.T) {
+		routes := singleProviderRoutes(liveTVChannelsBody("a"))
+		l, _ := newTestLiveTV(routes)
+		routes.hang(t)
+
+		for name, mkCtx := range map[string]func() (context.Context, context.CancelFunc){"cancelled": cancelled, "deadline": short} {
+			ctx, cancel := mkCtx()
+			t.Cleanup(cancel)
+			t.Run(name, func(t *testing.T) {
+				assertLiveTVLineup(t, lineupWithin(t, l, ctx))
+			})
+		}
+	})
+}
+
+func TestLiveTVChannelByIDThrottlesForcedRefresh(t *testing.T) {
+	routes := singleProviderRoutes(liveTVChannelsBody("a"))
+	l, clock := newTestLiveTV(routes)
+	ctx := context.Background()
+	calls := func() int { return len(routes.callsTo(liveTVPathChannels)) }
+
+	l.Lineup(ctx, LiveTVCaller{})
+	if _, ok := l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "x")); ok {
+		t.Fatal("found a channel the provider does not serve")
+	}
+	if calls() != 2 {
+		t.Fatalf("channels called %d times after the first miss, want 2 (one forced refresh)", calls())
+	}
+
+	// Further misses, whatever the ids, share the one refresh window.
+	routes.setResponse(1, liveTVPathChannels, 200, liveTVChannelsBody("a", "new"))
+	for _, id := range []string{"y", "z", "new"} {
+		if _, ok := l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, id)); ok {
+			t.Errorf("ChannelByID(%s) found a channel inside the refresh window", id)
+		}
+	}
+	clock.Advance(9 * time.Second)
+	l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "w"))
+	if calls() != 2 {
+		t.Fatalf("channels called %d times inside the 10s window, want 2", calls())
+	}
+
+	clock.Advance(2 * time.Second)
+	got, ok := l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "new"))
+	if !ok || got.ID != "new" {
+		t.Errorf("ChannelByID(new) = %+v, %v after the window; want the refreshed channel", got, ok)
+	}
+	if calls() != 3 {
+		t.Errorf("channels called %d times after the window, want 3", calls())
+	}
+}
+
+func TestLiveTVLogoURLNeverRefreshesAWarmLineup(t *testing.T) {
+	routes := singleProviderRoutes(`[{"id":"a","number":"1","name":"A","logoUrl":"https://logos.example/a.png","groupId":"7","group":"News"}]`)
+	l, clock := newTestLiveTV(routes)
+	ctx := context.Background()
+	calls := func() int { return len(routes.callsTo(liveTVPathChannels)) }
+
+	l.Lineup(ctx, LiveTVCaller{})
+	for i := 0; i < 5; i++ {
+		if got, ok := l.LogoURL(ctx, encodeLiveChannelID(1, fmt.Sprintf("forged-%d", i))); ok {
+			t.Fatalf("LogoURL(forged) = %q, true", got)
+		}
+	}
+	if calls() != 1 {
+		t.Fatalf("channels called %d times by logo lookups on a warm cache, want 1", calls())
+	}
+
+	// A stale lineup still answers logo lookups without a refresh.
+	clock.Advance(61 * time.Second)
+	if _, ok := l.LogoURL(ctx, encodeLiveChannelID(1, "forged")); ok {
+		t.Fatal("LogoURL found a forged id")
+	}
+	if got, ok := l.LogoURL(ctx, encodeLiveChannelID(1, "a")); !ok || got != "https://logos.example/a.png" {
+		t.Errorf("LogoURL(a) = %q, %v; want the logo from the stale lineup", got, ok)
+	}
+	if calls() != 1 {
+		t.Errorf("channels called %d times by logo lookups on a stale cache, want 1", calls())
+	}
+}
+
+func TestLiveTVLogoURLColdStartFetchesOnceAndBacksOff(t *testing.T) {
+	routes := singleProviderRoutes("")
+	routes.setResponse(1, liveTVPathChannels, 500, "")
+	l, clock := newTestLiveTV(routes)
+	ctx := context.Background()
+
+	for i := 0; i < 3; i++ {
+		if _, ok := l.LogoURL(ctx, encodeLiveChannelID(1, "a")); ok {
+			t.Fatal("LogoURL found a logo from a failing provider")
+		}
+	}
+	if n := len(routes.callsTo(liveTVPathChannels)); n != 1 {
+		t.Fatalf("channels called %d times by cold logo lookups against a failing provider, want 1", n)
+	}
+	clock.Advance(11 * time.Second)
+	l.LogoURL(ctx, encodeLiveChannelID(1, "a"))
+	if n := len(routes.callsTo(liveTVPathChannels)); n != 2 {
+		t.Errorf("channels called %d times after the back-off, want 2", n)
 	}
 }
 

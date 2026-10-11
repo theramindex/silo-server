@@ -25,6 +25,13 @@ const (
 	// liveTVFetchTimeout bounds a shared refresh. Waiters share one provider
 	// call, so it must not die with whichever request happened to start it.
 	liveTVFetchTimeout = 15 * time.Second
+	// liveTVFailureBackoff is how long an installation is left alone after a
+	// failed info or channels refresh, so a down provider is not retried by
+	// every request.
+	liveTVFailureBackoff = 10 * time.Second
+	// liveTVForcedRefreshInterval limits how often a channel-id miss may force a
+	// lineup refresh for one installation, however many callers miss.
+	liveTVForcedRefreshInterval = 10 * time.Second
 )
 
 var (
@@ -80,11 +87,17 @@ type liveCacheEntry[T any] struct {
 	val T
 	at  time.Time
 	ok  bool
+	// failedAt and failErr record the last failed refresh. The entry is not
+	// refreshed again until liveTVFailureBackoff has passed.
+	failedAt time.Time
+	failErr  error
 }
 
 type liveInstall struct {
 	info   liveCacheEntry[liveTVInfo]
 	lineup liveCacheEntry[liveLineup]
+	// lastForced is when a channel-id miss last forced a lineup refresh.
+	lastForced time.Time
 }
 
 // LiveTV merges the lineups of every installed livetv/v1 provider and resolves
@@ -134,7 +147,7 @@ func (l *LiveTV) Providers(ctx context.Context) []LiveTVProviderRef {
 	}
 	l.mu.Unlock()
 
-	res, _, _ := l.group.Do("providers", func() (any, error) {
+	resCh := l.group.DoChan("providers", func() (any, error) {
 		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), liveTVFetchTimeout)
 		defer cancel()
 		list, err := l.routes.ListProviders(fetchCtx)
@@ -145,14 +158,24 @@ func (l *LiveTV) Providers(ctx context.Context) []LiveTVProviderRef {
 		if err != nil {
 			slog.WarnContext(ctx, "jellycompat: livetv provider discovery failed; keeping the previous list",
 				"component", "jellycompat", "error", err)
+			// Cache even when there is no earlier list, so a failing host is
+			// not asked again by every request.
+			l.providers.ok = true
 			return l.providers.val, nil
 		}
 		l.providers.val, l.providers.ok = list, true
 		l.pruneInstallsLocked(list)
 		return list, nil
 	})
-	list, _ := res.([]LiveTVProviderRef)
-	return slices.Clone(list)
+	select {
+	case res := <-resCh:
+		list, _ := res.Val.([]LiveTVProviderRef)
+		return slices.Clone(list)
+	case <-ctx.Done():
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		return slices.Clone(l.providers.val)
+	}
 }
 
 // pruneInstallsLocked forgets the caches of installations that are no longer
@@ -180,10 +203,12 @@ func (l *LiveTV) installLocked(installationID int) *liveInstall {
 
 // loadCached returns the value cached by slot for an installation, refreshing
 // it through fetch when it is older than liveTVCacheTTL or force is set.
-// Concurrent refreshes of one value share a single fetch. fetched reports that
-// the value came from a fetch made during this call. When a refresh fails the
-// stale copy is returned with a nil error; err is non-nil only when there is
-// no copy at all.
+// Concurrent refreshes of one value share a single fetch, and a waiter whose
+// ctx ends stops waiting without cancelling it. fetched reports that the value
+// came from a fetch made during this call. When a refresh fails, or the caller
+// gives up, the stale copy is returned with a nil error; err is non-nil only
+// when there is no copy at all. After a failed refresh the installation is left
+// alone for liveTVFailureBackoff, forced or not.
 func loadCached[T any](
 	ctx context.Context,
 	l *LiveTV,
@@ -193,43 +218,63 @@ func loadCached[T any](
 	force bool,
 	fetch func(context.Context) (T, error),
 ) (val T, fetched bool, err error) {
+	// fallback is what a caller gets when it cannot have a fresh value.
+	fallback := func(failure error) (T, bool, error) {
+		l.mu.Lock()
+		entry := slot(l.installLocked(installationID))
+		stale, haveStale := entry.val, entry.ok
+		l.mu.Unlock()
+		if haveStale {
+			return stale, false, nil
+		}
+		var zero T
+		return zero, false, failure
+	}
+
 	l.mu.Lock()
 	entry := slot(l.installLocked(installationID))
-	if !force && entry.ok && l.now().Sub(entry.at) < liveTVCacheTTL {
+	now := l.now()
+	if !force && entry.ok && now.Sub(entry.at) < liveTVCacheTTL {
 		val = entry.val
 		l.mu.Unlock()
 		return val, false, nil
 	}
+	if !entry.failedAt.IsZero() && now.Sub(entry.failedAt) < liveTVFailureBackoff {
+		failure := entry.failErr
+		l.mu.Unlock()
+		return fallback(failure)
+	}
 	l.mu.Unlock()
 
-	res, err, _ := l.group.Do(fmt.Sprintf("%s:%d", what, installationID), func() (any, error) {
+	resCh := l.group.DoChan(fmt.Sprintf("%s:%d", what, installationID), func() (any, error) {
 		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), liveTVFetchTimeout)
 		defer cancel()
 		fresh, err := fetch(fetchCtx)
+
+		l.mu.Lock()
+		entry := slot(l.installLocked(installationID))
 		if err != nil {
+			entry.failedAt, entry.failErr = l.now(), err
+			stale := entry.ok
+			l.mu.Unlock()
+			slog.WarnContext(ctx, "jellycompat: livetv provider refresh failed",
+				"component", "jellycompat", "installation_id", installationID, "what", what, "stale", stale, "error", err)
 			return nil, err
 		}
-		l.mu.Lock()
-		defer l.mu.Unlock()
-		entry := slot(l.installLocked(installationID))
 		entry.val, entry.at, entry.ok = fresh, l.now(), true
+		entry.failedAt, entry.failErr = time.Time{}, nil
+		l.mu.Unlock()
 		return fresh, nil
 	})
-	if err == nil {
-		return res.(T), true, nil
+	select {
+	case res := <-resCh:
+		if res.Err != nil {
+			return fallback(res.Err)
+		}
+		return res.Val.(T), true, nil
+	case <-ctx.Done():
+		return fallback(ctx.Err())
 	}
-
-	l.mu.Lock()
-	entry = slot(l.installLocked(installationID))
-	val, stale := entry.val, entry.ok
-	l.mu.Unlock()
-	slog.WarnContext(ctx, "jellycompat: livetv provider refresh failed",
-		"component", "jellycompat", "installation_id", installationID, "what", what, "stale", stale, "error", err)
-	if stale {
-		return val, false, nil
-	}
-	var zero T
-	return zero, false, err
 }
 
 // getJSON calls a provider route and decodes a 200 response into out.
@@ -296,22 +341,48 @@ func (l *LiveTV) Lineup(ctx context.Context, caller LiveTVCaller) []liveChannel 
 	return out
 }
 
-// ChannelByID resolves a compat channel id. When the provider's cached lineup
-// lacks the channel it refreshes that lineup once, so a channel added since the
-// last refresh is still playable.
-func (l *LiveTV) ChannelByID(ctx context.Context, caller LiveTVCaller, rawID string) (liveChannel, bool) {
+// decodeProviderChannelID decodes a compat channel id and requires its
+// installation to be a current provider.
+func (l *LiveTV) decodeProviderChannelID(ctx context.Context, rawID string) (liveChannelKey, bool) {
 	key, ok := decodeLiveChannelID(rawID)
 	if !ok {
-		return liveChannel{}, false
+		return liveChannelKey{}, false
 	}
 	if !slices.ContainsFunc(l.Providers(ctx), func(p LiveTVProviderRef) bool { return p.InstallationID == key.InstallationID }) {
+		return liveChannelKey{}, false
+	}
+	return key, true
+}
+
+// claimForcedRefresh reports whether a channel-id miss may force a lineup
+// refresh for the installation now, and if so starts the liveTVForcedRefreshInterval
+// window. The window is shared by all callers.
+func (l *LiveTV) claimForcedRefresh(installationID int) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	st := l.installLocked(installationID)
+	now := l.now()
+	if !st.lastForced.IsZero() && now.Sub(st.lastForced) < liveTVForcedRefreshInterval {
+		return false
+	}
+	st.lastForced = now
+	return true
+}
+
+// ChannelByID resolves a compat channel id. When the provider's cached lineup
+// lacks the channel it refreshes that lineup, so a channel added since the last
+// refresh is still playable. Such forced refreshes are limited to one per
+// installation per liveTVForcedRefreshInterval.
+func (l *LiveTV) ChannelByID(ctx context.Context, caller LiveTVCaller, rawID string) (liveChannel, bool) {
+	key, ok := l.decodeProviderChannelID(ctx, rawID)
+	if !ok {
 		return liveChannel{}, false
 	}
 	lineup, fetched := l.lineupFor(ctx, caller, key.InstallationID, false)
 	if ch, ok := lineup.index[key]; ok {
 		return ch, true
 	}
-	if fetched {
+	if fetched || !l.claimForcedRefresh(key.InstallationID) {
 		return liveChannel{}, false
 	}
 	lineup, _ = l.lineupFor(ctx, caller, key.InstallationID, true)
@@ -320,9 +391,22 @@ func (l *LiveTV) ChannelByID(ctx context.Context, caller LiveTVCaller, rawID str
 }
 
 // LogoURL returns the remote logo for a channel when it is an absolute http(s)
-// URL. Logo requests carry no identity.
+// URL. Logo requests carry no identity and may be anonymous, so they never
+// refresh a lineup that was loaded before, however stale: only an installation
+// with no lineup yet is fetched.
 func (l *LiveTV) LogoURL(ctx context.Context, rawID string) (string, bool) {
-	ch, ok := l.ChannelByID(ctx, LiveTVCaller{}, rawID)
+	key, ok := l.decodeProviderChannelID(ctx, rawID)
+	if !ok {
+		return "", false
+	}
+	l.mu.Lock()
+	entry := l.installLocked(key.InstallationID).lineup
+	l.mu.Unlock()
+	lineup := entry.val
+	if !entry.ok {
+		lineup, _ = l.lineupFor(ctx, LiveTVCaller{}, key.InstallationID, false)
+	}
+	ch, ok := lineup.index[key]
 	if !ok {
 		return "", false
 	}
@@ -343,6 +427,8 @@ func (l *LiveTV) Info(ctx context.Context, caller LiveTVCaller, installationID i
 			err := l.getJSON(ctx, caller, installationID, liveTVPathInfo, nil, &info)
 			return info, err
 		})
+	// The cached copy is shared, so hand out its own slice.
+	info.StreamHosts = slices.Clone(info.StreamHosts)
 	return info, err
 }
 
