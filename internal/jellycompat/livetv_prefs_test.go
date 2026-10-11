@@ -139,8 +139,36 @@ func TestReadLiveProfilePrefsTolerantOfBadInput(t *testing.T) {
 	}
 }
 
+func TestReadLiveProfilePrefsNullIsMissing(t *testing.T) {
+	if got := readLiveProfilePrefs("null", "p1"); got.Favorites == nil || len(got.Favorites) != 0 {
+		t.Errorf("null document: favorites = %v, want empty", got.Favorites)
+	}
+	// A null profile entry reads like a missing one: the legacy keys.
+	raw := `{"favorites":{"legacy":true},"favoriteOrder":["legacy"],"profiles":{"p1":null,"p2":{"favorites":{"own":true}}}}`
+	got := readLiveProfilePrefs(raw, "p1")
+	if want := map[string]bool{"legacy": true}; !reflect.DeepEqual(got.Favorites, want) {
+		t.Errorf("null profile entry: favorites = %v, want %v", got.Favorites, want)
+	}
+	if want := []string{"legacy"}; !reflect.DeepEqual(got.FavoriteOrder, want) {
+		t.Errorf("null profile entry: favoriteOrder = %v, want %v", got.FavoriteOrder, want)
+	}
+	// Other profiles are unaffected.
+	if got := readLiveProfilePrefs(raw, "p2"); !reflect.DeepEqual(got.Favorites, map[string]bool{"own": true}) {
+		t.Errorf("p2 favorites = %v, want own", got.Favorites)
+	}
+}
+
 func TestWriteLiveFavoriteSeedsFromLegacyAndPreservesKeys(t *testing.T) {
-	out, err := writeLiveFavorite(livePrefsFixture(t), "p1", "sports", true)
+	// The fixture's legacy hiddenCategories is empty, which would let a dropped
+	// carry-over pass; give it a value.
+	var seeded map[string]any
+	readLiveTVFixture(t, "preferences_v1.json", &seeded)
+	seeded["hiddenCategories"] = map[string]any{"9": true}
+	seededRaw, err := json.Marshal(seeded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := writeLiveFavorite(string(seededRaw), "p1", "sports", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,8 +181,11 @@ func TestWriteLiveFavoriteSeedsFromLegacyAndPreservesKeys(t *testing.T) {
 		t.Errorf("profiles.p1.favorites = %v, want %v", got, want)
 	}
 	// The profile section starts from the legacy keys, so hidden categories carry over.
-	if got, want := livePath(t, doc, "profiles", "p1", "hiddenCategories"), map[string]any{}; !reflect.DeepEqual(got, want) {
+	if got, want := livePath(t, doc, "profiles", "p1", "hiddenCategories"), map[string]any{"9": true}; !reflect.DeepEqual(got, want) {
 		t.Errorf("profiles.p1.hiddenCategories = %v, want %v", got, want)
+	}
+	if got, want := livePath(t, doc, "hiddenCategories"), map[string]any{"9": true}; !reflect.DeepEqual(got, want) {
+		t.Errorf("top-level hiddenCategories changed: %v, want %v", got, want)
 	}
 	if got, want := livePath(t, doc, "favorites"), map[string]any{"m3u:news.hd": true}; !reflect.DeepEqual(got, want) {
 		t.Errorf("top-level favorites changed: %v, want %v", got, want)
@@ -234,6 +265,74 @@ func TestWriteLiveFavoriteEmptyRaw(t *testing.T) {
 func TestWriteLiveFavoriteRejectsNonObject(t *testing.T) {
 	if out, err := writeLiveFavorite("[1]", "p1", "a", true); err == nil {
 		t.Errorf("want an error, got %q", out)
+	}
+}
+
+func TestWriteLiveFavoriteTreatsNullAsMissing(t *testing.T) {
+	// A null document is an empty one.
+	for _, profileID := range []string{"p1", ""} {
+		out, err := writeLiveFavorite("null", profileID, "a", true)
+		if err != nil {
+			t.Fatalf("profile %q: %v", profileID, err)
+		}
+		if got := readLiveProfilePrefs(out, profileID); !reflect.DeepEqual(got.Favorites, map[string]bool{"a": true}) {
+			t.Errorf("profile %q: favorites = %v, want a", profileID, got.Favorites)
+		}
+	}
+
+	// A null profile entry seeds from the legacy keys, like a missing one.
+	raw := `{"favorites":{"legacy":true},"favoriteOrder":["legacy"],"hiddenCategories":{"3":true},"profiles":{"p1":null}}`
+	out, err := writeLiveFavorite(raw, "p1", "a", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := decodeLivePrefs(t, out)
+	if got, want := livePath(t, doc, "profiles", "p1", "favoriteOrder"), []any{"legacy", "a"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("profiles.p1.favoriteOrder = %v, want %v", got, want)
+	}
+	if got, want := livePath(t, doc, "profiles", "p1", "hiddenCategories"), map[string]any{"3": true}; !reflect.DeepEqual(got, want) {
+		t.Errorf("profiles.p1.hiddenCategories = %v, want %v", got, want)
+	}
+}
+
+func TestWriteLiveFavoritePreservesNonObjectSiblings(t *testing.T) {
+	raw := `{"profiles":{"p2":{"favorites":{"x":true}},"p3":"x","p4":null,"p5":[1,2]}}`
+	out, err := writeLiveFavorite(raw, "p1", "a", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := decodeLivePrefs(t, out)
+	for key, want := range map[string]any{"p3": "x", "p4": nil, "p5": []any{float64(1), float64(2)}} {
+		if got := livePath(t, doc, "profiles", key); !reflect.DeepEqual(got, want) {
+			t.Errorf("profiles.%s = %v, want %v", key, got, want)
+		}
+	}
+	if got, want := livePath(t, doc, "profiles", "p2", "favorites"), map[string]any{"x": true}; !reflect.DeepEqual(got, want) {
+		t.Errorf("profiles.p2.favorites = %v, want %v", got, want)
+	}
+	if got, want := livePath(t, doc, "profiles", "p1", "favorites"), map[string]any{"a": true}; !reflect.DeepEqual(got, want) {
+		t.Errorf("profiles.p1.favorites = %v, want %v", got, want)
+	}
+}
+
+func TestWriteLiveFavoriteRejectsNonObjectProfiles(t *testing.T) {
+	for _, raw := range []string{
+		`{"profiles":5}`,
+		`{"profiles":"x"}`,
+		`{"profiles":[1]}`,
+		`{"profiles":{"p1":"x"}}`, // the target entry itself
+	} {
+		if out, err := writeLiveFavorite(raw, "p1", "a", true); err == nil {
+			t.Errorf("raw %s: want an error, got %q", raw, out)
+		}
+	}
+	// With no profile in play, "profiles" is just another key to keep.
+	out, err := writeLiveFavorite(`{"profiles":5}`, "", "a", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := livePath(t, decodeLivePrefs(t, out), "profiles"); got != float64(5) {
+		t.Errorf("profiles = %v, want 5", got)
 	}
 }
 
@@ -341,6 +440,36 @@ func TestSetFavoriteCorruptPreferencesWritesNothing(t *testing.T) {
 	}
 	if got := store.stored(1, 10); got[liveTVPrefsKey] != "[1]" || got["other_key"] != "x" {
 		t.Errorf("store changed after a failed write: %v", got)
+	}
+}
+
+func TestSetFavoriteNonObjectProfilesWritesNothing(t *testing.T) {
+	const raw = `{"profiles":5}`
+	store := &fakeLiveTVPrefs{}
+	store.seed(1, 10, map[string]string{liveTVPrefsKey: raw, "other_key": "x"})
+	l := newPrefsLiveTV(store)
+
+	if err := l.SetFavorite(context.Background(), 1, 10, "p1", "sports", true); err == nil {
+		t.Fatal("want an error")
+	}
+	if got := store.stored(1, 10); got[liveTVPrefsKey] != raw || got["other_key"] != "x" {
+		t.Errorf("store changed after a failed write: %v", got)
+	}
+}
+
+func TestSetFavoriteNullPreferencesDoNotPanic(t *testing.T) {
+	for _, raw := range []string{"null", `{"profiles":{"p1":null}}`, `{"profiles":null}`} {
+		store := &fakeLiveTVPrefs{}
+		store.seed(1, 10, map[string]string{liveTVPrefsKey: raw})
+		l := newPrefsLiveTV(store)
+
+		if err := l.SetFavorite(context.Background(), 1, 10, "p1", "sports", true); err != nil {
+			t.Errorf("raw %s: %v", raw, err)
+			continue
+		}
+		if got := readLiveProfilePrefs(store.stored(1, 10)[liveTVPrefsKey], "p1"); !got.Favorites["sports"] {
+			t.Errorf("raw %s: sports not stored: %+v", raw, got)
+		}
 	}
 }
 

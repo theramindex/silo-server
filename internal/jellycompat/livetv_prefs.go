@@ -47,9 +47,11 @@ func readLiveProfilePrefs(raw, profileID string) liveProfilePrefs {
 	_ = json.Unmarshal([]byte(raw), &top)
 	section := top
 	if profileID != "" {
-		var profiles map[string]map[string]json.RawMessage
+		var profiles map[string]json.RawMessage
 		_ = json.Unmarshal(top["profiles"], &profiles)
-		if p, ok := profiles[profileID]; ok {
+		var p map[string]json.RawMessage
+		// A null or malformed entry is the same as a missing one.
+		if json.Unmarshal(profiles[profileID], &p) == nil && p != nil {
 			section = p
 		}
 	}
@@ -60,23 +62,37 @@ func readLiveProfilePrefs(raw, profileID string) liveProfilePrefs {
 // a profile's favorites. Every other key is kept as it was. A profile with no
 // entry yet starts from the legacy top-level keys, so its first write does not
 // drop what it was already seeing. Adding moves the channel to the end of
-// favoriteOrder.
+// favoriteOrder. A null document is an empty one, and a null profile entry is a
+// missing one. A "profiles" value or target profile entry that is not an object
+// is an error rather than something to overwrite.
 func writeLiveFavorite(raw, profileID, channelID string, favorite bool) (string, error) {
 	top := map[string]json.RawMessage{}
 	if strings.TrimSpace(raw) != "" {
 		if err := json.Unmarshal([]byte(raw), &top); err != nil {
 			return "", fmt.Errorf("livetv: preferences are not a JSON object: %w", err)
 		}
+		if top == nil {
+			top = map[string]json.RawMessage{}
+		}
 	}
 	section := top
-	var profiles map[string]map[string]json.RawMessage
+	var profiles map[string]json.RawMessage
 	if profileID != "" {
-		_ = json.Unmarshal(top["profiles"], &profiles)
-		if profiles == nil {
-			profiles = map[string]map[string]json.RawMessage{}
+		if v, has := top["profiles"]; has {
+			if err := json.Unmarshal(v, &profiles); err != nil {
+				return "", fmt.Errorf("livetv: preferences profiles are not a JSON object: %w", err)
+			}
 		}
-		p, ok := profiles[profileID]
-		if !ok {
+		if profiles == nil {
+			profiles = map[string]json.RawMessage{}
+		}
+		var p map[string]json.RawMessage
+		if v, has := profiles[profileID]; has {
+			if err := json.Unmarshal(v, &p); err != nil {
+				return "", fmt.Errorf("livetv: preferences for profile %q are not a JSON object: %w", profileID, err)
+			}
+		}
+		if p == nil {
 			p = map[string]json.RawMessage{}
 			for _, k := range []string{"favorites", "favoriteOrder", "hiddenCategories"} {
 				if v, has := top[k]; has {
@@ -85,7 +101,6 @@ func writeLiveFavorite(raw, profileID, channelID string, favorite bool) (string,
 			}
 		}
 		section = p
-		profiles[profileID] = p
 	}
 
 	cur := readLiveProfilePrefsSection(section)
@@ -106,6 +121,11 @@ func writeLiveFavorite(raw, profileID, channelID string, favorite bool) (string,
 	section["favorites"], section["favoriteOrder"] = fav, ord
 
 	if profileID != "" {
+		entry, err := json.Marshal(section)
+		if err != nil {
+			return "", err
+		}
+		profiles[profileID] = entry
 		b, err := json.Marshal(profiles)
 		if err != nil {
 			return "", err
