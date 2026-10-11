@@ -266,6 +266,33 @@ func TestLiveTVItemWrapperPassesCatalogIDsThrough(t *testing.T) {
 	}
 }
 
+func TestLiveTVFavoriteWrapperPassesCatalogIDsThrough(t *testing.T) {
+	env := newLiveTestEnv(t, true)
+	h := newLiveTVHandlers(env.bridge, "server-1", nil, nil, nil)
+	codec := NewResourceIDCodec()
+	session := &Session{StreamAppUserID: 1, ProfileID: "p1", PseudoUserID: PseudoUserID(1, "p1")}
+	user := session.PseudoUserID.String()
+
+	for _, wrapped := range []*liveTVHandlers{h, nil, {}} {
+		for _, id := range []string{codec.EncodeIntID(EncodedIDLibrary, 3), codec.EncodeStringID(EncodedIDItem, "movie-1")} {
+			for _, favorite := range []bool{true, false} {
+				for _, route := range []string{"/UserFavoriteItems/{itemId}", "/Users/{userId}/FavoriteItems/{itemId}"} {
+					called := false
+					next := func(w http.ResponseWriter, r *http.Request) { called = true }
+					path := strings.NewReplacer("{userId}", user, "{itemId}", id).Replace(route)
+					rec := liveWrapperRequest(t, func(r chi.Router) { r.Get(route, wrapped.wrapFavorite(next, favorite)) }, path, session)
+					if !called || rec.Code != http.StatusOK {
+						t.Errorf("wrapper %v favorite=%v %s: next not called for %s (status %d)", wrapped, favorite, route, id, rec.Code)
+					}
+				}
+			}
+		}
+	}
+	if stored := env.prefs.stored(1, liveTestInstall); len(stored) != 0 {
+		t.Errorf("a catalog favorite wrote Live TV preferences: %v", stored)
+	}
+}
+
 func TestLiveTVWrappersRequireSession(t *testing.T) {
 	env := newLiveTestEnv(t, true)
 	h := newLiveTVHandlers(env.bridge, "server-1", nil, nil, nil)

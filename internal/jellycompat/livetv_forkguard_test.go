@@ -3,7 +3,9 @@
 package jellycompat
 
 import (
+	"context"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -43,8 +45,10 @@ func TestLiveTVEnabledFromEnv(t *testing.T) {
 }
 
 // newGuardRouter builds the compat router around content, with sessions for
-// profile p1 of account 1. bridge may be nil.
-func newGuardRouter(t *testing.T, content ContentService, bridge *LiveTV) chi.Router {
+// profile p1 of account 1. bridge and codec may be nil. A test that sends ids
+// it encoded itself passes its codec, since the router decodes opaque ids
+// through its own codec's reverse map.
+func newGuardRouter(t *testing.T, content ContentService, bridge *LiveTV, codec *ResourceIDCodec) chi.Router {
 	t.Helper()
 	cfg, err := config.LoadFromDB(map[string]string{})
 	if err != nil {
@@ -54,7 +58,7 @@ func newGuardRouter(t *testing.T, content ContentService, bridge *LiveTV) chi.Ro
 	if err := store.Put(Session{Token: liveTokenP1, StreamAppUserID: 1, ProfileID: "p1", PseudoUserID: PseudoUserID(1, "p1")}); err != nil {
 		t.Fatal(err)
 	}
-	return NewRouter(Dependencies{Config: cfg, SessionStore: store, ContentService: content, LiveTV: bridge})
+	return NewRouter(Dependencies{Config: cfg, SessionStore: store, ContentService: content, LiveTV: bridge, IDCodec: codec})
 }
 
 // TestLiveTVOffMatchesUpstream: with SILO_JELLYCOMPAT_LIVETV=off the bridge is
@@ -62,9 +66,9 @@ func newGuardRouter(t *testing.T, content ContentService, bridge *LiveTV) chi.Ro
 // everything a client reads outside /LiveTv.
 func TestLiveTVOffMatchesUpstream(t *testing.T) {
 	content := &librariesContentService{}
-	off := newGuardRouter(t, content, nil)
+	off := newGuardRouter(t, content, nil, nil)
 	bridge, _ := newTestLiveTV(&fakeLiveTVRoutes{})
-	idle := newGuardRouter(t, content, bridge)
+	idle := newGuardRouter(t, content, bridge, nil)
 
 	for _, path := range []string{"/UserViews", "/Users/Me"} {
 		want := serveLive(t, off, http.MethodGet, path, liveTokenP1)
@@ -84,7 +88,7 @@ func TestLiveTVOffMatchesUpstream(t *testing.T) {
 
 // TestLiveTVOffMountsNoLiveTVRoutes lists every route of the bridge-off router.
 func TestLiveTVOffMountsNoLiveTVRoutes(t *testing.T) {
-	off := newGuardRouter(t, &librariesContentService{}, nil)
+	off := newGuardRouter(t, &librariesContentService{}, nil, nil)
 	err := chi.Walk(off, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
 		if strings.Contains(route, "/LiveTv") || strings.Contains(route, "/live") {
 			t.Errorf("%s %s is mounted with the bridge off", method, route)
@@ -96,16 +100,48 @@ func TestLiveTVOffMountsNoLiveTVRoutes(t *testing.T) {
 	}
 }
 
-// TestLiveTVWrappedRoutesForwardCatalogIDs sends a catalog item id through
-// every route the bridge wraps. The answer must match the same request with no
-// bridge, so a wrapper never swallows or rewrites a non-Live-TV request.
-func TestLiveTVWrappedRoutesForwardCatalogIDs(t *testing.T) {
-	content := &librariesContentService{}
-	off := newGuardRouter(t, content, nil)
-	bridge, _ := newTestLiveTV(&fakeLiveTVRoutes{})
-	on := newGuardRouter(t, content, bridge)
+// guardUpstreamContent is a ContentService whose GetItemDetail records the
+// content id it was asked for and then fails. Every wrapped upstream handler
+// reaches GetItemDetail before it needs any other dependency, so a recorded
+// lookup is proof the request got through the wrapper to the upstream handler.
+type guardUpstreamContent struct {
+	librariesContentService
+	lookups []string
+}
 
-	id := NewResourceIDCodec().EncodeStringID(EncodedIDItem, "tmdb-movie-1")
+func (s *guardUpstreamContent) GetItemDetail(_ context.Context, _ *Session, contentID string, _ *int) (*upstreamItemDetail, error) {
+	s.lookups = append(s.lookups, contentID)
+	return nil, &HTTPError{StatusCode: http.StatusNotFound}
+}
+
+// TestLiveTVWrappedRoutesForwardCatalogIDs sends a catalog item id through
+// every route the bridge wraps, once with no bridge and once with a bridge
+// that has a provider and channels. It proves two things for each route:
+//
+//   - the upstream handler ran on the bridge router: ContentService.GetItemDetail
+//     was asked for the decoded catalog content id exactly once, as it is with
+//     no bridge, and
+//   - the wrapper added nothing: status and body equal the no-bridge answer.
+//
+// The stream routes carry Static=true, because without it HandleVideoStream
+// stops at the playback-session lookup before any injectable dependency; with
+// it the handler builds a session from GetItemDetail. A sanity request first
+// shows the bridge router does serve a live channel, so the wrappers under
+// test are active.
+func TestLiveTVWrappedRoutesForwardCatalogIDs(t *testing.T) {
+	offContent, onContent := &guardUpstreamContent{}, &guardUpstreamContent{}
+	codec := NewResourceIDCodec()
+	off := newGuardRouter(t, offContent, nil, codec)
+	on := newGuardRouter(t, onContent, newLiveTestEnv(t, true).bridge, codec)
+
+	live := serveLive(t, on, http.MethodGet, "/Items/"+liveChannelIDFor("m3u:news.hd"), liveTokenP1)
+	if live.Code != http.StatusOK || len(onContent.lookups) != 0 {
+		t.Fatalf("live channel on the bridge router = %d with %d upstream lookups, want 200 and none: %s",
+			live.Code, len(onContent.lookups), live.Body.String())
+	}
+
+	const contentID = "tmdb-movie-1"
+	id := codec.EncodeStringID(EncodedIDItem, contentID)
 	user := PseudoUserID(1, "p1").String()
 	type route struct{ method, path string }
 	routes := []route{
@@ -119,14 +155,22 @@ func TestLiveTVWrappedRoutesForwardCatalogIDs(t *testing.T) {
 		{http.MethodDelete, "/UserFavoriteItems/" + id},
 		{http.MethodPost, "/Users/" + user + "/FavoriteItems/" + id},
 		{http.MethodDelete, "/Users/" + user + "/FavoriteItems/" + id},
-		{http.MethodGet, "/Videos/" + id + "/stream"},
-		{http.MethodHead, "/Videos/" + id + "/stream"},
-		{http.MethodGet, "/Videos/" + id + "/stream.ts"},
-		{http.MethodHead, "/Videos/" + id + "/stream.ts"},
+		{http.MethodGet, "/Videos/" + id + "/stream?Static=true"},
+		{http.MethodHead, "/Videos/" + id + "/stream?Static=true"},
+		{http.MethodGet, "/Videos/" + id + "/stream.ts?Static=true"},
+		{http.MethodHead, "/Videos/" + id + "/stream.ts?Static=true"},
 	}
 	for _, rt := range routes {
+		offContent.lookups, onContent.lookups = nil, nil
 		want := serveLive(t, off, rt.method, rt.path, liveTokenP1)
 		got := serveLive(t, on, rt.method, rt.path, liveTokenP1)
+
+		if !slices.Equal(offContent.lookups, []string{contentID}) {
+			t.Errorf("%s %s: no bridge looked up %q, want exactly [%s]; the route does not reach the upstream handler", rt.method, rt.path, offContent.lookups, contentID)
+		}
+		if !slices.Equal(onContent.lookups, []string{contentID}) {
+			t.Errorf("%s %s: bridge router looked up %q, want exactly [%s]; the wrapper kept the catalog id from the upstream handler", rt.method, rt.path, onContent.lookups, contentID)
+		}
 		if got.Code != want.Code {
 			t.Errorf("%s %s: bridge on = %d, bridge off = %d", rt.method, rt.path, got.Code, want.Code)
 		}

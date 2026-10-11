@@ -3694,7 +3694,9 @@ func main() {
 		}
 
 		// theramindex fork: Live TV bridge for Jellyfin clients (SILO_JELLYCOMPAT_LIVETV=off disables it).
-		if pluginService != nil && pluginInstallationStore != nil && jellycompat.LiveTVEnabledFromEnv(os.Getenv) {
+		if !jellycompat.LiveTVEnabledFromEnv(os.Getenv) {
+			slog.Info("jellycompat: Live TV bridge disabled by SILO_JELLYCOMPAT_LIVETV")
+		} else if pluginService != nil && pluginInstallationStore != nil {
 			// deps.PluginUserConfig may be nil; favorites then return 500 and listings still work.
 			// Branch so a nil pointer is not stored in the interface as a non-nil value.
 			var liveTVPrefs jellycompat.LiveTVPrefsStore
