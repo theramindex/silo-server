@@ -29,6 +29,7 @@ const (
 	EncodedIDImageProxy  EncodedIDType = 9
 	EncodedIDCollection  EncodedIDType = 10
 	EncodedIDThemeSong   EncodedIDType = 11
+	EncodedIDLiveChannel EncodedIDType = 0xF1 // theramindex fork: Live TV channels (livetv_id.go); far above upstream's sequence
 )
 
 var (
