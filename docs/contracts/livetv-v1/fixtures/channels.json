@@ -1,0 +1,26 @@
+[
+  {
+    "id": "m3u:news.hd",
+    "number": "101",
+    "name": "News HD",
+    "logoUrl": "http://dispatcharr.example:9191/logos/news.png",
+    "groupId": "7",
+    "group": "News"
+  },
+  {
+    "id": "xtream:42",
+    "number": "102",
+    "name": "News Tonight",
+    "logoUrl": "http://xtream.example/logos/42.png",
+    "groupId": "7",
+    "group": "News"
+  },
+  {
+    "id": "m3u:sports.one",
+    "number": "201",
+    "name": "Sports One",
+    "logoUrl": "",
+    "groupId": "8",
+    "group": "Sports"
+  }
+]

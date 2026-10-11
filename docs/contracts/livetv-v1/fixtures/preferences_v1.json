@@ -1,0 +1,21 @@
+{
+  "favorites": {
+    "m3u:news.hd": true
+  },
+  "favoriteOrder": ["m3u:news.hd"],
+  "hiddenCategories": {},
+  "playback": {
+    "volume": 0.5
+  },
+  "profiles": {
+    "p2": {
+      "favorites": {
+        "xtream:42": true
+      },
+      "favoriteOrder": ["xtream:42"],
+      "hiddenCategories": {
+        "7": true
+      }
+    }
+  }
+}
