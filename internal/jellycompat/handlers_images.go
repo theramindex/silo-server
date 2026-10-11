@@ -48,6 +48,8 @@ type ImagesHandler struct {
 	// served straight from the embedded frontend assets. Without it those paths
 	// have no fetchable origin on the compat surface.
 	frontendFS fs.FS
+	// theramindex fork: liveLogos serves Live TV channel logos; nil when Live TV is off.
+	liveLogos liveLogoServer
 }
 
 type imageItemRepository interface {
@@ -126,6 +128,11 @@ func (h *ImagesHandler) HandleItemImage(w http.ResponseWriter, r *http.Request) 
 	}
 	if collectionID, err := h.codec.DecodeStringID(EncodedIDCollection, routeID); err == nil {
 		h.serveCollectionImage(w, r, routeID, imageType, tag, collectionID)
+		return
+	}
+	// theramindex fork: Live TV channel logos, proxied; never a catalog lookup.
+	if h.liveLogos != nil && isLiveChannelID(routeID) {
+		h.liveLogos.serveLiveLogo(w, r, routeID, imageType)
 		return
 	}
 

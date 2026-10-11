@@ -152,6 +152,9 @@ type Dependencies struct {
 	SubtitlePlaySync subtitles.PlaySyncer
 	// Trickplay serves seek-bar preview sheets; nil answers 404.
 	Trickplay TrickplaySheets
+
+	// theramindex fork: LiveTV bridges livetv/v1 plugins to Jellyfin clients; nil turns Live TV off.
+	LiveTV *LiveTV
 }
 
 // CurrentConfig returns the live config when hot reload is wired, falling

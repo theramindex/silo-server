@@ -81,6 +81,8 @@ type ItemsHandler struct {
 	// realtimeMonitoring reads the live server-wide
 	// scanner.realtime_monitoring switch. Nil counts as on, the default.
 	realtimeMonitoring func() bool
+	// theramindex fork: liveTV adds the Live TV view; nil when Live TV is off.
+	liveTV *liveTVHandlers
 }
 
 type MarkerPopulationService interface {
@@ -164,6 +166,10 @@ func (h *ItemsHandler) userViews(ctx context.Context, session *Session) ([]baseI
 	items := make([]baseItemDTO, 0, len(libraries)+1)
 	if h.collectionsViewVisible(ctx, libraries) {
 		items = append(items, h.collectionsView())
+	}
+	// theramindex fork: the Live TV view, while at least one provider is installed.
+	if h.liveTV != nil && h.liveTV.bridge != nil && h.liveTV.bridge.Active(ctx) {
+		items = append(items, h.liveTV.view())
 	}
 	for _, library := range libraries {
 		dto := h.mapper.viewFromLibrary(library)

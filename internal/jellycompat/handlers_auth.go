@@ -123,6 +123,7 @@ type AuthHandler struct {
 	loginResolver loginResolver
 	authenticator *Authenticator
 	storeProvider userstore.UserStoreProvider
+	liveTV        *LiveTV // theramindex fork: sets EnableLiveTvAccess; nil when Live TV is off
 }
 
 // NewAuthHandler creates a new auth handler. The config provider is invoked

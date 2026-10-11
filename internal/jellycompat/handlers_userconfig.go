@@ -32,6 +32,7 @@ func configurationKey(profileID string) string { return "jellycompat:configurati
 
 func (h *AuthHandler) resolvedUserDTO(ctx context.Context, session *Session) (userDTOResponse, error) {
 	dto := h.userDTO(session)
+	dto.Policy.EnableLiveTVAccess = h.liveTV != nil && h.liveTV.Active(ctx) // theramindex fork: Live TV policy flag
 	if h.storeProvider == nil {
 		return dto, nil
 	}

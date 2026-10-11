@@ -202,6 +202,13 @@ func NewRouter(deps Dependencies) chi.Router {
 	imagesHandler.keyAuth = adminAPIKeyAuth
 	imagesHandler.frontendFS = deps.FrontendFS
 	displayPrefsHandler := NewDisplayPreferencesHandler(deps.UserStoreProvider)
+	// theramindex fork: Live TV listings, view, favorites, logos and policy flag; all nil when Live TV is off.
+	liveTV := newLiveTVHandlers(deps.LiveTV, itemsHandler.mapper.serverID, itemsHandler, userDataHandler, playbackHandler)
+	itemsHandler.liveTV = liveTV
+	if liveTV != nil {
+		imagesHandler.liveLogos = liveTV
+	}
+	authHandler.liveTV = deps.LiveTV
 	recsHandler := NewRecommendationsHandler(deps.Recommender, deps.ItemRepo, deps.DetailSvc, deps.ContentService, deps.UserDataService, deps.IDCodec, deps.Config, deps.AccessFilterFn)
 
 	r.Get("/System/Info/Public", systemHandler.HandlePublicInfo)
@@ -245,8 +252,8 @@ func NewRouter(deps Dependencies) chi.Router {
 				r.Get("/Library/VirtualFolders", itemsHandler.HandleVirtualFolders)
 			}
 			r.Get("/Users/{userId}/Views", itemsHandler.HandleViews)
-			r.Get("/Items", itemsHandler.HandleItems)
-			r.Get("/Users/{id}/Items", itemsHandler.HandleItems)
+			r.Get("/Items", liveTV.wrapItems(itemsHandler.HandleItems))            // theramindex fork: Live TV view children
+			r.Get("/Users/{id}/Items", liveTV.wrapItems(itemsHandler.HandleItems)) // theramindex fork: Live TV view children
 			r.Get("/Items/Latest", itemsHandler.HandleLatest)
 			r.Get("/Items/Filters", itemsHandler.HandleFiltersStub)
 			r.Get("/Items/Filters2", itemsHandler.HandleFilters2Stub)
@@ -269,9 +276,9 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Get("/Users/{userId}/Items/{id}/SpecialFeatures", itemsHandler.HandleSpecialFeatures)
 			r.Get("/Users/{userId}/Items/{id}/Intros", itemsHandler.HandleItemStub)
 			r.Get("/Users/{userId}/Items/{id}/LocalTrailers", itemsHandler.HandleLocalTrailers)
-			r.Get("/Items/{id}", itemsHandler.HandleItem)
+			r.Get("/Items/{id}", liveTV.wrapItem(itemsHandler.HandleItem)) // theramindex fork: Live TV view and channels
 			r.Get("/Users/{userId}/Items/Resume", itemsHandler.HandleResume)
-			r.Get("/Users/{userId}/Items/{id}", itemsHandler.HandleItem)
+			r.Get("/Users/{userId}/Items/{id}", liveTV.wrapItem(itemsHandler.HandleItem)) // theramindex fork: Live TV view and channels
 			r.Get("/Studios", itemsHandler.HandleStudios)
 			r.Get("/Genres", itemsHandler.HandleGenres)
 			r.Get("/Genres/{name}", itemsHandler.HandleGenreByName)
@@ -295,12 +302,12 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Get("/SyncPlay/List", func(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusOK, []struct{}{})
 			})
-			r.Post("/UserFavoriteItems/{itemId}", userDataHandler.HandleAddFavorite)
-			r.Delete("/UserFavoriteItems/{itemId}", userDataHandler.HandleRemoveFavorite)
+			r.Post("/UserFavoriteItems/{itemId}", liveTV.wrapFavorite(userDataHandler.HandleAddFavorite, true))       // theramindex fork: Live TV favorites
+			r.Delete("/UserFavoriteItems/{itemId}", liveTV.wrapFavorite(userDataHandler.HandleRemoveFavorite, false)) // theramindex fork: Live TV favorites
 			r.Post("/UserPlayedItems/{itemId}", userDataHandler.HandleMarkPlayed)
 			r.Delete("/UserPlayedItems/{itemId}", userDataHandler.HandleMarkUnplayed)
-			r.Post("/Users/{userId}/FavoriteItems/{itemId}", userDataHandler.HandleAddFavoriteLegacy)
-			r.Delete("/Users/{userId}/FavoriteItems/{itemId}", userDataHandler.HandleRemoveFavoriteLegacy)
+			r.Post("/Users/{userId}/FavoriteItems/{itemId}", liveTV.wrapFavorite(userDataHandler.HandleAddFavoriteLegacy, true))       // theramindex fork: Live TV favorites
+			r.Delete("/Users/{userId}/FavoriteItems/{itemId}", liveTV.wrapFavorite(userDataHandler.HandleRemoveFavoriteLegacy, false)) // theramindex fork: Live TV favorites
 			r.Post("/Users/{userId}/PlayedItems/{itemId}", userDataHandler.HandleMarkPlayedLegacy)
 			r.Delete("/Users/{userId}/PlayedItems/{itemId}", userDataHandler.HandleMarkUnplayedLegacy)
 			r.Get("/Users/{userId}/Items/{itemId}/UserData", userDataHandler.HandleGetUserDataLegacy)
@@ -331,6 +338,12 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Delete("/Videos/ActiveEncodings", playbackHandler.HandleDeleteActiveEncodings)
 			r.Post("/Sessions/Logout", authHandler.HandleLogout)
 			r.Post("/ClientLog/Document", HandleClientLogDocument)
+			// theramindex fork: Live TV listing routes, mounted only when Live TV is on.
+			if liveTV != nil {
+				r.Get("/LiveTv/Info", liveTV.HandleInfo)
+				r.Get("/LiveTv/Channels", liveTV.HandleChannels)
+				r.Get("/LiveTv/Channels/{id}", liveTV.HandleChannel)
+			}
 			r.Get("/socket", NewSocketHandlerWithUserData(deps.SessionStore, adminAPIKeyAuth, deps.UserStateEvents, deps.IDCodec))
 		})
 	}
