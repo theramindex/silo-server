@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Silo-Server/silo-server/internal/access"
 	"github.com/Silo-Server/silo-server/internal/auth"
@@ -281,7 +282,10 @@ func TestPolicyMarkerEditMiddlewareEvalErrorIsInternal(t *testing.T) {
 
 func newMiddlewarePolicyPDP(t *testing.T) *policy.PDP {
 	t.Helper()
-	engine, err := policy.NewEngine(context.Background())
+	// theramindex fork: the default 100ms evaluation budget is a production
+	// guard; a cold first decision on a loaded CI runner can exceed it and turn
+	// a 403 into a 500, so these decision tests get a generous budget.
+	engine, err := policy.NewEngine(context.Background(), policy.WithEvalTimeout(10*time.Second))
 	if err != nil {
 		t.Fatalf("NewEngine() error: %v", err)
 	}
