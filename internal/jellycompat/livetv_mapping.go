@@ -18,6 +18,16 @@ import (
 // liveChannelTag, so isLiveChannelID never accepts it.
 const liveTVViewID = "f1000000000000000000000000000001"
 
+// Jellyfin DTO values the bridge emits for channels and their media sources.
+const (
+	liveTVCollectionType = "livetv"
+	liveTVItemType       = "TvChannel"
+	liveTVMediaType      = "Video"
+	liveTVPlayAccess     = "Full"
+	liveTVSourceType     = "Default"
+	liveTVProfileMPEGTS  = "mpegts"
+)
+
 var liveTVViewUUID = uuid.MustParse(liveTVViewID)
 
 // isLiveTVViewID reports whether raw names the Live TV view, in the compact or
@@ -75,9 +85,9 @@ func mapLiveChannel(ch liveChannel, serverID string, prefs liveProfilePrefs) liv
 		ID:                ch.EncodedID,
 		ChannelNumber:     ch.Number,
 		Number:            ch.Number,
-		Type:              "TvChannel",
+		Type:              liveTVItemType,
 		ChannelType:       "TV",
-		MediaType:         "Video",
+		MediaType:         liveTVMediaType,
 		LocationType:      "Remote",
 		SortName:          strings.ToLower(ch.Name),
 		ParentID:          liveTVViewID,
@@ -88,7 +98,7 @@ func mapLiveChannel(ch liveChannel, serverID string, prefs liveProfilePrefs) liv
 			ItemID:     ch.EncodedID,
 			IsFavorite: prefs.Favorites[ch.ID],
 		},
-		PlayAccess: "Full",
+		PlayAccess: liveTVPlayAccess,
 		Genres:     []string{},
 	}
 	if liveLogoUsable(ch.LogoURL) {

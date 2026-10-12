@@ -81,7 +81,7 @@ var compatPathSegments = map[string]string{
 	"library":            "Library",
 	"virtualfolders":     "VirtualFolders",
 	"socket":             "socket",
-	"livetv":             "LiveTv",   // theramindex fork: Live TV bridge routes (info is already mapped above)
+	liveTVCollectionType: "LiveTv",   // theramindex fork: Live TV bridge routes (info is already mapped above)
 	"channels":           "Channels", // theramindex fork
 }
 

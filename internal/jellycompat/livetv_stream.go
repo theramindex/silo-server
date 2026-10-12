@@ -66,6 +66,11 @@ var (
 // set. The host is safe to log; the URL is not.
 type errLiveTVRelayHost struct{ host string }
 
+// isLiveHTTPScheme reports whether a stream or redirect URL uses http or https.
+func isLiveHTTPScheme(scheme string) bool {
+	return scheme == "http" || scheme == "https" //nolint:goconst // URL schemes, spelled out.
+}
+
 func (e errLiveTVRelayHost) Error() string { return "livetv: relay host not allowed: " + e.host }
 
 // livePlay is one PlaybackInfo negotiation for a channel. Stream.URL may embed
@@ -101,7 +106,7 @@ func newLiveStreamClient() *http.Client {
 	return &http.Client{
 		Transport: &liveStreamTransport{private: newLiveGuardedTransport(true), public: newLiveGuardedTransport(false)},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) > liveTVMaxRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
+			if len(via) > liveTVMaxRedirects || !isLiveHTTPScheme(req.URL.Scheme) {
 				return errLiveTVRedirect
 			}
 			ctx := req.Context()
@@ -276,11 +281,11 @@ func (l *LiveTV) relayEntry(token string) (liveRelayEntry, bool) {
 // deviceProfilePlaysTS reports whether a profile direct-plays MPEG-TS video.
 func deviceProfilePlaysTS(p DeviceProfile) bool {
 	for _, dp := range p.DirectPlayProfiles {
-		if dp.Type != "" && !strings.EqualFold(dp.Type, "Video") {
+		if dp.Type != "" && !strings.EqualFold(dp.Type, liveTVMediaType) {
 			continue
 		}
 		for part := range strings.SplitSeq(dp.Container, ",") {
-			if c := normalizeCompatToken(part); c == "mpegts" || c == "m2ts" {
+			if c := normalizeCompatToken(part); c == liveTVProfileMPEGTS || c == "m2ts" {
 				return true
 			}
 		}
@@ -303,21 +308,21 @@ func liveMediaSource(play livePlay) mediaSourceDTO {
 		ID:                     id,
 		Name:                   play.Channel.Name,
 		Protocol:               "Http",
-		Type:                   "Default",
+		Type:                   liveTVSourceType,
 		IsInfiniteStream:       true,
 		Formats:                []string{},
 		RequiredHTTPHeaders:    map[string]string{},
 		MediaAttachments:       []map[string]any{},
-		TranscodingSubProtocol: "hls",
+		TranscodingSubProtocol: liveTVContainerHLS,
 	}
-	if play.Stream.Container == "hls" {
-		src.Container = "hls"
+	if play.Stream.Container == liveTVContainerHLS {
+		src.Container = liveTVContainerHLS
 		src.SupportsTranscoding = true
 		src.TranscodingURL = livePlaylistPath(id, play.PlaySessionID)
-		src.TranscodingContainer = "ts"
+		src.TranscodingContainer = liveTVContainerTS
 		return src
 	}
-	src.Container = "ts"
+	src.Container = liveTVContainerTS
 	src.SupportsDirectPlay = true
 	src.SupportsDirectStream = true
 	src.DirectStreamURL = "/Videos/" + id + "/stream.ts?Static=true&" + liveMediaQuery(id, play.PlaySessionID)
@@ -360,7 +365,7 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 		}
 		format := "any"
 		if !deviceProfilePlaysTS(profile) {
-			format = "hls"
+			format = liveTVContainerHLS
 		}
 		stream, err := h.bridge.ResolveStream(ctx, caller, ch, format)
 		switch {
@@ -383,7 +388,7 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 			writeLivePlaybackError(w, playbackErrorNoCompatibleStream)
 			return
 		}
-		if format == "hls" && stream.Container != "hls" {
+		if format == liveTVContainerHLS && stream.Container != liveTVContainerHLS {
 			writeLivePlaybackError(w, playbackErrorNoCompatibleStream)
 			return
 		}
@@ -479,12 +484,12 @@ func (h *liveTVHandlers) wrapVideoStream(next http.HandlerFunc) http.HandlerFunc
 				writeError(w, http.StatusNotFound, "NotFound", "Item not found")
 				return
 			}
-			stream, err := h.bridge.ResolveStream(ctx, liveCaller(s), ch, "ts")
+			stream, err := h.bridge.ResolveStream(ctx, liveCaller(s), ch, liveTVContainerTS)
 			if errors.Is(err, errLiveTVChannelNotFound) {
 				writeError(w, http.StatusNotFound, "NotFound", "Item not found")
 				return
 			}
-			if err == nil && stream.Container != "ts" {
+			if err == nil && stream.Container != liveTVContainerTS {
 				err = fmt.Errorf("livetv: stream: want ts, got %q", stream.Container)
 			}
 			if err != nil {
@@ -505,9 +510,9 @@ func (h *liveTVHandlers) wrapVideoStream(next http.HandlerFunc) http.HandlerFunc
 			return
 		}
 		switch {
-		case play.Stream.Container == "ts" && play.Stream.Mode == "redirect":
+		case play.Stream.Container == liveTVContainerTS && play.Stream.Mode == liveTVModeRedirect:
 			http.Redirect(w, r, play.Stream.URL, http.StatusFound)
-		case play.Stream.Container == "ts":
+		case play.Stream.Container == liveTVContainerTS:
 			h.relayTS(w, r, play)
 		default:
 			http.Redirect(w, r, livePlaylistPath(play.Channel.EncodedID, play.PlaySessionID), http.StatusFound)
@@ -540,7 +545,7 @@ func (h *liveTVHandlers) fetchLive(r *http.Request, play livePlay, rawURL string
 	logFailure := func(attrs ...any) {
 		slog.WarnContext(ctx, "jellycompat: livetv fetch failed", append([]any{
 			"component", "jellycompat", "installation_id", play.Channel.InstallationID,
-			"channel_id", play.Channel.EncodedID, "host", liveURLHost(rawURL),
+			liveTVChannelIDParam, play.Channel.EncodedID, "host", liveURLHost(rawURL),
 		}, attrs...)...)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -598,7 +603,7 @@ func (h *liveTVHandlers) relayTS(w http.ResponseWriter, r *http.Request, play li
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	ctx := r.Context()
 	slog.DebugContext(ctx, "jellycompat: livetv relay started",
 		"component", "jellycompat", "channel_id", play.Channel.EncodedID)
@@ -629,9 +634,8 @@ func readLivePlaylist(resp *http.Response) ([]byte, error) {
 // playlist was finally served from. A final host that is not declared was
 // reached through the public-only pool, so it is promoted rather than
 // declared. prefix is the path from the playlist's own relay URL to the token
-// route.
+// route. The caller closes resp.
 func (h *liveTVHandlers) relayPlaylist(w http.ResponseWriter, r *http.Request, play livePlay, declared, promoted []string, resp *http.Response, prefix string) {
-	defer resp.Body.Close()
 	body, err := readLivePlaylist(resp)
 	if err == nil {
 		base := resp.Request.URL
@@ -668,7 +672,7 @@ func (h *liveTVHandlers) relayPlaylist(w http.ResponseWriter, r *http.Request, p
 // of an HLS play.
 func (h *liveTVHandlers) HandleLivePlaylist(w http.ResponseWriter, r *http.Request) {
 	play, ok := h.findPlay(r, chi.URLParam(r, "id"))
-	if !ok || play.Stream.Container != "hls" {
+	if !ok || play.Stream.Container != liveTVContainerHLS {
 		writeError(w, http.StatusNotFound, "NotFound", "Stream not found")
 		return
 	}
@@ -677,6 +681,7 @@ func (h *liveTVHandlers) HandleLivePlaylist(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
 	}
+	defer func() { _ = resp.Body.Close() }()
 	h.relayPlaylist(w, r, play, play.Hosts, nil, resp, "live/")
 }
 
@@ -698,6 +703,7 @@ func (h *liveTVHandlers) HandleLiveSegment(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 		return
 	}
+	defer func() { _ = resp.Body.Close() }()
 	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "mpegurl") ||
 		strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".m3u8") {
 		// A child playlist is served from .../live/{token}, so its relayed URIs
@@ -705,7 +711,6 @@ func (h *liveTVHandlers) HandleLiveSegment(w http.ResponseWriter, r *http.Reques
 		h.relayPlaylist(w, r, play, entry.Hosts, entry.Promoted, resp, "")
 		return
 	}
-	defer resp.Body.Close()
 	rw := newLiveStreamWriter(w)
 	if ct := resp.Header.Get("Content-Type"); ct != "" {
 		rw.Header().Set("Content-Type", ct)

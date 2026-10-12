@@ -155,7 +155,8 @@ func (l *LiveTV) ProfilePrefs(ctx context.Context, userID, installationID int, p
 // for one installation.
 func (l *LiveTV) prefsLock(userID, installationID int) *sync.Mutex {
 	mu, _ := l.prefLocks.LoadOrStore([2]int{userID, installationID}, &sync.Mutex{})
-	return mu.(*sync.Mutex)
+	lock, _ := mu.(*sync.Mutex)
+	return lock
 }
 
 // SetFavorite adds or removes a channel from a profile's favorites in the

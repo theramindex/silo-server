@@ -223,10 +223,14 @@ func (l *LiveTV) installLocked(installationID int) *liveInstall {
 	return st
 }
 
+// liveTVFetched carries a fetched value through the shared singleflight call,
+// whose result is untyped.
+type liveTVFetched[T any] struct{ val T }
+
 // loadCached returns the value cached by slot for an installation, refreshing
 // it through fetch when it is older than liveTVCacheTTL or force is set.
 // Concurrent refreshes of one value share a single fetch, and a waiter whose
-// ctx ends stops waiting without cancelling it. fetched reports that the value
+// ctx ends stops waiting without canceling it. fetched reports that the value
 // came from a fetch made during this call. When a refresh fails, or the caller
 // gives up, the stale copy is returned with a nil error; err is non-nil only
 // when there is no copy at all. After a failed refresh the installation is left
@@ -286,14 +290,15 @@ func loadCached[T any](
 		entry.val, entry.at, entry.ok = fresh, l.now(), true
 		entry.failedAt, entry.failErr = time.Time{}, nil
 		l.mu.Unlock()
-		return fresh, nil
+		return liveTVFetched[T]{val: fresh}, nil
 	})
 	select {
 	case res := <-resCh:
 		if res.Err != nil {
 			return fallback(res.Err)
 		}
-		return res.Val.(T), true, nil
+		fetched, _ := res.Val.(liveTVFetched[T])
+		return fetched.val, true, nil
 	case <-ctx.Done():
 		return fallback(ctx.Err())
 	}
@@ -460,7 +465,7 @@ func (l *LiveTV) Info(ctx context.Context, caller LiveTVCaller, installationID i
 // credentials.
 func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch liveChannel, format string) (liveTVStream, error) {
 	status, body, err := l.routes.Call(ctx, ch.InstallationID, caller, http.MethodGet, liveTVPathStream,
-		map[string]string{"channel_id": ch.ID, "format": format})
+		map[string]string{liveTVChannelIDParam: ch.ID, "format": format})
 	if err != nil {
 		return liveTVStream{}, fmt.Errorf("livetv: stream: %w", err)
 	}
@@ -478,10 +483,10 @@ func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch live
 	if err := json.Unmarshal(body, &stream); err != nil {
 		return liveTVStream{}, fmt.Errorf("livetv: stream: decode: %w", err)
 	}
-	if stream.Container != "ts" && stream.Container != "hls" {
+	if stream.Container != liveTVContainerTS && stream.Container != liveTVContainerHLS {
 		return liveTVStream{}, fmt.Errorf("livetv: stream: unknown container %q", stream.Container)
 	}
-	if stream.Mode != "redirect" && stream.Mode != "server" {
+	if stream.Mode != liveTVModeRedirect && stream.Mode != liveTVModeServer {
 		return liveTVStream{}, fmt.Errorf("livetv: stream: unknown mode %q", stream.Mode)
 	}
 
@@ -492,7 +497,7 @@ func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch live
 	// url.Parse errors quote the URL, so a parse failure is reported as a
 	// disallowed host rather than wrapped.
 	u, err := url.Parse(stream.URL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+	if err != nil || !isLiveHTTPScheme(u.Scheme) || u.Host == "" {
 		return liveTVStream{}, errLiveTVHostNotAllowed
 	}
 	if !slices.ContainsFunc(info.StreamHosts, func(h string) bool { return strings.EqualFold(h, u.Host) }) {

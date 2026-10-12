@@ -712,14 +712,14 @@ func TestLiveTVInfoBacksOffWithoutCopy(t *testing.T) {
 		t.Fatalf("info called %d times within the back-off, want 1", n)
 	}
 	clock.Advance(11 * time.Second)
-	l.Info(ctx, LiveTVCaller{}, 1)
+	_, _ = l.Info(ctx, LiveTVCaller{}, 1)
 	if n := len(routes.callsTo(liveTVPathInfo)); n != 2 {
 		t.Errorf("info called %d times after the back-off, want 2", n)
 	}
 }
 
 func TestLiveTVHungProviderDoesNotHoldCallers(t *testing.T) {
-	cancelled := func() (context.Context, context.CancelFunc) {
+	canceled := func() (context.Context, context.CancelFunc) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		return ctx, cancel
@@ -747,7 +747,7 @@ func TestLiveTVHungProviderDoesNotHoldCallers(t *testing.T) {
 		clock.Advance(61 * time.Second)
 		routes.hang(t)
 
-		for name, mkCtx := range map[string]func() (context.Context, context.CancelFunc){"cancelled": cancelled, "deadline": short} {
+		for name, mkCtx := range map[string]func() (context.Context, context.CancelFunc){"canceled": canceled, "deadline": short} {
 			ctx, cancel := mkCtx()
 			t.Cleanup(cancel)
 			t.Run(name, func(t *testing.T) {
@@ -761,7 +761,7 @@ func TestLiveTVHungProviderDoesNotHoldCallers(t *testing.T) {
 		l, _ := newTestLiveTV(routes)
 		routes.hang(t)
 
-		for name, mkCtx := range map[string]func() (context.Context, context.CancelFunc){"cancelled": cancelled, "deadline": short} {
+		for name, mkCtx := range map[string]func() (context.Context, context.CancelFunc){"canceled": canceled, "deadline": short} {
 			ctx, cancel := mkCtx()
 			t.Cleanup(cancel)
 			t.Run(name, func(t *testing.T) {

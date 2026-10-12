@@ -165,7 +165,7 @@ func TestPluginLiveTVRoutesSetsIdentityHeaders(t *testing.T) {
 		t.Fatalf("query = %v", q)
 	}
 
-	// Admins are labelled, and an empty profile id sends no profile header.
+	// Admins are labeled, and an empty profile id sends no profile header.
 	if _, _, err := routes.Call(context.Background(), 7, LiveTVCaller{UserID: 3, Admin: true},
 		http.MethodGet, liveTVPathChannels, nil); err != nil {
 		t.Fatalf("Call admin: %v", err)

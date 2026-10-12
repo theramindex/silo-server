@@ -10,6 +10,16 @@ const (
 	liveTVPathStream   = "/silo-compat/livetv/v1/stream"
 )
 
+// Stream containers and delivery modes a livetv/v1 stream response may carry,
+// and the query parameter that names the channel.
+const (
+	liveTVContainerTS    = "ts"
+	liveTVContainerHLS   = "hls"
+	liveTVModeRedirect   = "redirect"
+	liveTVModeServer     = "server"
+	liveTVChannelIDParam = "channel_id"
+)
+
 // liveTVInfo is the response of liveTVPathInfo. StreamHosts lists every
 // host[:port] the plugin may return in a stream URL.
 type liveTVInfo struct {

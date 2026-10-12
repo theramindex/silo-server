@@ -15,6 +15,8 @@ import (
 	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/Silo-Server/silo-server/internal/models"
+
 	"github.com/Silo-Server/silo-server/internal/pluginhost"
 	"github.com/Silo-Server/silo-server/internal/plugins"
 )
@@ -175,9 +177,9 @@ func liveTVIdentityHeaders(caller LiveTVCaller) map[string]string {
 	}
 	headers["X-Silo-User-Id"] = strconv.Itoa(caller.UserID)
 	if caller.Admin {
-		headers["X-Silo-User-Role"] = "admin"
+		headers["X-Silo-User-Role"] = models.RoleAdmin
 	} else {
-		headers["X-Silo-User-Role"] = "user"
+		headers["X-Silo-User-Role"] = models.RoleUser
 	}
 	if caller.ProfileID != "" {
 		headers["X-Silo-Profile-Id"] = caller.ProfileID

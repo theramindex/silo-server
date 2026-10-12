@@ -17,10 +17,10 @@ func TestLiveChannelIDRoundTrip(t *testing.T) {
 		t.Fatalf("round trip: ok=%v key=%+v", ok, key)
 	}
 	if dashed := uuid.MustParse(raw).String(); !isLiveChannelID(dashed) {
-		t.Fatalf("dashed form %q not recognised", dashed)
+		t.Fatalf("dashed form %q not recognized", dashed)
 	}
 	if undashed := strings.ReplaceAll(raw, "-", ""); !isLiveChannelID(undashed) {
-		t.Fatalf("32-hex form %q not recognised", undashed)
+		t.Fatalf("32-hex form %q not recognized", undashed)
 	}
 }
 

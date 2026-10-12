@@ -99,7 +99,7 @@ func (h *liveTVHandlers) view() baseItemDTO {
 		ID:                   liveTVViewID,
 		ServerID:             h.serverID,
 		Type:                 "UserView",
-		CollectionType:       "livetv",
+		CollectionType:       liveTVCollectionType,
 		Name:                 "Live TV",
 		SortName:             "live tv",
 		IsFolder:             true,
