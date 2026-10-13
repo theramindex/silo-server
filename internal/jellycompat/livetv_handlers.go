@@ -153,6 +153,33 @@ func (h *liveTVHandlers) HandleInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// HandleEmptyList answers the guide, program, recording and timer listings with
+// an empty result until the bridge carries guide data. Jellyfin web loads its
+// home sections with one Promise.all, so a 404 from its Live TV section stops
+// every library row on the home page from loading.
+func (h *liveTVHandlers) HandleEmptyList(w http.ResponseWriter, r *http.Request) {
+	if SessionFromContext(r.Context()) == nil {
+		writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
+		return
+	}
+	writeJSON(w, http.StatusOK, queryResultDTO{Items: []baseItemDTO{}})
+}
+
+type liveTVGuideInfoDTO struct {
+	StartDate string `json:"StartDate"`
+	EndDate   string `json:"EndDate"`
+}
+
+// HandleGuideInfo serves GET /LiveTv/GuideInfo as an empty window starting now.
+func (h *liveTVHandlers) HandleGuideInfo(w http.ResponseWriter, r *http.Request) {
+	if SessionFromContext(r.Context()) == nil {
+		writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	writeJSON(w, http.StatusOK, liveTVGuideInfoDTO{StartDate: now, EndDate: now})
+}
+
 // HandleChannels serves GET /LiveTv/Channels.
 func (h *liveTVHandlers) HandleChannels(w http.ResponseWriter, r *http.Request) {
 	s := SessionFromContext(r.Context())

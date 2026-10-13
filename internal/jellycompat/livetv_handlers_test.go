@@ -470,6 +470,29 @@ func TestLiveTVInfo(t *testing.T) {
 	}
 }
 
+// Jellyfin web's home page waits on its Live TV section before loading any
+// library row, so these listings must answer 200 rather than 404.
+func TestLiveTVGuideListingsAnswerEmpty(t *testing.T) {
+	router := newLiveTestEnv(t, true).router
+	for _, path := range []string{"/LiveTv/Programs", "/LiveTv/Programs/Recommended?IsAiring=true&limit=1", "/LiveTv/Recordings", "/LiveTv/Recordings/Series", "/LiveTv/Timers", "/LiveTv/SeriesTimers"} {
+		rec := serveLive(t, router, http.MethodGet, path, liveTokenP1)
+		if body := strings.TrimSpace(rec.Body.String()); rec.Code != http.StatusOK || body != `{"Items":[],"TotalRecordCount":0,"StartIndex":0}` {
+			t.Errorf("GET %s = %d %s", path, rec.Code, body)
+		}
+	}
+	if rec := serveLive(t, router, http.MethodPost, "/LiveTv/Programs", liveTokenP1); rec.Code != http.StatusOK {
+		t.Errorf("POST /LiveTv/Programs = %d %s", rec.Code, rec.Body.String())
+	}
+	rec := serveLive(t, router, http.MethodGet, "/LiveTv/GuideInfo", liveTokenP1)
+	got := decodeLiveJSON[liveTVGuideInfoDTO](t, rec)
+	if rec.Code != http.StatusOK || got.StartDate == "" || got.EndDate == "" {
+		t.Errorf("GuideInfo = %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := serveLive(t, router, http.MethodGet, "/LiveTv/Programs/Recommended", ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("Recommended without a session = %d, want 401", rec.Code)
+	}
+}
+
 func TestLiveTVRoutesAbsentWithoutBridge(t *testing.T) {
 	router := newLiveTestRouter(t, nil)
 	for _, path := range []string{"/LiveTv/Info", "/LiveTv/Channels", "/LiveTv/Channels/" + liveChannelIDFor("m3u:news.hd")} {
