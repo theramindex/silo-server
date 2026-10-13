@@ -416,8 +416,8 @@ func liveViewTypes(t *testing.T, router http.Handler) []string {
 }
 
 func TestLiveTVViewAppearsOnlyWhenActive(t *testing.T) {
-	if types := liveViewTypes(t, newLiveTestEnv(t, true).router); strings.Join(types, ",") != "livetv" {
-		t.Errorf("active views = %v, want [livetv]", types)
+	if types := liveViewTypes(t, newLiveTestEnv(t, true).router); strings.Join(types, ",") != "livetv,folders" {
+		t.Errorf("active views = %v, want [livetv folders]", types)
 	}
 	if types := liveViewTypes(t, newLiveTestEnv(t, false).router); len(types) != 0 {
 		t.Errorf("inactive views = %v, want none", types)

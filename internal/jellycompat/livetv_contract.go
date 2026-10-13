@@ -31,14 +31,16 @@ type liveTVInfo struct {
 
 // liveTVChannel is one entry of the liveTVPathChannels response. ID is the
 // plugin's stable channel id; GroupID is the category id the web app keys
-// hiddenCategories by.
+// hiddenCategories by. Folders are the web app's folder paths for the channel,
+// levels joined by " / ", deepest folders only.
 type liveTVChannel struct {
-	ID      string `json:"id"`
-	Number  string `json:"number"`
-	Name    string `json:"name"`
-	LogoURL string `json:"logoUrl"`
-	GroupID string `json:"groupId"`
-	Group   string `json:"group"`
+	ID      string   `json:"id"`
+	Number  string   `json:"number"`
+	Name    string   `json:"name"`
+	LogoURL string   `json:"logoUrl"`
+	GroupID string   `json:"groupId"`
+	Group   string   `json:"group"`
+	Folders []string `json:"folders"`
 }
 
 // Query parameters of liveTVPathPrograms.

@@ -228,16 +228,17 @@ func (h *liveTVHandlers) writeChannel(w http.ResponseWriter, r *http.Request, s 
 	writeJSON(w, http.StatusOK, mapLiveChannel(ch, h.serverID, prefs))
 }
 
-// wrapItem serves the Live TV view, channels and programs on GET /Items/{id} and
-// /Users/{userId}/Items/{id}, and passes every other id to next.
+// wrapItem serves the Live TV view, channels, programs and channel folders on
+// GET /Items/{id} and /Users/{userId}/Items/{id}, and passes every other id to
+// next.
 func (h *liveTVHandlers) wrapItem(next http.HandlerFunc) http.HandlerFunc {
 	if h == nil || h.bridge == nil {
 		return next
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		rawID := chi.URLParam(r, "id")
-		isView, isProgram := isLiveTVViewID(rawID), isLiveProgramID(rawID)
-		if !isView && !isProgram && !isLiveChannelID(rawID) {
+		isView, isProgram, isFolder := isLiveTVViewID(rawID), isLiveProgramID(rawID), isLiveFolderID(rawID)
+		if !isView && !isProgram && !isFolder && !isLiveChannelID(rawID) {
 			next(w, r)
 			return
 		}
@@ -250,26 +251,35 @@ func (h *liveTVHandlers) wrapItem(next http.HandlerFunc) http.HandlerFunc {
 			writeJSON(w, http.StatusOK, h.view())
 		case isProgram:
 			h.writeProgram(w, r, s, rawID)
+		case isFolder:
+			h.writeFolder(w, r, s, rawID)
 		default:
 			h.writeChannel(w, r, s, rawID)
 		}
 	}
 }
 
-// wrapItems lists channels for GET /Items?ParentId=<Live TV view> and passes
-// every other listing to next.
+// wrapItems lists channels for GET /Items?ParentId=<Live TV view>, a channel
+// folder's contents for ParentId=<folder>, and passes every other listing to
+// next.
 func (h *liveTVHandlers) wrapItems(next http.HandlerFunc) http.HandlerFunc {
 	if h == nil || h.bridge == nil {
 		return next
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isLiveTVViewID(newCaseInsensitiveQuery(r.URL.Query()).Get("ParentId")) {
+		parentID := newCaseInsensitiveQuery(r.URL.Query()).Get("ParentId")
+		isFolder := isLiveFolderID(parentID)
+		if !isFolder && !isLiveTVViewID(parentID) {
 			next(w, r)
 			return
 		}
 		s := SessionFromContext(r.Context())
 		// /Users/{id}/Items names the user "id".
 		if !validatePseudoUser(w, firstNonEmpty(chi.URLParam(r, "userId"), chi.URLParam(r, "id")), s) {
+			return
+		}
+		if isFolder {
+			h.writeFolderItems(w, r, s, parentID)
 			return
 		}
 		h.writeChannelList(w, r, s)

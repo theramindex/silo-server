@@ -17,10 +17,13 @@ in-process regardless of the declared access.
 any other first-hop host.
 
 ## GET /silo-compat/livetv/v1/channels
-200 `[{"id","number","name","logoUrl","groupId","group"}]`, the whole lineup in display order.
+200 `[{"id","number","name","logoUrl","groupId","group","folders"}]`, the whole lineup in display order.
 `id` is the plugin's stable channel ID, the same string the web app uses as a favorites key.
 `groupId` is the category ID the web app uses as a `hiddenCategories` key. `logoUrl` is an
 absolute http(s) URL or empty. There is no user state.
+`folders` (optional) lists the folders the web app shows the channel in, each a path whose
+levels are joined by `" / "` (`"US TV / NY / Locals / ABC"`). Only the deepest folders are
+listed; their parents are implied. A channel without folders is in none.
 
 ## GET /silo-compat/livetv/v1/stream?channel_id=<id>&format=ts|hls|any
 200 `{"url":"<absolute URL>","container":"ts"|"hls","mode":"redirect"|"server"}`

@@ -168,9 +168,11 @@ func (h *ItemsHandler) userViews(ctx context.Context, session *Session) ([]baseI
 	if h.collectionsViewVisible(ctx, libraries) {
 		items = append(items, h.collectionsView())
 	}
-	// theramindex fork: the Live TV view, while at least one provider is installed.
+	// theramindex fork: the Live TV view, while at least one provider is
+	// installed, and a channel folder view per provider that sends folders.
 	if h.liveTV != nil && h.liveTV.bridge != nil && h.liveTV.bridge.Active(ctx) {
 		items = append(items, h.liveTV.view())
+		items = append(items, h.liveTV.folderViews(ctx, session)...)
 	}
 	var order userViewOrder
 	if len(libraries)+len(items) > 1 {

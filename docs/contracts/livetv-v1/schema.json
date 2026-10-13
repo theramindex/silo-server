@@ -48,6 +48,13 @@
         },
         "group": {
           "type": "string"
+        },
+        "folders": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "required": [

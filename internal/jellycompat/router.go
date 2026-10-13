@@ -265,11 +265,11 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Get("/Users/{userId}/Views", itemsHandler.HandleViews)
 			r.Get("/Items", liveTV.wrapItems(itemsHandler.HandleItems))            // theramindex fork: Live TV view children
 			r.Get("/Users/{id}/Items", liveTV.wrapItems(itemsHandler.HandleItems)) // theramindex fork: Live TV view children
-			r.Get("/Items/Latest", itemsHandler.HandleLatest)
+			r.Get("/Items/Latest", liveTV.wrapLatest(itemsHandler.HandleLatest))   // theramindex fork: Live TV views have no latest items
 			r.Get("/Items/Filters", itemsHandler.HandleFiltersStub)
 			r.Get("/Items/Filters2", itemsHandler.HandleFilters2Stub)
 			r.Get("/Items/Suggestions", itemsHandler.HandleSuggestions)
-			r.Get("/Users/{id}/Items/Latest", itemsHandler.HandleLatest)
+			r.Get("/Users/{id}/Items/Latest", liveTV.wrapLatest(itemsHandler.HandleLatest)) // theramindex fork: Live TV views have no latest items
 			r.Get("/Items/{id}/Similar", itemsHandler.HandleSimilar)
 			r.Get("/Movies/{id}/Similar", itemsHandler.HandleSimilar)
 			r.Get("/Shows/{id}/Similar", itemsHandler.HandleSimilar)

@@ -5,7 +5,10 @@
     "name": "News HD",
     "logoUrl": "http://dispatcharr.example:9191/logos/news.png",
     "groupId": "7",
-    "group": "News"
+    "group": "News",
+    "folders": [
+      "US TV / News"
+    ]
   },
   {
     "id": "xtream:42",
@@ -13,7 +16,11 @@
     "name": "News Tonight",
     "logoUrl": "http://xtream.example/logos/42.png",
     "groupId": "7",
-    "group": "News"
+    "group": "News",
+    "folders": [
+      "US TV / News",
+      "International TV / UK / News"
+    ]
   },
   {
     "id": "m3u:sports.one",
@@ -21,6 +28,9 @@
     "name": "Sports One",
     "logoUrl": "",
     "groupId": "8",
-    "group": "Sports"
+    "group": "Sports",
+    "folders": [
+      "US Sports"
+    ]
   }
 ]
