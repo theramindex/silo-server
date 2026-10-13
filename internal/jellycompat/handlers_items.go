@@ -157,6 +157,7 @@ func (h *ItemsHandler) handleViewsResponse(w http.ResponseWriter, r *http.Reques
 // userViews builds the session's library views as CollectionFolder items. The
 // synthetic "Collections" view is prepended (first library) when the session
 // can see at least one collection; see collectionsView/collectionsViewVisible.
+// The profile's view order then applies; see loadUserViewOrder.
 func (h *ItemsHandler) userViews(ctx context.Context, session *Session) ([]baseItemDTO, error) {
 	libraries, err := h.content.ListUserLibraries(ctx, session)
 	if err != nil {
@@ -171,11 +172,17 @@ func (h *ItemsHandler) userViews(ctx context.Context, session *Session) ([]baseI
 	if h.liveTV != nil && h.liveTV.bridge != nil && h.liveTV.bridge.Active(ctx) {
 		items = append(items, h.liveTV.view())
 	}
+	var order userViewOrder
+	if len(libraries)+len(items) > 1 {
+		order = h.loadUserViewOrder(ctx, session)
+		sortByPreferredOrder(libraries, order.libraryOrder, func(library upstreamUserLibrary) string { return strconv.Itoa(library.ID) })
+	}
 	for _, library := range libraries {
 		dto := h.mapper.viewFromLibrary(library)
 		h.rememberLibraryImages(library, dto.ID)
 		items = append(items, dto)
 	}
+	sortByPreferredOrder(items, order.orderedViews, func(item baseItemDTO) string { return item.ID })
 	return items, nil
 }
 
@@ -3426,7 +3433,6 @@ func (h *ItemsHandler) rememberCompatEpisodeImages(dto baseItemDTO, stillURL str
 	if dto.SeriesID != "" {
 		h.images.RememberSized(dto.SeriesID, "Primary", series.PosterURL, compatCardImageSize)
 		h.images.RememberSized(dto.SeriesID, "Backdrop", series.BackdropURL, compatCardImageSize)
-		h.images.RememberSized(dto.SeriesID, "Thumb", series.BackdropURL, compatCardImageSize)
 	}
 }
 
@@ -3772,9 +3778,6 @@ func (h *ItemsHandler) enrichEpisodeSeriesImages(ctx context.Context, session *S
 		cache[seriesContentID] = imgs
 	}
 	h.mapper.applySeriesImages(dto, imgs)
-	if imgs.BackdropURL != "" && h.images != nil {
-		h.images.RememberSized(dto.SeriesID, "Thumb", imgs.BackdropURL, compatCardImageSize)
-	}
 }
 
 func max(value, fallback int) int {
