@@ -81,6 +81,9 @@ type liveChannel struct {
 type liveLineup struct {
 	channels []liveChannel
 	index    map[liveChannelKey]liveChannel
+	// byPrefix maps the 5-byte channel prefix in program ids to a position in
+	// channels, or -1 when two channels share it.
+	byPrefix map[liveChannelPrefix]int
 }
 
 type liveCacheEntry[T any] struct {
@@ -130,6 +133,14 @@ type LiveTV struct {
 	relayByURL   map[string]string
 	playsSwept   time.Time
 	relaySwept   time.Time
+
+	// guide caches provider program responses by request; programImages
+	// remembers the image of every program handed to a client, so the
+	// anonymous image route rarely has to ask a provider. Both are guarded by
+	// guideMu; see livetv_programs.go.
+	guideMu       sync.Mutex
+	guide         map[string]liveGuideEntry
+	programImages map[string]liveProgramImage
 }
 
 // NewLiveTV returns a LiveTV over routes. Provider streams are fetched with
@@ -137,15 +148,17 @@ type LiveTV struct {
 // transport is not used for them.
 func NewLiveTV(routes LiveTVRouteCaller, prefs LiveTVPrefsStore, httpClient *http.Client) *LiveTV {
 	return &LiveTV{
-		routes:       routes,
-		prefs:        prefs,
-		httpClient:   httpClient,
-		now:          time.Now,
-		installs:     map[int]*liveInstall{},
-		streamClient: newLiveStreamClient(),
-		plays:        map[string]*livePlay{},
-		relay:        map[string]*liveRelayEntry{},
-		relayByURL:   map[string]string{},
+		routes:        routes,
+		prefs:         prefs,
+		httpClient:    httpClient,
+		now:           time.Now,
+		installs:      map[int]*liveInstall{},
+		streamClient:  newLiveStreamClient(),
+		plays:         map[string]*livePlay{},
+		relay:         map[string]*liveRelayEntry{},
+		relayByURL:    map[string]string{},
+		guide:         map[string]liveGuideEntry{},
+		programImages: map[string]liveProgramImage{},
 	}
 }
 
@@ -327,6 +340,7 @@ func (l *LiveTV) fetchLineup(ctx context.Context, caller LiveTVCaller, installat
 	lineup := liveLineup{
 		channels: make([]liveChannel, 0, len(raw)),
 		index:    make(map[liveChannelKey]liveChannel, len(raw)),
+		byPrefix: make(map[liveChannelPrefix]int, len(raw)),
 	}
 	for _, c := range raw {
 		if c.ID == "" {
@@ -340,6 +354,12 @@ func (l *LiveTV) fetchLineup(ctx context.Context, caller LiveTVCaller, installat
 			liveTVChannel:  c,
 			InstallationID: installationID,
 			EncodedID:      encodeLiveChannelID(installationID, c.ID),
+		}
+		prefix := liveChannelPrefixOf(c.ID)
+		if _, taken := lineup.byPrefix[prefix]; taken {
+			lineup.byPrefix[prefix] = -1
+		} else {
+			lineup.byPrefix[prefix] = len(lineup.channels)
 		}
 		lineup.channels = append(lineup.channels, ch)
 		lineup.index[key] = ch

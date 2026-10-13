@@ -79,3 +79,24 @@ func TestCompatPathNormalizesLiveTVSegments(t *testing.T) {
 		}
 	}
 }
+
+func TestLiveProgramIDRoundTrip(t *testing.T) {
+	start := int64(1791900030) // 30s past a minute
+	id := encodeLiveProgramID(7, "m3u:news.hd", start)
+	key, ok := decodeLiveProgramID(id)
+	if !ok {
+		t.Fatalf("decode %q failed", id)
+	}
+	if key.InstallationID != 7 || key.Channel != liveChannelPrefixOf("m3u:news.hd") || key.StartMinute != start/60 {
+		t.Errorf("key = %+v", key)
+	}
+	if _, ok := decodeLiveProgramID(strings.ReplaceAll(id, "-", "")); !ok {
+		t.Error("compact form did not decode")
+	}
+	if isLiveChannelID(id) || isLiveProgramID(encodeLiveChannelID(7, "m3u:news.hd")) || isLiveProgramID(liveTVViewID) {
+		t.Error("program, channel and view ids must not decode as each other")
+	}
+	if encodeLiveProgramID(7, "x", liveProgramEpoch-60) != "" {
+		t.Error("a start before the epoch should not encode")
+	}
+}

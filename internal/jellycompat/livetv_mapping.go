@@ -26,6 +26,7 @@ const (
 	liveTVPlayAccess     = "Full"
 	liveTVSourceType     = "Default"
 	liveTVProfileMPEGTS  = "mpegts"
+	liveTVLocationRemote = "Remote"
 )
 
 var liveTVViewUUID = uuid.MustParse(liveTVViewID)
@@ -59,6 +60,7 @@ type liveChannelDTO struct {
 	UserData          *itemUserDataDTO  `json:"UserData,omitempty"`
 	PlayAccess        string            `json:"PlayAccess"`
 	Genres            []string          `json:"Genres"`
+	CurrentProgram    *liveProgramDTO   `json:"CurrentProgram,omitempty"`
 }
 
 type liveChannelQueryResult struct {
@@ -88,7 +90,7 @@ func mapLiveChannel(ch liveChannel, serverID string, prefs liveProfilePrefs) liv
 		Type:              liveTVItemType,
 		ChannelType:       "TV",
 		MediaType:         liveTVMediaType,
-		LocationType:      "Remote",
+		LocationType:      liveTVLocationRemote,
 		SortName:          strings.ToLower(ch.Name),
 		ParentID:          liveTVViewID,
 		ImageTags:         map[string]string{},

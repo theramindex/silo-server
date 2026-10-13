@@ -26,6 +26,16 @@ func readLiveTVFixture(t *testing.T, name string, into any) {
 }
 
 func TestLiveTVContractFixturesDecode(t *testing.T) {
+	t.Run("programs", func(t *testing.T) {
+		var got liveTVPrograms
+		readLiveTVFixture(t, "programs.json", &got)
+		if len(got.Programs) != 2 || got.Programs[0].ChannelID != "m3u:news.hd" || !got.Programs[0].IsNews || !got.Programs[1].IsSports {
+			t.Errorf("programs = %+v", got.Programs)
+		}
+		if got.Programs[0].EndUnix <= got.Programs[0].StartUnix {
+			t.Errorf("program window = %d..%d", got.Programs[0].StartUnix, got.Programs[0].EndUnix)
+		}
+	})
 	t.Run("info", func(t *testing.T) {
 		var info liveTVInfo
 		readLiveTVFixture(t, "info.json", &info)

@@ -1,0 +1,43 @@
+{
+  "programs": [
+    {
+      "id": "program:9001|m3u:news.hd",
+      "channelId": "m3u:news.hd",
+      "title": "Evening News",
+      "summary": "Headlines and weather.",
+      "startUnix": 1791900000,
+      "endUnix": 1791901800,
+      "imageUrl": "https://images.example.test/news.jpg",
+      "categories": [
+        "News"
+      ],
+      "isMovie": false,
+      "isSports": false,
+      "isNews": true,
+      "isKids": false,
+      "isSeries": false,
+      "isLive": true,
+      "featured": false
+    },
+    {
+      "id": "program:9002|m3u:news.hd",
+      "channelId": "m3u:news.hd",
+      "title": "Lakers at Celtics",
+      "summary": "",
+      "startUnix": 1791901800,
+      "endUnix": 1791910800,
+      "imageUrl": "",
+      "categories": [
+        "Sports event",
+        "NBA"
+      ],
+      "isMovie": false,
+      "isSports": true,
+      "isNews": false,
+      "isKids": false,
+      "isSeries": false,
+      "isLive": true,
+      "featured": true
+    }
+  ]
+}

@@ -7,41 +7,92 @@
     "info": {
       "type": "object",
       "properties": {
-        "contractVersion": { "type": "integer", "const": 1 },
-        "name": { "type": "string" },
+        "contractVersion": {
+          "type": "integer",
+          "const": 1
+        },
+        "name": {
+          "type": "string"
+        },
         "streamHosts": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       },
-      "required": ["contractVersion", "name", "streamHosts"],
+      "required": [
+        "contractVersion",
+        "name",
+        "streamHosts"
+      ],
       "additionalProperties": true
     },
     "channel": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "number": { "type": "string" },
-        "name": { "type": "string" },
-        "logoUrl": { "type": "string" },
-        "groupId": { "type": "string" },
-        "group": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "logoUrl": {
+          "type": "string"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        }
       },
-      "required": ["id", "number", "name", "logoUrl", "groupId", "group"],
+      "required": [
+        "id",
+        "number",
+        "name",
+        "logoUrl",
+        "groupId",
+        "group"
+      ],
       "additionalProperties": true
     },
     "channels": {
       "type": "array",
-      "items": { "$ref": "#/$defs/channel" }
+      "items": {
+        "$ref": "#/$defs/channel"
+      }
     },
     "stream": {
       "type": "object",
       "properties": {
-        "url": { "type": "string", "format": "uri" },
-        "container": { "type": "string", "enum": ["ts", "hls"] },
-        "mode": { "type": "string", "enum": ["redirect", "server"] }
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "container": {
+          "type": "string",
+          "enum": [
+            "ts",
+            "hls"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "redirect",
+            "server"
+          ]
+        }
       },
-      "required": ["url", "container", "mode"],
+      "required": [
+        "url",
+        "container",
+        "mode"
+      ],
       "additionalProperties": true
     },
     "profilePrefs": {
@@ -49,17 +100,109 @@
       "properties": {
         "favorites": {
           "type": "object",
-          "additionalProperties": { "type": "boolean" }
+          "additionalProperties": {
+            "type": "boolean"
+          }
         },
         "favoriteOrder": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "hiddenCategories": {
           "type": "object",
-          "additionalProperties": { "type": "boolean" }
+          "additionalProperties": {
+            "type": "boolean"
+          }
         }
       },
+      "additionalProperties": true
+    },
+    "program": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "channelId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "startUnix": {
+          "type": "integer"
+        },
+        "endUnix": {
+          "type": "integer"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isMovie": {
+          "type": "boolean"
+        },
+        "isSports": {
+          "type": "boolean"
+        },
+        "isNews": {
+          "type": "boolean"
+        },
+        "isKids": {
+          "type": "boolean"
+        },
+        "isSeries": {
+          "type": "boolean"
+        },
+        "isLive": {
+          "type": "boolean"
+        },
+        "featured": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "channelId",
+        "title",
+        "summary",
+        "startUnix",
+        "endUnix",
+        "imageUrl",
+        "categories",
+        "isMovie",
+        "isSports",
+        "isNews",
+        "isKids",
+        "isSeries",
+        "isLive",
+        "featured"
+      ],
+      "additionalProperties": true
+    },
+    "programs": {
+      "type": "object",
+      "properties": {
+        "programs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/program"
+          }
+        }
+      },
+      "required": [
+        "programs"
+      ],
       "additionalProperties": true
     }
   }

@@ -153,10 +153,10 @@ func (h *liveTVHandlers) HandleInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// HandleEmptyList answers the guide, program, recording and timer listings with
-// an empty result until the bridge carries guide data. Jellyfin web loads its
-// home sections with one Promise.all, so a 404 from its Live TV section stops
-// every library row on the home page from loading.
+// HandleEmptyList answers the recording and timer listings, which the bridge
+// does not serve, with an empty result. Jellyfin web loads its home sections
+// with one Promise.all, so a 404 from any Live TV listing stops every library
+// row on the home page from loading.
 func (h *liveTVHandlers) HandleEmptyList(w http.ResponseWriter, r *http.Request) {
 	if SessionFromContext(r.Context()) == nil {
 		writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
@@ -170,16 +170,6 @@ type liveTVGuideInfoDTO struct {
 	EndDate   string `json:"EndDate"`
 }
 
-// HandleGuideInfo serves GET /LiveTv/GuideInfo as an empty window starting now.
-func (h *liveTVHandlers) HandleGuideInfo(w http.ResponseWriter, r *http.Request) {
-	if SessionFromContext(r.Context()) == nil {
-		writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
-		return
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	writeJSON(w, http.StatusOK, liveTVGuideInfoDTO{StartDate: now, EndDate: now})
-}
-
 // HandleChannels serves GET /LiveTv/Channels.
 func (h *liveTVHandlers) HandleChannels(w http.ResponseWriter, r *http.Request) {
 	s := SessionFromContext(r.Context())
@@ -190,9 +180,26 @@ func (h *liveTVHandlers) HandleChannels(w http.ResponseWriter, r *http.Request) 
 	h.writeChannelList(w, r, s)
 }
 
+// writeChannelList answers a channel listing. The guide's category filter
+// keeps the channels airing that kind of program in the next day, and unless
+// the client opts out each channel on the page carries its current program.
 func (h *liveTVHandlers) writeChannelList(w http.ResponseWriter, r *http.Request, s *Session) {
 	channels, prefs := h.visibleChannels(r.Context(), s)
-	writeJSON(w, http.StatusOK, queryLiveChannels(channels, prefs, newCaseInsensitiveQuery(r.URL.Query()), h.serverID))
+	q := newCaseInsensitiveQuery(r.URL.Query())
+	now := h.bridge.now()
+	if classes := liveChannelClasses(q); len(classes) > 0 {
+		keep := h.channelsWithClasses(r.Context(), s, classes, now)
+		channels = slices.DeleteFunc(channels, func(ch liveChannel) bool { return !keep[ch.EncodedID] })
+	}
+	result := queryLiveChannels(channels, prefs, q, h.serverID)
+	if add := parseLiveBool(q.Get("AddCurrentProgram")); add == nil || *add {
+		byID := make(map[string]liveChannel, len(result.Items))
+		for _, ch := range channels {
+			byID[ch.EncodedID] = ch
+		}
+		h.addCurrentPrograms(r.Context(), s, result.Items, byID, now)
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 // HandleChannel serves GET /LiveTv/Channels/{id}.
@@ -221,7 +228,7 @@ func (h *liveTVHandlers) writeChannel(w http.ResponseWriter, r *http.Request, s 
 	writeJSON(w, http.StatusOK, mapLiveChannel(ch, h.serverID, prefs))
 }
 
-// wrapItem serves the Live TV view and channels on GET /Items/{id} and
+// wrapItem serves the Live TV view, channels and programs on GET /Items/{id} and
 // /Users/{userId}/Items/{id}, and passes every other id to next.
 func (h *liveTVHandlers) wrapItem(next http.HandlerFunc) http.HandlerFunc {
 	if h == nil || h.bridge == nil {
@@ -229,8 +236,8 @@ func (h *liveTVHandlers) wrapItem(next http.HandlerFunc) http.HandlerFunc {
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		rawID := chi.URLParam(r, "id")
-		isView := isLiveTVViewID(rawID)
-		if !isView && !isLiveChannelID(rawID) {
+		isView, isProgram := isLiveTVViewID(rawID), isLiveProgramID(rawID)
+		if !isView && !isProgram && !isLiveChannelID(rawID) {
 			next(w, r)
 			return
 		}
@@ -238,11 +245,14 @@ func (h *liveTVHandlers) wrapItem(next http.HandlerFunc) http.HandlerFunc {
 		if !validatePseudoUser(w, chi.URLParam(r, "userId"), s) {
 			return
 		}
-		if isView {
+		switch {
+		case isView:
 			writeJSON(w, http.StatusOK, h.view())
-			return
+		case isProgram:
+			h.writeProgram(w, r, s, rawID)
+		default:
+			h.writeChannel(w, r, s, rawID)
 		}
-		h.writeChannel(w, r, s, rawID)
 	}
 }
 
@@ -299,9 +309,11 @@ func (h *liveTVHandlers) wrapFavorite(next http.HandlerFunc, favorite bool) http
 	}
 }
 
-// liveLogoServer is what ImagesHandler needs to answer a channel logo.
+// liveLogoServer is what ImagesHandler needs to answer a channel logo or a
+// program image.
 type liveLogoServer interface {
 	serveLiveLogo(w http.ResponseWriter, r *http.Request, rawID, imageType string)
+	serveLiveProgramImage(w http.ResponseWriter, r *http.Request, rawID, imageType string)
 }
 
 // serveLiveLogo proxies a channel's Primary image. Logos are always proxied,
@@ -316,16 +328,23 @@ func (h *liveTVHandlers) serveLiveLogo(w http.ResponseWriter, r *http.Request, r
 		return
 	}
 	logo, ok := h.bridge.LogoURL(r.Context(), rawID)
+	key, keyOK := decodeLiveChannelID(rawID)
+	if !ok || !keyOK {
+		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
+		return
+	}
+	h.proxyLiveImage(w, r, key.InstallationID, logo)
+}
+
+// proxyLiveImage fetches a channel logo or program image from one
+// installation's provider and relays it.
+func (h *liveTVHandlers) proxyLiveImage(w http.ResponseWriter, r *http.Request, installationID int, imageURL string) {
+	ctx, client, ok := h.logoClient(r.Context(), installationID, imageURL)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	ctx, client, ok := h.logoClient(r.Context(), rawID, logo)
-	if !ok {
-		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
-		return
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, logo, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Failed to load image")
 		return
@@ -351,16 +370,12 @@ func liveImageContentType(contentType string) bool {
 // logoClient picks the client allowed to fetch logo, and the context to fetch
 // it with, or reports that it may not be fetched. A logo on one of the
 // provider's streamHosts may follow redirects only to those hosts.
-func (h *liveTVHandlers) logoClient(ctx context.Context, rawID, logo string) (context.Context, *http.Client, bool) {
+func (h *liveTVHandlers) logoClient(ctx context.Context, installationID int, logo string) (context.Context, *http.Client, bool) {
 	target, err := parseRemoteImageURL(logo)
 	if err != nil {
 		return ctx, nil, false
 	}
-	key, ok := decodeLiveChannelID(rawID)
-	if !ok {
-		return ctx, nil, false
-	}
-	if info, err := h.bridge.Info(ctx, LiveTVCaller{}, key.InstallationID); err == nil && liveHostAllowed(info.StreamHosts, target.Host) {
+	if info, err := h.bridge.Info(ctx, LiveTVCaller{}, installationID); err == nil && liveHostAllowed(info.StreamHosts, target.Host) {
 		hosts := info.StreamHosts
 		return withLiveHosts(ctx, hosts), &http.Client{
 			Timeout:   liveLogoTimeout,

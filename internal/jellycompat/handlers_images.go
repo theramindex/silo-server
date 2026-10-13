@@ -153,9 +153,14 @@ func (h *ImagesHandler) HandleItemImage(w http.ResponseWriter, r *http.Request) 
 		h.serveCollectionImage(w, r, routeID, imageType, tag, collectionID)
 		return
 	}
-	// theramindex fork: Live TV channel logos, proxied; never a catalog lookup.
+	// theramindex fork: Live TV channel logos and program images, proxied;
+	// never a catalog lookup.
 	if h.liveLogos != nil && isLiveChannelID(routeID) {
 		h.liveLogos.serveLiveLogo(w, r, routeID, imageType)
+		return
+	}
+	if h.liveLogos != nil && isLiveProgramID(routeID) {
+		h.liveLogos.serveLiveProgramImage(w, r, routeID, imageType)
 		return
 	}
 
