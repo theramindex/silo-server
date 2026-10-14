@@ -79,7 +79,12 @@ Query:
   its guide filters. A program may set none or several. `isLive` marks a live broadcast.
   Guide filler ("NO EVENT", "Off Air") sets none of them.
 - `featured` marks a program the provider matched to a real event, such as a game in its
-  sports guide. Without `channel_ids`, featured programs come first, then lineup order.
+  sports guide. Without `channel_ids`, featured programs come first, then lineup order. With
+  a `class` as well, the request fills a row, and a provider may rank it further: programs
+  that look like real events first, and placeholders (a program titled with its own channel's
+  name), previews of later games, radio feeds and titles many channels repeat last.
+- Filler and airtime sold to advertisers ("Teleshopping", "Paid Programming") set no flags,
+  even on a channel whose name suggests a class.
 - A provider that loads guide data on demand may start loading the requested channels in the
   background and return what it already has.
 - 400 `{"code":"bad_request"}` when `start` or `end` is missing or `class` is unknown.
