@@ -86,6 +86,7 @@ type livePlay struct {
 	Hosts         []string // info.StreamHosts
 	Expires       time.Time
 	beatAt        time.Time // last slot renewal
+	watched       bool      // the play was recorded in the watch history
 }
 
 // liveRelayEntry is a provider URL a relayed playlist refers to by token.

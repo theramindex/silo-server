@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -109,6 +110,10 @@ func mapLiveChannel(ch liveChannel, serverID string, prefs liveProfilePrefs) liv
 	if ch.Group != "" {
 		dto.Genres = []string{ch.Group}
 	}
+	if w, ok := prefs.Watched[ch.ID]; ok {
+		dto.UserData.PlayCount = w.Plays
+		dto.UserData.LastPlayedDate = formatCompatTime(time.Unix(w.PlayedAt, 0))
+	}
 	return dto
 }
 
@@ -124,6 +129,8 @@ func queryLiveChannels(channels []liveChannel, prefs map[int]liveProfilePrefs, q
 	}
 
 	sortBy, _, _ := strings.Cut(q.Get("SortBy"), ",")
+	sortOrder, _, _ := strings.Cut(q.Get("SortOrder"), ",")
+	descending := strings.EqualFold(strings.TrimSpace(sortOrder), "Descending")
 	switch sortBy = strings.TrimSpace(sortBy); {
 	case sortBy == "":
 		// Provider order.
@@ -131,11 +138,35 @@ func queryLiveChannels(channels []liveChannel, prefs map[int]liveProfilePrefs, q
 		slices.SortStableFunc(list, func(a, b liveChannel) int {
 			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
 		})
+	case strings.EqualFold(sortBy, "DatePlayed"):
+		// Android TV's "recently watched" channel order. Channels never played
+		// keep provider order, after the played ones when descending and before
+		// them when ascending, as Jellyfin's null dates sort.
+		playedAt := func(ch liveChannel) int64 { return prefs[ch.InstallationID].Watched[ch.ID].PlayedAt }
+		var played, unplayed []liveChannel
+		for _, ch := range list {
+			if playedAt(ch) > 0 {
+				played = append(played, ch)
+			} else {
+				unplayed = append(unplayed, ch)
+			}
+		}
+		slices.SortStableFunc(played, func(a, b liveChannel) int {
+			if descending {
+				return cmp.Compare(playedAt(b), playedAt(a))
+			}
+			return cmp.Compare(playedAt(a), playedAt(b))
+		})
+		if descending {
+			list = append(played, unplayed...)
+		} else {
+			list = append(unplayed, played...)
+		}
+		descending = false
 	default:
 		slices.SortStableFunc(list, compareLiveChannelNumbers)
 	}
-	sortOrder, _, _ := strings.Cut(q.Get("SortOrder"), ",")
-	if strings.EqualFold(strings.TrimSpace(sortOrder), "Descending") {
+	if descending {
 		slices.Reverse(list)
 	}
 

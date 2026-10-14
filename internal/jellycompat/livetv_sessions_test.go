@@ -192,7 +192,7 @@ func TestLivePlaybackReportPassesOtherPlaysThrough(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/Sessions/Playing/Progress", strings.NewReader(body))
 	req = req.WithContext(context.WithValue(req.Context(), compatSessionKey, &Session{Token: liveTokenP1, StreamAppUserID: 1, ProfileID: "p1"}))
 	rec := httptest.NewRecorder()
-	h.wrapPlaybackReport(next, false)(rec, req)
+	h.wrapPlaybackReport(next, liveReportProgress)(rec, req)
 	if rec.Code != http.StatusTeapot || got != body {
 		t.Fatalf("next got %d %q", rec.Code, got)
 	}

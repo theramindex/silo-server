@@ -142,11 +142,21 @@ func (l *LiveTV) keepPlayAlive(ctx context.Context, id string) (stop func()) {
 	}
 }
 
+// liveReportKind is which Jellyfin playback report a route carries.
+type liveReportKind int
+
+const (
+	liveReportStart liveReportKind = iota
+	liveReportProgress
+	liveReportStop
+)
+
 // wrapPlaybackReport answers Jellyfin's playback reports for live plays: a
-// report renews the play's provider slot, and a stop report ends the play and
-// frees it. Upstream knows nothing of live plays, so they never reach next;
-// every other report does, with its body intact.
-func (h *liveTVHandlers) wrapPlaybackReport(next http.HandlerFunc, stop bool) http.HandlerFunc {
+// report renews the play's provider slot, a start report records the channel
+// as watched, and a stop report ends the play and frees its slot. Upstream
+// knows nothing of live plays, so they never reach next; every other report
+// does, with its body intact.
+func (h *liveTVHandlers) wrapPlaybackReport(next http.HandlerFunc, kind liveReportKind) http.HandlerFunc {
 	if h == nil || h.bridge == nil {
 		return next
 	}
@@ -167,11 +177,41 @@ func (h *liveTVHandlers) wrapPlaybackReport(next http.HandlerFunc, stop bool) ht
 			next(w, r)
 			return
 		}
-		if stop {
+		switch kind {
+		case liveReportStop:
 			h.bridge.endPlay(r.Context(), id)
-		} else {
+		case liveReportStart:
+			h.recordWatch(r.Context(), s, play)
+			h.bridge.beatPlay(r.Context(), id)
+		default:
 			h.bridge.beatPlay(r.Context(), id)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// recordWatch records a play's channel as watched once per play, so a client
+// that reports the start twice counts once. A failure is logged and does not
+// fail the report.
+func (h *liveTVHandlers) recordWatch(ctx context.Context, s *Session, play livePlay) {
+	if !h.bridge.markWatched(play.PlaySessionID) {
+		return
+	}
+	ch := play.Channel
+	if err := h.bridge.RecordWatch(ctx, s.StreamAppUserID, ch.InstallationID, s.ProfileID, ch.ID, ch.Name); err != nil {
+		slog.WarnContext(ctx, "jellycompat: recording a livetv watch failed",
+			"component", "jellycompat", "installation_id", ch.InstallationID, "error", err)
+	}
+}
+
+// markWatched marks a play as recorded and reports whether it was not yet.
+func (l *LiveTV) markWatched(id string) bool {
+	l.streamMu.Lock()
+	defer l.streamMu.Unlock()
+	p, ok := l.plays[id]
+	if !ok || p.watched {
+		return false
+	}
+	p.watched = true
+	return true
 }

@@ -15,12 +15,30 @@ import (
 // document, the same one the web app writes.
 const liveTVPrefsKey = "preferences"
 
-// liveProfilePrefs is one profile's Live TV preferences.
+// liveProfilePrefs is one profile's Live TV preferences. Watched holds when
+// each channel was last played, which the web app keeps for the whole account
+// rather than per profile.
 type liveProfilePrefs struct {
 	Favorites     map[string]bool
 	FavoriteOrder []string
 	Hidden        map[string]bool
+	Watched       map[string]liveWatch
 }
+
+// liveWatch is one continueWatching entry: when a channel was last played, in
+// unix seconds, and how often.
+type liveWatch struct {
+	PlayedAt int64 `json:"playedAt"`
+	Plays    int   `json:"plays"`
+}
+
+// liveTVRecentChannels is how many channels the web app keeps in
+// recentChannels, and liveTVAutoFavoritePlays the play count at which it
+// suggests a channel as a favorite.
+const (
+	liveTVRecentChannels    = 24
+	liveTVAutoFavoritePlays = 3
+)
 
 // readLiveProfilePrefsSection decodes the preference keys of one section, which
 // is either the document itself (legacy, no profile) or one entry of "profiles".
@@ -55,7 +73,102 @@ func readLiveProfilePrefs(raw, profileID string) liveProfilePrefs {
 			section = p
 		}
 	}
-	return readLiveProfilePrefsSection(section)
+	out := readLiveProfilePrefsSection(section)
+	out.Watched = readLiveWatched(top)
+	return out
+}
+
+// readLiveWatched decodes the account's continueWatching map. An entry that is
+// not an object, or has no play time, is left out.
+func readLiveWatched(top map[string]json.RawMessage) map[string]liveWatch {
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(top["continueWatching"], &raw)
+	watched := make(map[string]liveWatch, len(raw))
+	for id, v := range raw {
+		var w liveWatch
+		if json.Unmarshal(v, &w) == nil && w.PlayedAt > 0 {
+			watched[id] = w
+		}
+	}
+	return watched
+}
+
+// writeLiveWatch returns the document with a play of channelID recorded the
+// way the web app records one: the channel moves to the front of
+// recentChannels, its continueWatching entry gets the play time and one more
+// play, and from the third play a channel the profile has not favorited is
+// suggested in autoFavorites. Every other key is kept as it was.
+func writeLiveWatch(raw, profileID, channelID, channelName string, now int64) (string, error) {
+	top := map[string]json.RawMessage{}
+	if strings.TrimSpace(raw) != "" {
+		if err := json.Unmarshal([]byte(raw), &top); err != nil {
+			return "", fmt.Errorf("livetv: preferences are not a JSON object: %w", err)
+		}
+		if top == nil {
+			top = map[string]json.RawMessage{}
+		}
+	}
+
+	var recent []string
+	_ = json.Unmarshal(top["recentChannels"], &recent)
+	next := []string{channelID}
+	for _, id := range recent {
+		if id != channelID && len(next) < liveTVRecentChannels {
+			next = append(next, id)
+		}
+	}
+
+	var watching map[string]json.RawMessage
+	if v, has := top["continueWatching"]; has {
+		if err := json.Unmarshal(v, &watching); err != nil {
+			return "", fmt.Errorf("livetv: preferences continueWatching is not a JSON object: %w", err)
+		}
+	}
+	if watching == nil {
+		watching = map[string]json.RawMessage{}
+	}
+	var old liveWatch
+	_ = json.Unmarshal(watching[channelID], &old)
+	plays := old.Plays + 1
+	if channelName == "" {
+		channelName = channelID
+	}
+	entry, err := json.Marshal(struct {
+		ItemKind string `json:"itemKind"`
+		ItemID   string `json:"itemId"`
+		ItemName string `json:"itemName"`
+		PlayedAt int64  `json:"playedAt"`
+		Plays    int    `json:"plays"`
+	}{"channel", channelID, channelName, now, plays})
+	if err != nil {
+		return "", err
+	}
+	watching[channelID] = entry
+
+	if plays >= liveTVAutoFavoritePlays && !readLiveProfilePrefs(raw, profileID).Favorites[channelID] {
+		var auto map[string]json.RawMessage
+		if v, has := top["autoFavorites"]; has {
+			if err := json.Unmarshal(v, &auto); err != nil {
+				return "", fmt.Errorf("livetv: preferences autoFavorites is not a JSON object: %w", err)
+			}
+		}
+		if auto == nil {
+			auto = map[string]json.RawMessage{}
+		}
+		auto[channelID] = json.RawMessage("true")
+		if top["autoFavorites"], err = json.Marshal(auto); err != nil {
+			return "", err
+		}
+	}
+
+	if top["recentChannels"], err = json.Marshal(next); err != nil {
+		return "", err
+	}
+	if top["continueWatching"], err = json.Marshal(watching); err != nil {
+		return "", err
+	}
+	out, err := json.Marshal(top)
+	return string(out), err
 }
 
 // writeLiveFavorite returns the document with channelID added to or removed from
@@ -168,6 +281,24 @@ func (l *LiveTV) prefsLock(userID, installationID int) *sync.Mutex {
 // writes through the HTTP API without this lock, so a write from there can still
 // race with one from here; the window is one request.
 func (l *LiveTV) SetFavorite(ctx context.Context, userID, installationID int, profileID, channelID string, favorite bool) error {
+	return l.updatePrefs(ctx, userID, installationID, func(raw string) (string, error) {
+		return writeLiveFavorite(raw, profileID, channelID, favorite)
+	})
+}
+
+// RecordWatch records a play of a channel in the account's preferences, as the
+// web app does when it starts a channel. Writes are serialized as SetFavorite's
+// are.
+func (l *LiveTV) RecordWatch(ctx context.Context, userID, installationID int, profileID, channelID, channelName string) error {
+	now := l.now().Unix()
+	return l.updatePrefs(ctx, userID, installationID, func(raw string) (string, error) {
+		return writeLiveWatch(raw, profileID, channelID, channelName, now)
+	})
+}
+
+// updatePrefs rewrites the account's preferences document for one installation
+// with update, under the account's write lock.
+func (l *LiveTV) updatePrefs(ctx context.Context, userID, installationID int, update func(raw string) (string, error)) error {
 	if l.prefs == nil {
 		return errLiveTVPrefsUnavailable
 	}
@@ -179,7 +310,7 @@ func (l *LiveTV) SetFavorite(ctx context.Context, userID, installationID int, pr
 	if err != nil {
 		return err
 	}
-	next, err := writeLiveFavorite(values[liveTVPrefsKey], profileID, channelID, favorite)
+	next, err := update(values[liveTVPrefsKey])
 	if err != nil {
 		return err
 	}

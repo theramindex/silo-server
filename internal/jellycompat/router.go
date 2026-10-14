@@ -335,17 +335,17 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Get("/Artists", itemsHandler.HandleItemStub)
 			r.Get("/Movies/Recommendations", recsHandler.HandleRecommendations)
 			r.Get("/Sessions", playbackHandler.HandleSessions)
-			r.Post("/Sessions/Playing/Ping", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlayingPing, false)) // theramindex fork: Live TV connection slots
+			r.Post("/Sessions/Playing/Ping", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlayingPing, liveReportProgress)) // theramindex fork: Live TV connection slots
 			r.Post("/Sessions/Capabilities", playbackHandler.HandleCapabilitiesFull)
 			r.Post("/Sessions/Capabilities/Full", playbackHandler.HandleCapabilitiesFull)
 			r.Get("/Playback/BitrateTest", observeCompat(deps.StreamTelemetry, http.MethodGet, "/Playback/BitrateTest", playbackHandler.HandleBitrateTest))
-			r.Get("/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                       // theramindex fork: Live TV playback
-			r.Post("/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                      // theramindex fork: Live TV playback
-			r.Get("/Users/{userId}/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))        // theramindex fork: Live TV playback
-			r.Post("/Users/{userId}/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))       // theramindex fork: Live TV playback
-			r.Post("/Sessions/Playing", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlaying, false))                  // theramindex fork: Live TV connection slots
-			r.Post("/Sessions/Playing/Progress", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlayingProgress, false)) // theramindex fork: Live TV connection slots
-			r.Post("/Sessions/Playing/Stopped", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlayingStopped, true))    // theramindex fork: Live TV connection slots
+			r.Get("/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                                    // theramindex fork: Live TV playback
+			r.Post("/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                                   // theramindex fork: Live TV playback
+			r.Get("/Users/{userId}/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                     // theramindex fork: Live TV playback
+			r.Post("/Users/{userId}/Items/{id}/PlaybackInfo", liveTV.wrapPlaybackInfo(playbackHandler.HandlePlaybackInfo))                    // theramindex fork: Live TV playback
+			r.Post("/Sessions/Playing", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlaying, liveReportStart))                     // theramindex fork: Live TV connection slots
+			r.Post("/Sessions/Playing/Progress", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlayingProgress, liveReportProgress)) // theramindex fork: Live TV connection slots
+			r.Post("/Sessions/Playing/Stopped", liveTV.wrapPlaybackReport(playbackHandler.HandleSessionPlayingStopped, liveReportStop))       // theramindex fork: Live TV connection slots
 			r.Delete("/Videos/ActiveEncodings", playbackHandler.HandleDeleteActiveEncodings)
 			r.Post("/Sessions/Logout", authHandler.HandleLogout)
 			r.Post("/ClientLog/Document", HandleClientLogDocument)
