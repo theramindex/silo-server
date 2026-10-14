@@ -86,9 +86,37 @@ type liveFolderTree struct {
 	byHash         map[[8]byte]string
 }
 
+// liveChannelFolders returns the folders a channel is filed in for a user: the
+// admin's layout unless the user groups categories by "|" or selected channel
+// profiles, and the provider sent folders for that.
+func liveChannelFolders(ch liveChannel, prefs liveProfilePrefs) []string {
+	switch {
+	case prefs.PipeGroups && ch.PipeFolders != nil:
+		return ch.PipeFolders
+	case prefs.Profiles != nil && ch.ProfileFolders != nil:
+		var paths []string
+		for _, f := range ch.ProfileFolders {
+			if f.ProfileID == "" || prefs.Profiles[f.ProfileID] {
+				paths = append(paths, liveFolderPath(f.Path))
+			}
+		}
+		// Only the deepest folders, as in Folders.
+		var leaves []string
+		for _, path := range paths {
+			if !slices.ContainsFunc(paths, func(other string) bool { return strings.HasPrefix(other, path+liveFolderSeparator) }) &&
+				!slices.Contains(leaves, path) {
+				leaves = append(leaves, path)
+			}
+		}
+		return leaves
+	}
+	return ch.Folders
+}
+
 // buildLiveFolderTree files channels, all of one installation, by their
-// folders. It returns false when no channel has a folder.
-func buildLiveFolderTree(installationID int, channels []liveChannel) (liveFolderTree, bool) {
+// folders for the user's preferences. It returns false when no channel has a
+// folder.
+func buildLiveFolderTree(installationID int, channels []liveChannel, prefs liveProfilePrefs) (liveFolderTree, bool) {
 	tree := liveFolderTree{
 		installationID: installationID,
 		children:       map[string][]string{},
@@ -96,7 +124,7 @@ func buildLiveFolderTree(installationID int, channels []liveChannel) (liveFolder
 		byHash:         map[[8]byte]string{liveChannelHash(""): ""},
 	}
 	for _, ch := range channels {
-		for _, folder := range ch.Folders {
+		for _, folder := range liveChannelFolders(ch, prefs) {
 			path := liveFolderPath(folder)
 			if path == "" {
 				continue
@@ -194,7 +222,7 @@ func (h *liveTVHandlers) folderTrees(ctx context.Context, s *Session, only int) 
 	}
 	var trees []liveFolderTree
 	for _, id := range order {
-		if tree, ok := buildLiveFolderTree(id, byInstall[id]); ok {
+		if tree, ok := buildLiveFolderTree(id, byInstall[id], prefs[id]); ok {
 			trees = append(trees, tree)
 		}
 	}

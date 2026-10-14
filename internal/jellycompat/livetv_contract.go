@@ -48,15 +48,29 @@ type liveTVInfo struct {
 // liveTVChannel is one entry of the liveTVPathChannels response. ID is the
 // plugin's stable channel id; GroupID is the category id the web app keys
 // hiddenCategories by. Folders are the web app's folder paths for the channel,
-// levels joined by " / ", deepest folders only.
+// levels joined by " / ", deepest folders only: the admin's layout. The other
+// fields let a user's own folder settings change it: PipeFolders replace
+// Folders for a user who groups categories by "|", and ProfileIDs and
+// ProfileFolders apply a user's channel profile selection.
 type liveTVChannel struct {
-	ID      string   `json:"id"`
-	Number  string   `json:"number"`
-	Name    string   `json:"name"`
-	LogoURL string   `json:"logoUrl"`
-	GroupID string   `json:"groupId"`
-	Group   string   `json:"group"`
-	Folders []string `json:"folders"`
+	ID             string                `json:"id"`
+	Number         string                `json:"number"`
+	Name           string                `json:"name"`
+	LogoURL        string                `json:"logoUrl"`
+	GroupID        string                `json:"groupId"`
+	Group          string                `json:"group"`
+	Folders        []string              `json:"folders"`
+	PipeFolders    []string              `json:"pipeFolders"`
+	ProfileIDs     []string              `json:"profileIds"`
+	ProfileFolders []liveTVProfileFolder `json:"profileFolders"`
+}
+
+// liveTVProfileFolder is one of a channel's folders and the channel profile it
+// comes from; an empty ProfileID means it is shown whatever the selection.
+// Every path is listed, not only the deepest.
+type liveTVProfileFolder struct {
+	Path      string `json:"path"`
+	ProfileID string `json:"profileId"`
 }
 
 // Query parameters of liveTVPathPrograms.

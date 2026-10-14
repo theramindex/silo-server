@@ -208,3 +208,56 @@ func TestLiveTVFolderViewNamesWithTwoProviders(t *testing.T) {
 		t.Fatalf("second provider folder = %s", got)
 	}
 }
+
+// liveFolderPrefsLineup is a provider whose channels carry profile folders and
+// pipe folders.
+const liveFolderPrefsLineup = `[` +
+	`{"id":"abc","number":"1","name":"WABC","logoUrl":"","groupId":"1","group":"US TV | Locals | ABC","folders":["US TV / NY / Locals / ABC","US TV / NJ / Locals / ABC"],` +
+	`"profileIds":["ny","nj"],"profileFolders":[{"path":"US TV / NY","profileId":"ny"},{"path":"US TV / NY / Locals / ABC","profileId":"ny"},{"path":"US TV / NJ","profileId":"nj"},{"path":"US TV / NJ / Locals / ABC","profileId":"nj"}]},` +
+	`{"id":"njn","number":"2","name":"NJ News","logoUrl":"","groupId":"2","group":"US TV | News","folders":["US TV / NJ / News"],` +
+	`"profileIds":["nj"],"profileFolders":[{"path":"US TV / NJ","profileId":"nj"},{"path":"US TV / NJ / News","profileId":"nj"}]},` +
+	`{"id":"flo","number":"3","name":"Flo 1","logoUrl":"","groupId":"3","group":"USA | Flo","folders":["USA | Flo"],"pipeFolders":["USA / Flo"]}` +
+	`]`
+
+// The admin's layout is the default; a user's channel profile selection hides
+// the channels and folders of the other profiles, and groupCategoriesByPipe
+// switches to the pipe folders.
+func TestLiveTVFolderUserPreferences(t *testing.T) {
+	env := newLiveTestEnv(t, true)
+	env.routes.setResponse(liveTestInstall, liveTVPathChannels, http.StatusOK, liveFolderPrefsLineup)
+	browse := func(path string) string {
+		return liveFolderNames(env.folderItems(t, "ParentId="+liveFolderIDFor(path)))
+	}
+
+	if got := browse("US TV"); got != "Folder:NJ|Folder:NY" {
+		t.Fatalf("admin layout US TV = %s", got)
+	}
+	if got := browse(""); got != "Folder:US TV|Folder:USA | Flo" {
+		t.Fatalf("admin layout root = %s", got)
+	}
+
+	env.seedPrefs(`{"profileSelection":{"mode":"selected","profileIds":["ny"]},"groupCategoriesByPipe":true}`)
+	if got := browse("US TV"); got != "Folder:NY" {
+		t.Fatalf("NY only US TV = %s", got)
+	}
+	if got := browse("US TV / NY / Locals"); got != "Folder:ABC" {
+		t.Fatalf("NY only locals = %s", got)
+	}
+	// The channel profile selection hides NJ News everywhere; Flo is in no
+	// profile, so it is hidden too, as in the web app.
+	rec := serveLive(t, env.router, http.MethodGet, "/LiveTv/Channels", liveTokenP1)
+	if got := decodeLiveJSON[liveFolderTestResult](t, rec); liveFolderNames(got) != "TvChannel:WABC" {
+		t.Fatalf("channels with NY selected = %s", liveFolderNames(got))
+	}
+
+	env.seedPrefs(`{"groupCategoriesByPipe":true}`)
+	if got := browse("USA"); got != "Folder:Flo" {
+		t.Fatalf("pipe groups USA = %s", got)
+	}
+
+	// A selection naming only profiles no channel is in shows every profile.
+	env.seedPrefs(`{"profileSelection":{"mode":"selected","profileIds":["gone"]}}`)
+	if got := browse("US TV"); got != "Folder:NJ|Folder:NY" {
+		t.Fatalf("stale selection US TV = %s", got)
+	}
+}

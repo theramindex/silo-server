@@ -85,6 +85,8 @@ type liveLineup struct {
 	// byPrefix maps the 5-byte channel prefix in program ids to a position in
 	// channels, or -1 when two channels share it.
 	byPrefix map[liveChannelPrefix]int
+	// profiles holds every channel profile id a channel names.
+	profiles map[string]bool
 }
 
 type liveCacheEntry[T any] struct {
@@ -342,6 +344,7 @@ func (l *LiveTV) fetchLineup(ctx context.Context, caller LiveTVCaller, installat
 		channels: make([]liveChannel, 0, len(raw)),
 		index:    make(map[liveChannelKey]liveChannel, len(raw)),
 		byPrefix: make(map[liveChannelPrefix]int, len(raw)),
+		profiles: map[string]bool{},
 	}
 	for _, c := range raw {
 		if c.ID == "" {
@@ -364,8 +367,31 @@ func (l *LiveTV) fetchLineup(ctx context.Context, caller LiveTVCaller, installat
 		}
 		lineup.channels = append(lineup.channels, ch)
 		lineup.index[key] = ch
+		for _, id := range c.ProfileIDs {
+			lineup.profiles[id] = true
+		}
 	}
 	return lineup, nil
+}
+
+// knownProfiles keeps the ids of selected that a channel of the installation
+// names, or returns nil, every profile, when none are left. The web app drops
+// a selected profile that no longer exists the same way.
+func (l *LiveTV) knownProfiles(ctx context.Context, caller LiveTVCaller, installationID int, selected map[string]bool) map[string]bool {
+	if selected == nil {
+		return nil
+	}
+	lineup, _ := l.lineupFor(ctx, caller, installationID, false)
+	known := map[string]bool{}
+	for id := range selected {
+		if lineup.profiles[id] {
+			known[id] = true
+		}
+	}
+	if len(known) == 0 {
+		return nil
+	}
+	return known
 }
 
 // lineupFor returns one installation's lineup. A provider that fails with no

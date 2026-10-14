@@ -66,11 +66,17 @@ func (h *liveTVHandlers) profilePrefs(ctx context.Context, s *Session, installat
 			"component", "jellycompat", "installation_id", installationID, "error", err)
 		return liveProfilePrefs{Favorites: map[string]bool{}, Hidden: map[string]bool{}}
 	}
+	prefs.Profiles = h.bridge.knownProfiles(ctx, liveCaller(s), installationID, prefs.Profiles)
 	return prefs
 }
 
+// liveChannelHidden reports whether the profile hides a channel: its group is
+// hidden, or a profile selection leaves out every channel profile it is in.
 func liveChannelHidden(ch liveChannel, prefs liveProfilePrefs) bool {
-	return ch.GroupID != "" && prefs.Hidden[ch.GroupID]
+	if ch.GroupID != "" && prefs.Hidden[ch.GroupID] {
+		return true
+	}
+	return prefs.Profiles != nil && !slices.ContainsFunc(ch.ProfileIDs, func(id string) bool { return prefs.Profiles[id] })
 }
 
 // visibleChannels returns the session's lineup without the groups its profile

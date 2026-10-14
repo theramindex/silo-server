@@ -23,6 +23,11 @@ type liveProfilePrefs struct {
 	FavoriteOrder []string
 	Hidden        map[string]bool
 	Watched       map[string]liveWatch
+	// Profiles is the account's channel profile selection, nil for all
+	// profiles, and PipeGroups its groupCategoriesByPipe setting. Both are
+	// account-wide, and both default to the admin's folder layout.
+	Profiles   map[string]bool
+	PipeGroups bool
 }
 
 // liveWatch is one continueWatching entry: when a channel was last played, in
@@ -75,7 +80,35 @@ func readLiveProfilePrefs(raw, profileID string) liveProfilePrefs {
 	}
 	out := readLiveProfilePrefsSection(section)
 	out.Watched = readLiveWatched(top)
+	out.Profiles = readLiveProfileSelection(top)
+	_ = json.Unmarshal(top["groupCategoriesByPipe"], &out.PipeGroups)
 	return out
+}
+
+// liveProfileSelectionSelected is the profileSelection mode that limits the
+// lineup to the selected profiles.
+const liveProfileSelectionSelected = "selected"
+
+// readLiveProfileSelection decodes profileSelection: the selected profile ids,
+// or nil when every profile is shown, as the web app reads it.
+func readLiveProfileSelection(top map[string]json.RawMessage) map[string]bool {
+	var selection struct {
+		Mode       string   `json:"mode"`
+		ProfileIDs []string `json:"profileIds"`
+	}
+	if json.Unmarshal(top["profileSelection"], &selection) != nil || selection.Mode != liveProfileSelectionSelected {
+		return nil
+	}
+	selected := map[string]bool{}
+	for _, id := range selection.ProfileIDs {
+		if id = strings.TrimSpace(id); id != "" {
+			selected[id] = true
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	return selected
 }
 
 // readLiveWatched decodes the account's continueWatching map. An entry that is

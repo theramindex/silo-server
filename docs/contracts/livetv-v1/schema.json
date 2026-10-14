@@ -55,6 +55,37 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "pipeFolders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "profileIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "profileFolders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "profileId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "profileId"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
