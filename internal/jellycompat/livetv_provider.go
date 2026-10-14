@@ -38,6 +38,7 @@ var (
 	errLiveTVFormatUnavailable = errors.New("livetv: format unavailable")
 	errLiveTVChannelNotFound   = errors.New("livetv: channel not found")
 	errLiveTVHostNotAllowed    = errors.New("livetv: stream host not allowed")
+	errLiveTVConnectionLimit   = errors.New("livetv: provider connection limit reached")
 )
 
 // LiveTVProviderRef names one installed plugin that serves livetv/v1.
@@ -481,11 +482,15 @@ func (l *LiveTV) Info(ctx context.Context, caller LiveTVCaller, installationID i
 
 // ResolveStream asks the channel's provider for a stream URL in the requested
 // format ("ts", "hls" or "any") and checks the URL's first-hop host against the
-// provider's declared streamHosts. Errors never carry the URL, which may embed
-// credentials.
-func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch liveChannel, format string) (liveTVStream, error) {
-	status, body, err := l.routes.Call(ctx, ch.InstallationID, caller, http.MethodGet, liveTVPathStream,
-		map[string]string{liveTVChannelIDParam: ch.ID, "format": format})
+// provider's declared streamHosts. A provider that limits connections counts
+// the stream against sessionID; asking again with the same id keeps its slot.
+// Errors never carry the URL, which may embed credentials.
+func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch liveChannel, format, sessionID string) (liveTVStream, error) {
+	query := map[string]string{liveTVChannelIDParam: ch.ID, "format": format}
+	if sessionID != "" {
+		query[liveTVSessionIDParam] = sessionID
+	}
+	status, body, err := l.routes.Call(ctx, ch.InstallationID, caller, http.MethodGet, liveTVPathStream, query)
 	if err != nil {
 		return liveTVStream{}, fmt.Errorf("livetv: stream: %w", err)
 	}
@@ -495,6 +500,11 @@ func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch live
 		return liveTVStream{}, errLiveTVChannelNotFound
 	case http.StatusUnprocessableEntity:
 		return liveTVStream{}, errLiveTVFormatUnavailable
+	case http.StatusConflict:
+		if liveErrorCode(body) == liveTVCodeConnectionLimit {
+			return liveTVStream{}, errLiveTVConnectionLimit
+		}
+		return liveTVStream{}, fmt.Errorf("livetv: stream: status %d", status)
 	default:
 		return liveTVStream{}, fmt.Errorf("livetv: stream: status %d", status)
 	}
@@ -509,21 +519,40 @@ func (l *LiveTV) ResolveStream(ctx context.Context, caller LiveTVCaller, ch live
 	if stream.Mode != liveTVModeRedirect && stream.Mode != liveTVModeServer {
 		return liveTVStream{}, fmt.Errorf("livetv: stream: unknown mode %q", stream.Mode)
 	}
+	if sessionID == "" {
+		stream.Leased = false
+	}
+	// A stream refused below must not keep the slot it was leased.
+	refuse := func(err error) (liveTVStream, error) {
+		if stream.Leased {
+			l.stopSession(ctx, caller, ch.InstallationID, sessionID)
+		}
+		return liveTVStream{}, err
+	}
 
 	info, err := l.Info(ctx, caller, ch.InstallationID)
 	if err != nil {
-		return liveTVStream{}, fmt.Errorf("livetv: stream: provider info: %w", err)
+		return refuse(fmt.Errorf("livetv: stream: provider info: %w", err))
 	}
 	// url.Parse errors quote the URL, so a parse failure is reported as a
 	// disallowed host rather than wrapped.
 	u, err := url.Parse(stream.URL)
 	if err != nil || !isLiveHTTPScheme(u.Scheme) || u.Host == "" {
-		return liveTVStream{}, errLiveTVHostNotAllowed
+		return refuse(errLiveTVHostNotAllowed)
 	}
 	if !slices.ContainsFunc(info.StreamHosts, func(h string) bool { return strings.EqualFold(h, u.Host) }) {
 		slog.WarnContext(ctx, "jellycompat: livetv stream host not allowed",
 			"component", "jellycompat", "installation_id", ch.InstallationID, "host", u.Host)
-		return liveTVStream{}, errLiveTVHostNotAllowed
+		return refuse(errLiveTVHostNotAllowed)
 	}
 	return stream, nil
+}
+
+// liveErrorCode returns the code of a provider error body, or "".
+func liveErrorCode(body []byte) string {
+	var e liveTVError
+	if json.Unmarshal(body, &e) != nil {
+		return ""
+	}
+	return e.Code
 }

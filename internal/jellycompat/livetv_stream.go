@@ -74,14 +74,18 @@ func isLiveHTTPScheme(scheme string) bool {
 func (e errLiveTVRelayHost) Error() string { return "livetv: relay host not allowed: " + e.host }
 
 // livePlay is one PlaybackInfo negotiation for a channel. Stream.URL may embed
-// credentials and never leaves the server in server mode.
+// credentials and never leaves the server in server mode. When Stream.Leased,
+// the provider holds a connection slot under PlaySessionID; see
+// livetv_sessions.go.
 type livePlay struct {
 	PlaySessionID string
 	Channel       liveChannel
 	Stream        liveTVStream
 	Caller        LiveTVCaller
+	DeviceID      string   // the client's DeviceId, when it sent one
 	Hosts         []string // info.StreamHosts
 	Expires       time.Time
+	beatAt        time.Time // last slot renewal
 }
 
 // liveRelayEntry is a provider URL a relayed playlist refers to by token.
@@ -216,6 +220,7 @@ func (l *LiveTV) putPlay(p livePlay) {
 	pruneLiveTable(l.plays, now, &l.playsSwept, liveTVMaxPlays,
 		func(p *livePlay) time.Time { return p.Expires }, func(string, *livePlay) {})
 	p.Expires = now.Add(liveTVPlayTTL)
+	p.beatAt = now
 	l.plays[p.PlaySessionID] = &p
 }
 
@@ -367,9 +372,22 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 		if !deviceProfilePlaysTS(profile) {
 			format = liveTVContainerHLS
 		}
-		stream, err := h.bridge.ResolveStream(ctx, caller, ch, format)
+		clientDeviceID := stripCompatNUL(firstNonEmpty(
+			firstMediaBrowserAuthorizationValue(r, "DeviceId"),
+			newCaseInsensitiveQuery(r.URL.Query()).Get("DeviceId"),
+		))
+		// The device's earlier play gives up its connection slot first, so
+		// switching channels on a one-connection account works.
+		h.bridge.endDevicePlays(ctx, caller, clientDeviceID)
+		playSessionID := h.playback.codec.EncodeStringID(EncodedIDPlaySession, uuidNewString())
+		stream, err := h.bridge.ResolveStream(ctx, caller, ch, format, playSessionID)
 		switch {
 		case err == nil:
+		case errors.Is(err, errLiveTVConnectionLimit):
+			slog.InfoContext(ctx, "jellycompat: livetv stream refused: provider connections in use",
+				"component", "jellycompat", "installation_id", ch.InstallationID, "channel_id", ch.EncodedID)
+			writeLivePlaybackError(w, liveTVPlaybackErrorRateLimit)
+			return
 		case errors.Is(err, errLiveTVFormatUnavailable):
 			writeLivePlaybackError(w, playbackErrorNoCompatibleStream)
 			return
@@ -389,6 +407,9 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 			return
 		}
 		if format == liveTVContainerHLS && stream.Container != liveTVContainerHLS {
+			if stream.Leased {
+				h.bridge.stopSession(ctx, caller, ch.InstallationID, playSessionID)
+			}
 			writeLivePlaybackError(w, playbackErrorNoCompatibleStream)
 			return
 		}
@@ -396,15 +417,19 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 		if err != nil {
 			slog.WarnContext(ctx, "jellycompat: livetv provider info unavailable",
 				"component", "jellycompat", "installation_id", ch.InstallationID, "error", err)
+			if stream.Leased {
+				h.bridge.stopSession(ctx, caller, ch.InstallationID, playSessionID)
+			}
 			writeLivePlaybackError(w, playbackErrorNoCompatibleStream)
 			return
 		}
 
 		play := livePlay{
-			PlaySessionID: h.playback.codec.EncodeStringID(EncodedIDPlaySession, uuidNewString()),
+			PlaySessionID: playSessionID,
 			Channel:       ch,
 			Stream:        stream,
 			Caller:        caller,
+			DeviceID:      clientDeviceID,
 			Hosts:         info.StreamHosts,
 		}
 		h.bridge.putPlay(play)
@@ -412,11 +437,6 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 		// Registered so upstream PlaybackSessionAuth grants the stream and relay
 		// URLs, which carry only MediaSourceId and PlaySessionId. The device,
 		// address and peer are filled as HandlePlaybackInfo fills them.
-		clientDeviceID := firstNonEmpty(
-			firstMediaBrowserAuthorizationValue(r, "DeviceId"),
-			newCaseInsensitiveQuery(r.URL.Query()).Get("DeviceId"),
-		)
-		clientDeviceID = stripCompatNUL(clientDeviceID)
 		h.playback.playbackStore.PutNegotiated(PlaybackSession{
 			ID:             play.PlaySessionID,
 			CompatToken:    s.Token,
@@ -430,7 +450,7 @@ func (h *liveTVHandlers) wrapPlaybackInfo(next http.HandlerFunc) http.HandlerFun
 		})
 		slog.DebugContext(ctx, "jellycompat: livetv play negotiated",
 			"component", "jellycompat", "installation_id", ch.InstallationID, "channel_id", ch.EncodedID,
-			"container", stream.Container, "mode", stream.Mode)
+			"container", stream.Container, "mode", stream.Mode, "leased", stream.Leased)
 
 		writeJSON(w, http.StatusOK, playbackInfoResponseDTO{
 			PlaySessionID: play.PlaySessionID,
@@ -470,10 +490,22 @@ func (h *liveTVHandlers) wrapVideoStream(next http.HandlerFunc) http.HandlerFunc
 			return
 		}
 		ctx := r.Context()
+		if r.Method == http.MethodHead {
+			// Answered without asking the provider, which would lease a slot.
+			if _, ok := h.findPlay(r, rawID); !ok && SessionFromContext(ctx) == nil {
+				writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
+				return
+			}
+			w.Header().Set("Content-Type", "video/mp2t")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		play, ok := h.findPlay(r, rawID)
-		if !ok {
+		if ok {
+			h.bridge.beatPlay(ctx, play.PlaySessionID)
+		} else {
 			// A client that skipped PlaybackInfo, or whose play expired, gets a
-			// fresh TS stream.
+			// fresh TS stream, held only for this request.
 			s := SessionFromContext(ctx)
 			if s == nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
@@ -484,12 +516,19 @@ func (h *liveTVHandlers) wrapVideoStream(next http.HandlerFunc) http.HandlerFunc
 				writeError(w, http.StatusNotFound, "NotFound", "Item not found")
 				return
 			}
-			stream, err := h.bridge.ResolveStream(ctx, liveCaller(s), ch, liveTVContainerTS)
-			if errors.Is(err, errLiveTVChannelNotFound) {
+			id := h.playback.codec.EncodeStringID(EncodedIDPlaySession, uuidNewString())
+			stream, err := h.bridge.ResolveStream(ctx, liveCaller(s), ch, liveTVContainerTS, id)
+			switch {
+			case errors.Is(err, errLiveTVChannelNotFound):
 				writeError(w, http.StatusNotFound, "NotFound", "Item not found")
 				return
-			}
-			if err == nil && stream.Container != liveTVContainerTS {
+			case errors.Is(err, errLiveTVConnectionLimit):
+				writeError(w, http.StatusTooManyRequests, liveTVPlaybackErrorRateLimit, "Every provider connection is in use")
+				return
+			case err == nil && stream.Container != liveTVContainerTS:
+				if stream.Leased {
+					h.bridge.stopSession(ctx, liveCaller(s), ch.InstallationID, id)
+				}
 				err = fmt.Errorf("livetv: stream: want ts, got %q", stream.Container)
 			}
 			if err != nil {
@@ -498,17 +537,16 @@ func (h *liveTVHandlers) wrapVideoStream(next http.HandlerFunc) http.HandlerFunc
 				writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")
 				return
 			}
-			play = livePlay{Channel: ch, Stream: stream, Caller: liveCaller(s)}
+			play = livePlay{PlaySessionID: id, Channel: ch, Stream: stream, Caller: liveCaller(s)}
 			if info, err := h.bridge.Info(ctx, play.Caller, ch.InstallationID); err == nil {
 				play.Hosts = info.StreamHosts
 			}
+			if stream.Leased {
+				h.bridge.putPlay(play)
+				defer h.bridge.endPlay(context.WithoutCancel(ctx), id)
+			}
 		}
 
-		if r.Method == http.MethodHead {
-			w.Header().Set("Content-Type", "video/mp2t")
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		switch {
 		case play.Stream.Container == liveTVContainerTS && play.Stream.Mode == liveTVModeRedirect:
 			http.Redirect(w, r, play.Stream.URL, http.StatusFound)
@@ -605,6 +643,9 @@ func (h *liveTVHandlers) relayTS(w http.ResponseWriter, r *http.Request, play li
 	}
 	defer func() { _ = resp.Body.Close() }()
 	ctx := r.Context()
+	if play.Stream.Leased {
+		defer h.bridge.keepPlayAlive(ctx, play.PlaySessionID)()
+	}
 	slog.DebugContext(ctx, "jellycompat: livetv relay started",
 		"component", "jellycompat", "channel_id", play.Channel.EncodedID)
 	rw := newLiveStreamWriter(w)
@@ -676,6 +717,7 @@ func (h *liveTVHandlers) HandleLivePlaylist(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusNotFound, "NotFound", "Stream not found")
 		return
 	}
+	h.bridge.beatPlay(r.Context(), play.PlaySessionID)
 	resp, ok := h.fetchLive(r, play, play.Stream.URL, play.Hosts)
 	if !ok {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Stream unavailable")

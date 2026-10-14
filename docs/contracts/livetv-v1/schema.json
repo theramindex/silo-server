@@ -93,6 +93,9 @@
             "redirect",
             "server"
           ]
+        },
+        "leased": {
+          "type": "boolean"
         }
       },
       "required": [

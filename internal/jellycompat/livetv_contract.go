@@ -9,6 +9,10 @@ const (
 	liveTVPathChannels = "/silo-compat/livetv/v1/channels"
 	liveTVPathStream   = "/silo-compat/livetv/v1/stream"
 	liveTVPathPrograms = "/silo-compat/livetv/v1/programs"
+	// The session routes are optional. A provider that leases connection
+	// slots serves them; see liveTVStream.Leased.
+	liveTVPathSessionHeartbeat = "/silo-compat/livetv/v1/session/heartbeat"
+	liveTVPathSessionStop      = "/silo-compat/livetv/v1/session/stop"
 )
 
 // Stream containers and delivery modes a livetv/v1 stream response may carry,
@@ -19,7 +23,19 @@ const (
 	liveTVModeRedirect   = "redirect"
 	liveTVModeServer     = "server"
 	liveTVChannelIDParam = "channel_id"
+	liveTVSessionIDParam = "session_id"
 )
+
+// Error codes a provider answers stream and session requests with.
+const (
+	liveTVCodeConnectionLimit = "connection_limit"
+	liveTVCodeSessionNotFound = "session_not_found"
+)
+
+// liveTVError is a provider's error body.
+type liveTVError struct {
+	Code string `json:"code"`
+}
 
 // liveTVInfo is the response of liveTVPathInfo. StreamHosts lists every
 // host[:port] the plugin may return in a stream URL.
@@ -89,9 +105,12 @@ type liveTVPrograms struct {
 }
 
 // liveTVStream is the response of liveTVPathStream. In "server" mode the URL
-// embeds credentials and must never reach a client.
+// embeds credentials and must never reach a client. Leased means the provider
+// holds a connection slot for the request's session_id until the session
+// stops or goes a session window without a heartbeat.
 type liveTVStream struct {
 	URL       string `json:"url"`
 	Container string `json:"container"` // "ts" | "hls"
 	Mode      string `json:"mode"`      // "redirect" | "server"
+	Leased    bool   `json:"leased"`
 }

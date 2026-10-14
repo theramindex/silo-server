@@ -543,7 +543,7 @@ func TestLiveTVResolveStreamValidatesHost(t *testing.T) {
 			if !ok {
 				t.Fatal("channel not found")
 			}
-			got, err := l.ResolveStream(ctx, caller, ch, "ts")
+			got, err := l.ResolveStream(ctx, caller, ch, "ts", "")
 
 			switch {
 			case tt.wantErr != nil:
@@ -593,7 +593,7 @@ func TestLiveTVResolveStreamErrorsDoNotLeakURL(t *testing.T) {
 	ctx := context.Background()
 
 	ch, _ := l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "a"))
-	_, err := l.ResolveStream(ctx, LiveTVCaller{}, ch, "any")
+	_, err := l.ResolveStream(ctx, LiveTVCaller{}, ch, "any", "")
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -610,7 +610,7 @@ func TestLiveTVResolveStreamNeedsInfo(t *testing.T) {
 	ctx := context.Background()
 
 	ch, _ := l.ChannelByID(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "a"))
-	if _, err := l.ResolveStream(ctx, LiveTVCaller{}, ch, "any"); err == nil {
+	if _, err := l.ResolveStream(ctx, LiveTVCaller{}, ch, "any", ""); err == nil {
 		t.Fatal("ResolveStream succeeded without any way to check the stream host")
 	}
 }
