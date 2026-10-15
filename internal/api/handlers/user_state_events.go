@@ -22,7 +22,11 @@ type userStateEventState struct {
 	InWatchlist *bool
 }
 
-const userStateChangedEvent = "user_state.changed"
+const (
+	userStateChangedEvent = "user_state.changed"
+	// userStateChangeFavorite is the change a favorites row write reports.
+	userStateChangeFavorite = "favorite"
+)
 
 func publishUserStateEvent(
 	ctx context.Context,

@@ -337,7 +337,7 @@ func (h *PersonalDataHandler) notifyListChange(ctx context.Context, list watchsy
 	h.dispatchLocalListEvent(ctx, list, change, viewer.UserID, viewer.ProfileID, itemID)
 	notifySignalsChanged(ctx, h.signalsNotifier, viewer.UserID, viewer.ProfileID)
 	member := change == watchsync.ListChangeAdded
-	state, stateChange := userStateEventState{IsFavorite: &member}, "favorite"
+	state, stateChange := userStateEventState{IsFavorite: &member}, userStateChangeFavorite
 	if list == watchsync.ListKindWatchlist {
 		state, stateChange = userStateEventState{InWatchlist: &member}, "watchlist"
 	}
