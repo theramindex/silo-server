@@ -35,6 +35,9 @@ type fakeLiveTVRoutes struct {
 	responses map[int]map[string]fakeRouteResponse // installation -> path -> response
 	calls     []fakeRouteCall
 	gate      chan struct{} // when non-nil, Call blocks until it is closed
+	// byCaller, when set, answers instead of responses, so a test can serve
+	// each user something different. ok false means no response.
+	byCaller func(installationID int, c LiveTVCaller, path string) (resp fakeRouteResponse, ok bool)
 }
 
 func (f *fakeLiveTVRoutes) ListProviders(context.Context) ([]LiveTVProviderRef, error) {
@@ -55,6 +58,9 @@ func (f *fakeLiveTVRoutes) Call(_ context.Context, id int, c LiveTVCaller, metho
 	}
 	f.calls = append(f.calls, fakeRouteCall{installationID: id, caller: c, path: path, query: query})
 	resp, ok := f.responses[id][path]
+	if f.byCaller != nil {
+		resp, ok = f.byCaller(id, c, path)
+	}
 	gate := f.gate
 	f.mu.Unlock()
 	if gate != nil {
@@ -400,13 +406,13 @@ func TestLiveTVLogoURL(t *testing.T) {
 		"http":  "http://logos.example/h.png",
 		"https": "https://logos.example/s.png",
 	} {
-		got, ok := l.LogoURL(ctx, encodeLiveChannelID(1, id))
+		got, ok := l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, id))
 		if !ok || got != want {
 			t.Errorf("LogoURL(%s) = %q, %v; want %q", id, got, ok, want)
 		}
 	}
 	for _, id := range []string{"empty", "data", "relative", "unknown"} {
-		if got, ok := l.LogoURL(ctx, encodeLiveChannelID(1, id)); ok {
+		if got, ok := l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, id)); ok {
 			t.Errorf("LogoURL(%s) = %q, true; want no logo", id, got)
 		}
 	}
@@ -816,7 +822,7 @@ func TestLiveTVLogoURLNeverRefreshesAWarmLineup(t *testing.T) {
 
 	l.Lineup(ctx, LiveTVCaller{})
 	for i := 0; i < 5; i++ {
-		if got, ok := l.LogoURL(ctx, encodeLiveChannelID(1, fmt.Sprintf("forged-%d", i))); ok {
+		if got, ok := l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, fmt.Sprintf("forged-%d", i))); ok {
 			t.Fatalf("LogoURL(forged) = %q, true", got)
 		}
 	}
@@ -826,10 +832,10 @@ func TestLiveTVLogoURLNeverRefreshesAWarmLineup(t *testing.T) {
 
 	// A stale lineup still answers logo lookups without a refresh.
 	clock.Advance(61 * time.Second)
-	if _, ok := l.LogoURL(ctx, encodeLiveChannelID(1, "forged")); ok {
+	if _, ok := l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "forged")); ok {
 		t.Fatal("LogoURL found a forged id")
 	}
-	if got, ok := l.LogoURL(ctx, encodeLiveChannelID(1, "a")); !ok || got != "https://logos.example/a.png" {
+	if got, ok := l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "a")); !ok || got != "https://logos.example/a.png" {
 		t.Errorf("LogoURL(a) = %q, %v; want the logo from the stale lineup", got, ok)
 	}
 	if calls() != 1 {
@@ -844,7 +850,7 @@ func TestLiveTVLogoURLColdStartFetchesOnceAndBacksOff(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 3; i++ {
-		if _, ok := l.LogoURL(ctx, encodeLiveChannelID(1, "a")); ok {
+		if _, ok := l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "a")); ok {
 			t.Fatal("LogoURL found a logo from a failing provider")
 		}
 	}
@@ -852,7 +858,7 @@ func TestLiveTVLogoURLColdStartFetchesOnceAndBacksOff(t *testing.T) {
 		t.Fatalf("channels called %d times by cold logo lookups against a failing provider, want 1", n)
 	}
 	clock.Advance(11 * time.Second)
-	l.LogoURL(ctx, encodeLiveChannelID(1, "a"))
+	l.LogoURL(ctx, LiveTVCaller{}, encodeLiveChannelID(1, "a"))
 	if n := len(routes.callsTo(liveTVPathChannels)); n != 2 {
 		t.Errorf("channels called %d times after the back-off, want 2", n)
 	}

@@ -179,7 +179,7 @@ func TestLiveTVProgramItemAndImage(t *testing.T) {
 		t.Errorf("program at an empty minute = %d, want 404", rec.Code)
 	}
 
-	inst, img, ok := env.bridge.ProgramImage(t.Context(), id)
+	inst, img, ok := env.bridge.ProgramImage(t.Context(), LiveTVCaller{}, id)
 	if !ok || inst != liveTestInstall || img != "https://img.example.test/news.jpg" {
 		t.Errorf("ProgramImage = %d %q %v", inst, img, ok)
 	}
@@ -187,7 +187,7 @@ func TestLiveTVProgramItemAndImage(t *testing.T) {
 	env.bridge.guideMu.Lock()
 	clear(env.bridge.programImages)
 	env.bridge.guideMu.Unlock()
-	if _, img, ok := env.bridge.ProgramImage(t.Context(), id); !ok || img != "https://img.example.test/news.jpg" {
+	if _, img, ok := env.bridge.ProgramImage(t.Context(), LiveTVCaller{}, id); !ok || img != "https://img.example.test/news.jpg" {
 		t.Errorf("resolved ProgramImage = %q %v", img, ok)
 	}
 	if rec := serveLive(t, env.router, http.MethodGet, "/Items/"+id+"/Images/Backdrop", ""); rec.Code != http.StatusNotFound {

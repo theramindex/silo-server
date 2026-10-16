@@ -42,13 +42,21 @@ type liveProgramRequest struct {
 	Limit      int // 0 lets the provider decide
 }
 
-func (q liveProgramRequest) cacheKey(installationID int) string {
-	return fmt.Sprintf("%d|%d|%d|%s|%d|%s", installationID, q.Start, q.End, q.Class, q.Limit, strings.Join(q.ChannelIDs, ","))
+func (q liveProgramRequest) cacheKey(scope liveScope) string {
+	return fmt.Sprintf("%d.%d|%d|%d|%s|%d|%s", scope.InstallationID, scope.UserID, q.Start, q.End, q.Class, q.Limit, strings.Join(q.ChannelIDs, ","))
 }
 
 type liveGuideEntry struct {
 	programs []liveTVProgram
 	at       time.Time
+}
+
+// liveProgramImageKey names a program handed to a client: its compat id, and
+// the user of the scope it was listed in, so a per-user installation's images
+// are only looked up for that user.
+type liveProgramImageKey struct {
+	UserID int
+	ID     string
 }
 
 // liveProgramImage is the image a program was listed with, and the
@@ -80,17 +88,22 @@ func roundUpMinute(unix int64) int64 {
 // Programs asks one installation for programs. Responses are cached for
 // liveGuideCacheTTL and concurrent identical requests share one call. A
 // provider without the route (404) has no programs. Programs on channels not in
-// the installation's lineup are dropped.
+// caller's lineup of the installation are dropped. Both caches are keyed by
+// caller's scope, so a per-user installation's guide is never shared.
 func (l *LiveTV) Programs(ctx context.Context, caller LiveTVCaller, installationID int, q liveProgramRequest) ([]liveGuideProgram, error) {
+	scope, ok := l.scopeFor(ctx, caller, installationID)
+	if !ok {
+		return nil, errLiveTVUserRequired
+	}
 	q.Start, q.End = roundDownMinute(q.Start), roundUpMinute(q.End)
 	if len(q.ChannelIDs) > liveProgramsMaxChannels {
 		q.ChannelIDs = q.ChannelIDs[:liveProgramsMaxChannels]
 	}
-	raw, err := l.fetchPrograms(ctx, caller, installationID, q)
+	raw, err := l.fetchPrograms(ctx, caller, scope, q)
 	if err != nil {
 		return nil, err
 	}
-	lineup, _ := l.lineupFor(ctx, caller, installationID, false)
+	lineup, _ := l.scopedLineup(ctx, caller, scope, false)
 	out := make([]liveGuideProgram, 0, len(raw))
 	for _, p := range raw {
 		ch, ok := lineup.index[liveChannelKey{InstallationID: installationID, Hash: liveChannelHash(p.ChannelID)}]
@@ -104,12 +117,13 @@ func (l *LiveTV) Programs(ctx context.Context, caller LiveTVCaller, installation
 			Channel:        ch,
 		})
 	}
-	l.rememberProgramImages(out)
+	l.rememberProgramImages(scope, out)
 	return out, nil
 }
 
-func (l *LiveTV) fetchPrograms(ctx context.Context, caller LiveTVCaller, installationID int, q liveProgramRequest) ([]liveTVProgram, error) {
-	key := q.cacheKey(installationID)
+func (l *LiveTV) fetchPrograms(ctx context.Context, caller LiveTVCaller, scope liveScope, q liveProgramRequest) ([]liveTVProgram, error) {
+	installationID := scope.InstallationID
+	key := q.cacheKey(scope)
 	l.guideMu.Lock()
 	if e, ok := l.guide[key]; ok && l.now().Sub(e.at) < liveGuideCacheTTL {
 		l.guideMu.Unlock()
@@ -185,7 +199,7 @@ func (l *LiveTV) storeGuideLocked(key string, programs []liveTVProgram) {
 	l.guide[key] = liveGuideEntry{programs: programs, at: now}
 }
 
-func (l *LiveTV) rememberProgramImages(programs []liveGuideProgram) {
+func (l *LiveTV) rememberProgramImages(scope liveScope, programs []liveGuideProgram) {
 	now := l.now()
 	l.guideMu.Lock()
 	defer l.guideMu.Unlock()
@@ -201,15 +215,20 @@ func (l *LiveTV) rememberProgramImages(programs []liveGuideProgram) {
 	}
 	for _, p := range programs {
 		if p.EncodedID != "" && liveLogoUsable(p.ImageURL) {
-			l.programImages[p.EncodedID] = liveProgramImage{installationID: p.InstallationID, url: p.ImageURL, at: now}
+			key := liveProgramImageKey{UserID: scope.UserID, ID: p.EncodedID}
+			l.programImages[key] = liveProgramImage{installationID: p.InstallationID, url: p.ImageURL, at: now}
 		}
 	}
 }
 
-// channelByPrefix finds the channel a program id names in a cached or fetched
-// lineup. force refreshes the lineup, as ChannelByID does on a miss.
+// channelByPrefix finds the channel a program id names in caller's cached or
+// fetched lineup. A miss refreshes the lineup, as ChannelByID does.
 func (l *LiveTV) channelByPrefix(ctx context.Context, caller LiveTVCaller, key liveProgramKey) (liveChannel, bool) {
 	if !slices.ContainsFunc(l.Providers(ctx), func(p LiveTVProviderRef) bool { return p.InstallationID == key.InstallationID }) {
+		return liveChannel{}, false
+	}
+	scope, ok := l.scopeFor(ctx, caller, key.InstallationID)
+	if !ok {
 		return liveChannel{}, false
 	}
 	lookup := func(lineup liveLineup) (liveChannel, bool) {
@@ -219,14 +238,14 @@ func (l *LiveTV) channelByPrefix(ctx context.Context, caller LiveTVCaller, key l
 		}
 		return lineup.channels[i], true
 	}
-	lineup, fetched := l.lineupFor(ctx, caller, key.InstallationID, false)
+	lineup, fetched := l.scopedLineup(ctx, caller, scope, false)
 	if ch, ok := lookup(lineup); ok {
 		return ch, true
 	}
-	if fetched || !l.claimForcedRefresh(key.InstallationID) {
+	if fetched || !l.claimForcedRefresh(scope) {
 		return liveChannel{}, false
 	}
-	lineup, _ = l.lineupFor(ctx, caller, key.InstallationID, true)
+	lineup, _ = l.scopedLineup(ctx, caller, scope, true)
 	return lookup(lineup)
 }
 
@@ -254,20 +273,27 @@ func (l *LiveTV) ProgramByID(ctx context.Context, caller LiveTVCaller, rawID str
 	return liveGuideProgram{}, false
 }
 
-// ProgramImage returns the image of a program handed out earlier, or, for an
-// unknown id, resolves the program anonymously.
-func (l *LiveTV) ProgramImage(ctx context.Context, rawID string) (installationID int, imageURL string, ok bool) {
+// ProgramImage returns the image of a program handed out earlier in caller's
+// scope, or, for an unknown id, resolves the program as caller. caller is the
+// image request's session, and the zero value when it has none; an anonymous
+// request for a per-user installation's program is not found.
+func (l *LiveTV) ProgramImage(ctx context.Context, caller LiveTVCaller, rawID string) (installationID int, imageURL string, ok bool) {
 	parsed, err := uuid.Parse(rawID)
-	if err != nil || !isLiveProgramID(rawID) {
+	key, keyOK := decodeLiveProgramID(rawID)
+	if err != nil || !keyOK {
+		return 0, "", false
+	}
+	scope, ok := l.scopeFor(ctx, caller, key.InstallationID)
+	if !ok {
 		return 0, "", false
 	}
 	l.guideMu.Lock()
-	img, known := l.programImages[parsed.String()]
+	img, known := l.programImages[liveProgramImageKey{UserID: scope.UserID, ID: parsed.String()}]
 	l.guideMu.Unlock()
 	if known {
 		return img.installationID, img.url, true
 	}
-	p, found := l.ProgramByID(ctx, LiveTVCaller{}, rawID)
+	p, found := l.ProgramByID(ctx, caller, rawID)
 	if !found || !liveLogoUsable(p.ImageURL) {
 		return 0, "", false
 	}

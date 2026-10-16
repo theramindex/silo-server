@@ -38,11 +38,14 @@ type liveTVError struct {
 }
 
 // liveTVInfo is the response of liveTVPathInfo. StreamHosts lists every
-// host[:port] the plugin may return in a stream URL.
+// host[:port] the plugin may return in a stream URL. PerUserLineup means every
+// user has their own lineup, guide and stream hosts, so nothing the provider
+// answers may be shared between users; see liveScope.
 type liveTVInfo struct {
 	ContractVersion int      `json:"contractVersion"`
 	Name            string   `json:"name"`
 	StreamHosts     []string `json:"streamHosts"`
+	PerUserLineup   bool     `json:"perUserLineup"`
 }
 
 // liveTVChannel is one entry of the liveTVPathChannels response. ID is the

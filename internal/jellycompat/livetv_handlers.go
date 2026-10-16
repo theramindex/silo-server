@@ -326,10 +326,11 @@ func (h *liveTVHandlers) wrapFavorite(next http.HandlerFunc, favorite bool) http
 }
 
 // liveLogoServer is what ImagesHandler needs to answer a channel logo or a
-// program image.
+// program image. caller is the request's session, or the zero value when the
+// request has none.
 type liveLogoServer interface {
-	serveLiveLogo(w http.ResponseWriter, r *http.Request, rawID, imageType string)
-	serveLiveProgramImage(w http.ResponseWriter, r *http.Request, rawID, imageType string)
+	serveLiveLogo(w http.ResponseWriter, r *http.Request, caller LiveTVCaller, rawID, imageType string)
+	serveLiveProgramImage(w http.ResponseWriter, r *http.Request, caller LiveTVCaller, rawID, imageType string)
 }
 
 // serveLiveLogo proxies a channel's Primary image. Logos are always proxied,
@@ -338,24 +339,24 @@ type liveLogoServer interface {
 // streamHosts or from a host whose every address is public; anything else is
 // a 404. A successful answer that is not an image is a 502, so a login page or
 // error document is never served as a logo.
-func (h *liveTVHandlers) serveLiveLogo(w http.ResponseWriter, r *http.Request, rawID, imageType string) {
+func (h *liveTVHandlers) serveLiveLogo(w http.ResponseWriter, r *http.Request, caller LiveTVCaller, rawID, imageType string) {
 	if !strings.EqualFold(imageType, compatImagePrimary) {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	logo, ok := h.bridge.LogoURL(r.Context(), rawID)
+	logo, ok := h.bridge.LogoURL(r.Context(), caller, rawID)
 	key, keyOK := decodeLiveChannelID(rawID)
 	if !ok || !keyOK {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	h.proxyLiveImage(w, r, key.InstallationID, logo)
+	h.proxyLiveImage(w, r, caller, key.InstallationID, logo)
 }
 
 // proxyLiveImage fetches a channel logo or program image from one
 // installation's provider and relays it.
-func (h *liveTVHandlers) proxyLiveImage(w http.ResponseWriter, r *http.Request, installationID int, imageURL string) {
-	ctx, client, ok := h.logoClient(r.Context(), installationID, imageURL)
+func (h *liveTVHandlers) proxyLiveImage(w http.ResponseWriter, r *http.Request, caller LiveTVCaller, installationID int, imageURL string) {
+	ctx, client, ok := h.logoClient(r.Context(), caller, installationID, imageURL)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
@@ -384,14 +385,14 @@ func liveImageContentType(contentType string) bool {
 }
 
 // logoClient picks the client allowed to fetch logo, and the context to fetch
-// it with, or reports that it may not be fetched. A logo on one of the
-// provider's streamHosts may follow redirects only to those hosts.
-func (h *liveTVHandlers) logoClient(ctx context.Context, installationID int, logo string) (context.Context, *http.Client, bool) {
+// it with, or reports that it may not be fetched. A logo on one of caller's
+// streamHosts for the provider may follow redirects only to those hosts.
+func (h *liveTVHandlers) logoClient(ctx context.Context, caller LiveTVCaller, installationID int, logo string) (context.Context, *http.Client, bool) {
 	target, err := parseRemoteImageURL(logo)
 	if err != nil {
 		return ctx, nil, false
 	}
-	if info, err := h.bridge.Info(ctx, LiveTVCaller{}, installationID); err == nil && liveHostAllowed(info.StreamHosts, target.Host) {
+	if info, err := h.bridge.Info(ctx, caller, installationID); err == nil && liveHostAllowed(info.StreamHosts, target.Host) {
 		hosts := info.StreamHosts
 		return withLiveHosts(ctx, hosts), &http.Client{
 			Timeout:   liveLogoTimeout,

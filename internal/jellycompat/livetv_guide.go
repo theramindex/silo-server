@@ -722,15 +722,15 @@ func (h *liveTVHandlers) addCurrentPrograms(ctx context.Context, s *Session, ite
 
 // serveLiveProgramImage proxies a program's Primary image under the same
 // rules as channel logos.
-func (h *liveTVHandlers) serveLiveProgramImage(w http.ResponseWriter, r *http.Request, rawID, imageType string) {
+func (h *liveTVHandlers) serveLiveProgramImage(w http.ResponseWriter, r *http.Request, caller LiveTVCaller, rawID, imageType string) {
 	if !strings.EqualFold(imageType, compatImagePrimary) {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	installationID, imageURL, ok := h.bridge.ProgramImage(r.Context(), rawID)
+	installationID, imageURL, ok := h.bridge.ProgramImage(r.Context(), caller, rawID)
 	if !ok {
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
-	h.proxyLiveImage(w, r, installationID, imageURL)
+	h.proxyLiveImage(w, r, caller, installationID, imageURL)
 }

@@ -248,13 +248,13 @@ func (h *liveTVHandlers) folderTree(ctx context.Context, s *Session, rawID strin
 
 // folderViewNames names each provider's folder view: "Channels" alone, or
 // "<provider> Channels" when more than one provider has folders.
-func (h *liveTVHandlers) folderViewNames(ctx context.Context, trees []liveFolderTree) map[int]string {
+func (h *liveTVHandlers) folderViewNames(ctx context.Context, s *Session, trees []liveFolderTree) map[int]string {
 	names := make(map[int]string, len(trees))
 	for _, tree := range trees {
 		name := liveFolderViewName
 		if len(trees) > 1 {
 			provider := "Live TV " + strconv.Itoa(tree.installationID)
-			if info, err := h.bridge.Info(ctx, LiveTVCaller{}, tree.installationID); err == nil && strings.TrimSpace(info.Name) != "" {
+			if info, err := h.bridge.Info(ctx, liveCaller(s), tree.installationID); err == nil && strings.TrimSpace(info.Name) != "" {
 				provider = strings.TrimSpace(info.Name)
 			}
 			name = provider + " " + liveFolderViewName
@@ -267,7 +267,7 @@ func (h *liveTVHandlers) folderViewNames(ctx context.Context, trees []liveFolder
 // folderViews lists a UserView per provider with folders, for /UserViews.
 func (h *liveTVHandlers) folderViews(ctx context.Context, s *Session) []baseItemDTO {
 	trees, _ := h.folderTrees(ctx, s, 0)
-	names := h.folderViewNames(ctx, trees)
+	names := h.folderViewNames(ctx, s, trees)
 	views := make([]baseItemDTO, 0, len(trees))
 	for _, tree := range trees {
 		views = append(views, h.folderDTO(tree, "", names[tree.installationID]))
@@ -312,7 +312,7 @@ func (h *liveTVHandlers) writeFolder(w http.ResponseWriter, r *http.Request, s *
 	name := ""
 	if path == "" {
 		trees, _ := h.folderTrees(r.Context(), s, 0)
-		name = h.folderViewNames(r.Context(), trees)[tree.installationID]
+		name = h.folderViewNames(r.Context(), s, trees)[tree.installationID]
 	}
 	writeJSON(w, http.StatusOK, h.folderDTO(tree, path, name))
 }

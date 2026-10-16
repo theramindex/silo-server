@@ -32,6 +32,9 @@ const (
 	// liveTVForcedRefreshInterval limits how often a channel-id miss may force a
 	// lineup refresh for one installation, however many callers miss.
 	liveTVForcedRefreshInterval = 10 * time.Second
+	// liveTVUserScopeIdle is how long a per-user scope's caches are kept after
+	// its user last asked for them.
+	liveTVUserScopeIdle = 10 * time.Minute
 )
 
 var (
@@ -39,6 +42,7 @@ var (
 	errLiveTVChannelNotFound   = errors.New("livetv: channel not found")
 	errLiveTVHostNotAllowed    = errors.New("livetv: stream host not allowed")
 	errLiveTVConnectionLimit   = errors.New("livetv: provider connection limit reached")
+	errLiveTVUserRequired      = errors.New("livetv: provider needs a user")
 )
 
 // LiveTVProviderRef names one installed plugin that serves livetv/v1.
@@ -99,11 +103,22 @@ type liveCacheEntry[T any] struct {
 	failErr  error
 }
 
+// liveScope keys the provider caches. UserID is 0 for an installation that
+// serves one lineup to everyone, and the caller's user for one whose info
+// reports perUserLineup; see scopeFor.
+type liveScope struct {
+	InstallationID int
+	UserID         int
+}
+
 type liveInstall struct {
 	info   liveCacheEntry[liveTVInfo]
 	lineup liveCacheEntry[liveLineup]
 	// lastForced is when a channel-id miss last forced a lineup refresh.
 	lastForced time.Time
+	// usedAt is when a per-user scope was last asked for; see
+	// liveTVUserScopeIdle.
+	usedAt time.Time
 }
 
 // LiveTV merges the lineups of every installed livetv/v1 provider and resolves
@@ -118,7 +133,7 @@ type LiveTV struct {
 
 	mu        sync.Mutex
 	providers liveCacheEntry[[]LiveTVProviderRef]
-	installs  map[int]*liveInstall
+	installs  map[liveScope]*liveInstall
 
 	// prefLocks maps a [2]int{userID, installationID} to the *sync.Mutex that
 	// serializes preference writes for that account.
@@ -137,13 +152,13 @@ type LiveTV struct {
 	playsSwept   time.Time
 	relaySwept   time.Time
 
-	// guide caches provider program responses by request; programImages
-	// remembers the image of every program handed to a client, so the
-	// anonymous image route rarely has to ask a provider. Both are guarded by
+	// guide caches provider program responses by scope and request;
+	// programImages remembers the image of every program handed to a client,
+	// so the often anonymous image route rarely has to ask a provider. Both are guarded by
 	// guideMu; see livetv_programs.go.
 	guideMu       sync.Mutex
 	guide         map[string]liveGuideEntry
-	programImages map[string]liveProgramImage
+	programImages map[liveProgramImageKey]liveProgramImage
 }
 
 // NewLiveTV returns a LiveTV over routes. Provider streams are fetched with
@@ -155,13 +170,13 @@ func NewLiveTV(routes LiveTVRouteCaller, prefs LiveTVPrefsStore, httpClient *htt
 		prefs:         prefs,
 		httpClient:    httpClient,
 		now:           time.Now,
-		installs:      map[int]*liveInstall{},
+		installs:      map[liveScope]*liveInstall{},
 		streamClient:  newLiveStreamClient(),
 		plays:         map[string]*livePlay{},
 		relay:         map[string]*liveRelayEntry{},
 		relayByURL:    map[string]string{},
 		guide:         map[string]liveGuideEntry{},
-		programImages: map[string]liveProgramImage{},
+		programImages: map[liveProgramImageKey]liveProgramImage{},
 	}
 }
 
@@ -217,24 +232,29 @@ func (l *LiveTV) Providers(ctx context.Context) []LiveTVProviderRef {
 }
 
 // pruneInstallsLocked forgets the caches of installations that are no longer
-// providers.
+// providers, and per-user caches left unused for liveTVUserScopeIdle.
 func (l *LiveTV) pruneInstallsLocked(providers []LiveTVProviderRef) {
 	keep := make(map[int]struct{}, len(providers))
 	for _, p := range providers {
 		keep[p.InstallationID] = struct{}{}
 	}
-	for id := range l.installs {
-		if _, ok := keep[id]; !ok {
-			delete(l.installs, id)
+	now := l.now()
+	for scope, st := range l.installs {
+		_, ok := keep[scope.InstallationID]
+		if !ok || (scope.UserID != 0 && now.Sub(st.usedAt) >= liveTVUserScopeIdle) {
+			delete(l.installs, scope)
 		}
 	}
 }
 
-func (l *LiveTV) installLocked(installationID int) *liveInstall {
-	st := l.installs[installationID]
+func (l *LiveTV) installLocked(scope liveScope) *liveInstall {
+	st := l.installs[scope]
 	if st == nil {
 		st = &liveInstall{}
-		l.installs[installationID] = st
+		l.installs[scope] = st
+	}
+	if scope.UserID != 0 {
+		st.usedAt = l.now()
 	}
 	return st
 }
@@ -243,18 +263,18 @@ func (l *LiveTV) installLocked(installationID int) *liveInstall {
 // whose result is untyped.
 type liveTVFetched[T any] struct{ val T }
 
-// loadCached returns the value cached by slot for an installation, refreshing
+// loadCached returns the value cached by slot for a scope, refreshing
 // it through fetch when it is older than liveTVCacheTTL or force is set.
 // Concurrent refreshes of one value share a single fetch, and a waiter whose
 // ctx ends stops waiting without canceling it. fetched reports that the value
 // came from a fetch made during this call. When a refresh fails, or the caller
 // gives up, the stale copy is returned with a nil error; err is non-nil only
-// when there is no copy at all. After a failed refresh the installation is left
-// alone for liveTVFailureBackoff, forced or not.
+// when there is no copy at all. After a failed refresh the scope is left alone
+// for liveTVFailureBackoff, forced or not.
 func loadCached[T any](
 	ctx context.Context,
 	l *LiveTV,
-	installationID int,
+	scope liveScope,
 	what string,
 	slot func(*liveInstall) *liveCacheEntry[T],
 	force bool,
@@ -263,7 +283,7 @@ func loadCached[T any](
 	// fallback is what a caller gets when it cannot have a fresh value.
 	fallback := func(failure error) (T, bool, error) {
 		l.mu.Lock()
-		entry := slot(l.installLocked(installationID))
+		entry := slot(l.installLocked(scope))
 		stale, haveStale := entry.val, entry.ok
 		l.mu.Unlock()
 		if haveStale {
@@ -274,7 +294,7 @@ func loadCached[T any](
 	}
 
 	l.mu.Lock()
-	entry := slot(l.installLocked(installationID))
+	entry := slot(l.installLocked(scope))
 	now := l.now()
 	if !force && entry.ok && now.Sub(entry.at) < liveTVCacheTTL {
 		val = entry.val
@@ -288,19 +308,20 @@ func loadCached[T any](
 	}
 	l.mu.Unlock()
 
-	resCh := l.group.DoChan(fmt.Sprintf("%s:%d", what, installationID), func() (any, error) {
+	resCh := l.group.DoChan(fmt.Sprintf("%s:%d:%d", what, scope.InstallationID, scope.UserID), func() (any, error) {
 		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), liveTVFetchTimeout)
 		defer cancel()
 		fresh, err := fetch(fetchCtx)
 
 		l.mu.Lock()
-		entry := slot(l.installLocked(installationID))
+		entry := slot(l.installLocked(scope))
 		if err != nil {
 			entry.failedAt, entry.failErr = l.now(), err
 			stale := entry.ok
 			l.mu.Unlock()
 			slog.WarnContext(ctx, "jellycompat: livetv provider refresh failed",
-				"component", "jellycompat", "installation_id", installationID, "what", what, "stale", stale, "error", err)
+				"component", "jellycompat", "installation_id", scope.InstallationID, "user_id", scope.UserID,
+				"what", what, "stale", stale, "error", err)
 			return nil, err
 		}
 		entry.val, entry.at, entry.ok = fresh, l.now(), true
@@ -394,13 +415,67 @@ func (l *LiveTV) knownProfiles(ctx context.Context, caller LiveTVCaller, install
 	return known
 }
 
-// lineupFor returns one installation's lineup. A provider that fails with no
-// earlier copy contributes an empty lineup.
+// scopeFor returns the scope that caches caller's view of an installation:
+// the installation alone, or, when its info reports perUserLineup, the
+// installation and the caller's user. ok is false for an anonymous caller of a
+// per-user installation: there is nothing it may see, so callers fail closed
+// and the provider is never asked without a user. While the installation's
+// info has never loaded its mode is unknown, and each user gets its own scope,
+// so a per-user lineup is never shared.
+func (l *LiveTV) scopeFor(ctx context.Context, caller LiveTVCaller, installationID int) (scope liveScope, ok bool) {
+	info, err := l.modeInfo(ctx, caller, installationID)
+	switch {
+	case err != nil:
+		return liveScope{InstallationID: installationID, UserID: caller.UserID}, true
+	case !info.PerUserLineup:
+		return liveScope{InstallationID: installationID}, true
+	case caller.UserID == 0:
+		return liveScope{}, false
+	default:
+		return liveScope{InstallationID: installationID, UserID: caller.UserID}, true
+	}
+}
+
+// modeInfo returns the installation's info as cached in its shared scope. For
+// a per-user installation only the flag and contract version are kept there,
+// since the rest belongs to whichever user's call fetched it.
+func (l *LiveTV) modeInfo(ctx context.Context, caller LiveTVCaller, installationID int) (liveTVInfo, error) {
+	info, _, err := loadCached(ctx, l, liveScope{InstallationID: installationID}, "info",
+		func(st *liveInstall) *liveCacheEntry[liveTVInfo] { return &st.info },
+		false,
+		func(ctx context.Context) (liveTVInfo, error) {
+			info, err := l.fetchInfo(ctx, caller, installationID)
+			if err == nil && info.PerUserLineup {
+				info = liveTVInfo{ContractVersion: info.ContractVersion, PerUserLineup: true}
+			}
+			return info, err
+		})
+	return info, err
+}
+
+func (l *LiveTV) fetchInfo(ctx context.Context, caller LiveTVCaller, installationID int) (liveTVInfo, error) {
+	var info liveTVInfo
+	err := l.getJSON(ctx, caller, installationID, liveTVPathInfo, nil, &info)
+	return info, err
+}
+
+// lineupFor returns caller's lineup of one installation. A provider that fails
+// with no earlier copy contributes an empty lineup, as does a per-user
+// installation asked anonymously.
 func (l *LiveTV) lineupFor(ctx context.Context, caller LiveTVCaller, installationID int, force bool) (lineup liveLineup, fetched bool) {
-	lineup, fetched, _ = loadCached(ctx, l, installationID, "channels",
+	scope, ok := l.scopeFor(ctx, caller, installationID)
+	if !ok {
+		return liveLineup{}, false
+	}
+	return l.scopedLineup(ctx, caller, scope, force)
+}
+
+// scopedLineup returns the lineup cached for scope, fetched as caller.
+func (l *LiveTV) scopedLineup(ctx context.Context, caller LiveTVCaller, scope liveScope, force bool) (lineup liveLineup, fetched bool) {
+	lineup, fetched, _ = loadCached(ctx, l, scope, "channels",
 		func(st *liveInstall) *liveCacheEntry[liveLineup] { return &st.lineup },
 		force,
-		func(ctx context.Context) (liveLineup, error) { return l.fetchLineup(ctx, caller, installationID) })
+		func(ctx context.Context) (liveLineup, error) { return l.fetchLineup(ctx, caller, scope.InstallationID) })
 	return lineup, fetched
 }
 
@@ -429,12 +504,12 @@ func (l *LiveTV) decodeProviderChannelID(ctx context.Context, rawID string) (liv
 }
 
 // claimForcedRefresh reports whether a channel-id miss may force a lineup
-// refresh for the installation now, and if so starts the liveTVForcedRefreshInterval
-// window. The window is shared by all callers.
-func (l *LiveTV) claimForcedRefresh(installationID int) bool {
+// refresh for the scope now, and if so starts the liveTVForcedRefreshInterval
+// window. The window is shared by all callers of the scope.
+func (l *LiveTV) claimForcedRefresh(scope liveScope) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	st := l.installLocked(installationID)
+	st := l.installLocked(scope)
 	now := l.now()
 	if !st.lastForced.IsZero() && now.Sub(st.lastForced) < liveTVForcedRefreshInterval {
 		return false
@@ -446,39 +521,49 @@ func (l *LiveTV) claimForcedRefresh(installationID int) bool {
 // ChannelByID resolves a compat channel id. When the provider's cached lineup
 // lacks the channel it refreshes that lineup, so a channel added since the last
 // refresh is still playable. Such forced refreshes are limited to one per
-// installation per liveTVForcedRefreshInterval.
+// scope per liveTVForcedRefreshInterval. Only caller's own lineup is searched.
 func (l *LiveTV) ChannelByID(ctx context.Context, caller LiveTVCaller, rawID string) (liveChannel, bool) {
 	key, ok := l.decodeProviderChannelID(ctx, rawID)
 	if !ok {
 		return liveChannel{}, false
 	}
-	lineup, fetched := l.lineupFor(ctx, caller, key.InstallationID, false)
+	scope, ok := l.scopeFor(ctx, caller, key.InstallationID)
+	if !ok {
+		return liveChannel{}, false
+	}
+	lineup, fetched := l.scopedLineup(ctx, caller, scope, false)
 	if ch, ok := lineup.index[key]; ok {
 		return ch, true
 	}
-	if fetched || !l.claimForcedRefresh(key.InstallationID) {
+	if fetched || !l.claimForcedRefresh(scope) {
 		return liveChannel{}, false
 	}
-	lineup, _ = l.lineupFor(ctx, caller, key.InstallationID, true)
+	lineup, _ = l.scopedLineup(ctx, caller, scope, true)
 	ch, ok := lineup.index[key]
 	return ch, ok
 }
 
 // LogoURL returns the remote logo for a channel when it is an absolute http(s)
-// URL. Logo requests carry no identity and may be anonymous, so they never
-// refresh a lineup that was loaded before, however stale: only an installation
-// with no lineup yet is fetched.
-func (l *LiveTV) LogoURL(ctx context.Context, rawID string) (string, bool) {
+// URL. caller is the image request's session, and the zero value when it has
+// none: logo requests are often anonymous, so they never refresh a lineup that
+// was loaded before, however stale: only a scope with no lineup yet is
+// fetched. An anonymous request for a per-user installation's logo is not
+// found, since there is no lineup it may see.
+func (l *LiveTV) LogoURL(ctx context.Context, caller LiveTVCaller, rawID string) (string, bool) {
 	key, ok := l.decodeProviderChannelID(ctx, rawID)
 	if !ok {
 		return "", false
 	}
+	scope, ok := l.scopeFor(ctx, caller, key.InstallationID)
+	if !ok {
+		return "", false
+	}
 	l.mu.Lock()
-	entry := l.installLocked(key.InstallationID).lineup
+	entry := l.installLocked(scope).lineup
 	l.mu.Unlock()
 	lineup := entry.val
 	if !entry.ok {
-		lineup, _ = l.lineupFor(ctx, LiveTVCaller{}, key.InstallationID, false)
+		lineup, _ = l.scopedLineup(ctx, caller, scope, false)
 	}
 	ch, ok := lineup.index[key]
 	if !ok {
@@ -490,17 +575,26 @@ func (l *LiveTV) LogoURL(ctx context.Context, rawID string) (string, bool) {
 	return ch.LogoURL, true
 }
 
-// Info returns a provider's info, cached for liveTVCacheTTL. A failed refresh
-// returns the stale copy; with no copy it returns the error.
+// Info returns caller's view of a provider's info, cached for liveTVCacheTTL
+// in caller's scope. A failed refresh returns the stale copy; with no copy it
+// returns the error. A per-user installation asked anonymously returns
+// errLiveTVUserRequired.
 func (l *LiveTV) Info(ctx context.Context, caller LiveTVCaller, installationID int) (liveTVInfo, error) {
-	info, _, err := loadCached(ctx, l, installationID, "info",
-		func(st *liveInstall) *liveCacheEntry[liveTVInfo] { return &st.info },
-		false,
-		func(ctx context.Context) (liveTVInfo, error) {
-			var info liveTVInfo
-			err := l.getJSON(ctx, caller, installationID, liveTVPathInfo, nil, &info)
-			return info, err
-		})
+	scope, ok := l.scopeFor(ctx, caller, installationID)
+	if !ok {
+		return liveTVInfo{}, errLiveTVUserRequired
+	}
+	var info liveTVInfo
+	var err error
+	if scope.UserID == 0 {
+		// A shared installation's info is the copy scopeFor just read.
+		info, err = l.modeInfo(ctx, caller, installationID)
+	} else {
+		info, _, err = loadCached(ctx, l, scope, "info",
+			func(st *liveInstall) *liveCacheEntry[liveTVInfo] { return &st.info },
+			false,
+			func(ctx context.Context) (liveTVInfo, error) { return l.fetchInfo(ctx, caller, installationID) })
+	}
 	// The cached copy is shared, so hand out its own slice.
 	info.StreamHosts = slices.Clone(info.StreamHosts)
 	return info, err

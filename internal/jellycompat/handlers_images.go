@@ -154,13 +154,18 @@ func (h *ImagesHandler) HandleItemImage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	// theramindex fork: Live TV channel logos and program images, proxied;
-	// never a catalog lookup.
-	if h.liveLogos != nil && isLiveChannelID(routeID) {
-		h.liveLogos.serveLiveLogo(w, r, routeID, imageType)
-		return
-	}
-	if h.liveLogos != nil && isLiveProgramID(routeID) {
-		h.liveLogos.serveLiveProgramImage(w, r, routeID, imageType)
+	// never a catalog lookup. A provider with per-user lineups is asked as the
+	// request's session, if it has one.
+	if h.liveLogos != nil && (isLiveChannelID(routeID) || isLiveProgramID(routeID)) {
+		var caller LiveTVCaller
+		if s := h.requestSession(r); s != nil {
+			caller = liveCaller(s)
+		}
+		if isLiveChannelID(routeID) {
+			h.liveLogos.serveLiveLogo(w, r, caller, routeID, imageType)
+		} else {
+			h.liveLogos.serveLiveProgramImage(w, r, caller, routeID, imageType)
+		}
 		return
 	}
 
