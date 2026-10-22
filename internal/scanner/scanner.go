@@ -124,11 +124,13 @@ func shouldSkipMovieSupplementalFile(path string) bool {
 }
 
 // Scanner discovers and indexes media files in media folders.
-// scannerImageCacher is the slice of imagecache.Cacher the book scanners use.
+// scannerImageCacher is the slice of imagecache.Cacher the book scanners and
+// local extras use.
 // Wired via SetImageCacher; nil-safe when absent.
 type scannerImageCacher interface {
 	audiobookCoverCacher
 	ebookCoverCacher
+	extraStillCacher
 }
 
 type Scanner struct {
@@ -999,7 +1001,7 @@ func (s *Scanner) scanPaths(
 		return result, ctx.Err()
 	}
 
-	extraStats := s.processExtraFiles(ctx, folder, extraCandidates, existingByPath)
+	extraStats := s.processExtraFiles(ctx, folder, extraCandidates, existingByPath, sidecars)
 	result.New += extraStats.New
 	result.Updated += extraStats.Updated
 	result.Unchanged += extraStats.Unchanged
@@ -1852,7 +1854,7 @@ func (s *Scanner) scanScope(
 	})
 
 	if ctx.Err() == nil {
-		extraStats := s.processExtraFiles(ctx, folder, extraCandidates, existingByPath)
+		extraStats := s.processExtraFiles(ctx, folder, extraCandidates, existingByPath, sidecars)
 		result.New += extraStats.New
 		result.Updated += extraStats.Updated
 		result.Unchanged += extraStats.Unchanged
@@ -2003,7 +2005,12 @@ func (s *Scanner) markMissingExcludingProtected(
 		if existing.MissingSince != nil {
 			continue
 		}
-		if err := s.fileRepo.MarkMissing(ctx, existing.ID, now); err != nil {
+		if err := s.fileRepo.MarkMissing(ctx, existing.ID, existing.FilePath, now); err != nil {
+			if errors.Is(err, ErrFileNotFound) {
+				// This scan relinked the row to the file's new path, or it
+				// was deleted meanwhile. Either way nothing is missing here.
+				continue
+			}
 			slog.ErrorContext(ctx, "scanner: failed to mark file missing", "component", "scanner",
 				"path", existing.FilePath,
 				"error", err,
@@ -2726,7 +2733,7 @@ func (s *Scanner) ScanFile(ctx context.Context, filePath string, folder *models.
 	// A local extra (Trailers/ dir, -trailer suffix, ...) bypasses identity
 	// inference and matching entirely.
 	if candidate, isExtra := newWatchExtrasClassifier(folder.Type, folder.Paths).classify(cleanFile); isExtra {
-		stats := s.processExtraFiles(ctx, folder, []extraCandidate{candidate}, existingByPath)
+		stats := s.processExtraFiles(ctx, folder, []extraCandidate{candidate}, existingByPath, nil)
 		if stats.Errors > 0 {
 			return fmt.Errorf("processing extra file %s failed", cleanFile)
 		}
@@ -2846,7 +2853,7 @@ func (s *Scanner) reconcileVanishedFileIfNeeded(ctx context.Context, folder *mod
 		return true, fmt.Errorf("vanished media file %s belongs to library %d, not %d", filePath, file.MediaFolderID, folder.ID)
 	}
 	if file.MissingSince == nil {
-		if err := s.fileRepo.MarkMissing(ctx, file.ID, time.Now().UTC()); err != nil {
+		if err := s.fileRepo.MarkMissing(ctx, file.ID, file.FilePath, time.Now().UTC()); err != nil && !errors.Is(err, ErrFileNotFound) {
 			return true, fmt.Errorf("marking vanished media file %s missing: %w", filePath, err)
 		}
 	}
@@ -3127,6 +3134,7 @@ func (s *Scanner) processFile(
 		// Apply probe data if available.
 		if probe != nil {
 			applyProbeData(&mf, probe, probeSource)
+			s.keepStoredHDR10PlusStatus(ctx, existing, &mf)
 		} else if probeRejected {
 			markProbeRejected(&mf)
 		}
@@ -3168,6 +3176,10 @@ func (s *Scanner) processFile(
 	// Gather hints (OSHash only).
 	hints := s.gatherHints(filePath)
 	fileHash := hints.FileHash
+
+	if s.relinkMovedFile(ctx, folder, filePath, fileSize, fileModifiedAt, fileHash, assignment, groupAssignment, loadExternalSubs) {
+		return actionUpdated, []string{"moved"}, nil
+	}
 
 	// Try to get probe data.
 	probe, probeSource, probeRejected := s.probeFile(ctx, filePath)
@@ -4124,6 +4136,7 @@ func applyProbeData(mf *models.MediaFile, probe *ProbeData, probeSource string) 
 			BitDepth:            vt.BitDepth,
 			PixelFormat:         vt.PixelFormat,
 			ReferenceFrames:     vt.ReferenceFrames,
+			HDR10PlusUnchecked:  vt.HDR10PlusUnchecked,
 		}
 	}
 	mf.VideoTracks = videoTracks
@@ -4215,6 +4228,27 @@ func (s *Scanner) probeFile(ctx context.Context, filePath string) (probe *ProbeD
 		return nil, probeSource, IsProbeRejection(ctx, filePath, err)
 	}
 	return probe, probeSource, false
+}
+
+// keepStoredHDR10PlusStatus keeps the HDR10+ status already recorded for an
+// unchanged file whose first-frame read failed in this rescan, as playback's
+// probe repair does, so a transient failure does not drop a status that was
+// read. The stored row is read only on that failure path.
+func (s *Scanner) keepStoredHDR10PlusStatus(ctx context.Context, existing *scanStateFile, mf *models.MediaFile) {
+	if existing == nil || len(mf.VideoTracks) == 0 || !mf.VideoTracks[0].HDR10PlusUnchecked {
+		return
+	}
+	// A changed file's old status no longer describes it.
+	if existing.FileSize != mf.FileSize || mf.FileModifiedAt == nil || !sameFileModifiedAt(existing.FileModifiedAt, *mf.FileModifiedAt) {
+		return
+	}
+	stored, err := s.fileRepo.GetByID(ctx, existing.ID)
+	if err != nil {
+		slog.DebugContext(ctx, "scanner: could not read the stored HDR10+ status",
+			"component", "scanner", "file_id", existing.ID, "error", err)
+		return
+	}
+	carryCheckedHDR10Plus(stored.VideoTracks, mf.VideoTracks)
 }
 
 // markProbeRejected records on a media file being written that ffprobe
