@@ -3702,8 +3702,8 @@ func playedMediaSource(session *PlaybackSession, mediaSourceID string) *Playback
 func mediaSourceByFileID(session *PlaybackSession, fileID int) *PlaybackMediaSource {
 	for _, source := range session.MediaSources {
 		if source.FileID == fileID {
-			copy := source
-			return &copy
+			matchedSource := source
+			return &matchedSource
 		}
 	}
 	return nil
@@ -3731,8 +3731,8 @@ func findMediaSource(session *PlaybackSession, mediaSourceID string) *PlaybackMe
 	}
 	for _, source := range session.MediaSources {
 		if mediaSourceIDsEqual(source.ID, mediaSourceID) {
-			copy := source
-			return &copy
+			matchedSource := source
+			return &matchedSource
 		}
 	}
 	return nil
