@@ -363,6 +363,19 @@ func LoadFromDB(m map[string]string) (*Config, error) {
 		return nil, err
 	}
 	cfg.Playback.KeyframePlaylist = keyframePlaylist
+	automaticBandwidthProbe, err := boolOr(m, PlaybackBandwidthProbeAutomaticSettingKey, true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Playback.AutomaticBandwidthProbeOff = !automaticBandwidthProbe
+	bandwidthProbeMaxAgeDays, err := intOr(m, PlaybackBandwidthProbeMaxAgeDaysSettingKey, DefaultBandwidthProbeMaxAgeDays)
+	if err != nil {
+		return nil, err
+	}
+	if bandwidthProbeMaxAgeDays < 1 || bandwidthProbeMaxAgeDays > maxBandwidthProbeMaxAgeDays {
+		return nil, fmt.Errorf("%s must be between 1 and %d", PlaybackBandwidthProbeMaxAgeDaysSettingKey, maxBandwidthProbeMaxAgeDays)
+	}
+	cfg.Playback.BandwidthProbeMaxAgeDays = bandwidthProbeMaxAgeDays
 	cfg.Playback.HWAccel = stringOr(m, "playback.hw_accel", "auto")
 	cfg.Playback.HWDevice = stringOr(m, "playback.hw_device", "")
 	chapterThumbnailWorkers, err := intOr(m, "playback.chapter_thumbnail_workers", 1)
@@ -450,7 +463,7 @@ func LoadFromDB(m map[string]string) (*Config, error) {
 		return nil, err
 	}
 	cfg.JellyfinCompat.SessionTTL = sessionTTL
-	playbackSessionTTL, err := durationOr(m, "jellyfin_compat.playback_session_ttl", 6*time.Hour)
+	playbackSessionTTL, err := durationOr(m, "jellyfin_compat.playback_session_ttl", 24*time.Hour)
 	if err != nil {
 		return nil, err
 	}

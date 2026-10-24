@@ -181,13 +181,21 @@ func (h *ItemsHandler) userViews(ctx context.Context, session *Session) ([]baseI
 		order = h.loadUserViewOrder(ctx, session)
 		sortByPreferredOrder(libraries, order.libraryOrder, func(library upstreamUserLibrary) string { return strconv.Itoa(library.ID) })
 	}
+	items = append(items, h.libraryViews(libraries)...)
+	sortByPreferredOrder(items, order.orderedViews, func(item baseItemDTO) string { return item.ID })
+	return items, nil
+}
+
+// libraryViews maps libraries to their CollectionFolder items, remembering
+// each library's artwork for the image routes.
+func (h *ItemsHandler) libraryViews(libraries []upstreamUserLibrary) []baseItemDTO {
+	items := make([]baseItemDTO, 0, len(libraries))
 	for _, library := range libraries {
 		dto := h.mapper.viewFromLibrary(library)
 		h.rememberLibraryImages(library, dto.ID)
 		items = append(items, dto)
 	}
-	sortByPreferredOrder(items, order.orderedViews, func(item baseItemDTO) string { return item.ID })
-	return items, nil
+	return items
 }
 
 // HandleItems serves GET /Items.
@@ -1022,6 +1030,36 @@ func (h *ItemsHandler) HandleGroupingOptionsStub(w http.ResponseWriter, r *http.
 // setting's default.
 func enableRealtimeMonitor(server func() bool, library bool) bool {
 	return library && (server == nil || server())
+}
+
+const compatMediaFoldersPath = "/Library/MediaFolders"
+
+// HandleMediaFolders serves GET /Library/MediaFolders: the session's visible
+// libraries as CollectionFolder items with the same Ids as /UserViews. Jellyfin
+// SDK getMediaFolders() discovers libraries here (Maintainerr, for one). The
+// synthetic Collections view is a view, not a media folder, so it is omitted.
+// Silo has no hidden media folders, so isHidden=true lists none.
+func (h *ItemsHandler) HandleMediaFolders(w http.ResponseWriter, r *http.Request) {
+	session := SessionFromContext(r.Context())
+	if session == nil {
+		writeError(w, http.StatusUnauthorized, "Unauthorized", "Missing authentication token")
+		return
+	}
+
+	items := []baseItemDTO{}
+	if !parseBool(newCaseInsensitiveQuery(r.URL.Query()).Get("isHidden"), false) {
+		libraries, err := h.content.ListUserLibraries(r.Context(), session)
+		if err != nil {
+			writeCompatUpstreamError(w, err)
+			return
+		}
+		items = h.libraryViews(libraries)
+	}
+	writeJSON(w, http.StatusOK, queryResultDTO{
+		Items:            items,
+		TotalRecordCount: len(items),
+		StartIndex:       0,
+	})
 }
 
 // HandleVirtualFolders serves GET /Library/VirtualFolders.
@@ -2409,12 +2447,13 @@ func (h *ItemsHandler) writeNextUpResponse(w http.ResponseWriter, r *http.Reques
 	items = sliceBaseItems(items, query.startIndex, query.limit)
 	pageIDs = slicePageIDs(pageIDs, query.startIndex, query.limit)
 	if query.needsDetailFields {
+		detailsByID := h.batchListItemDetails(r.Context(), session, pageIDs, nil)
 		for i := range items {
 			if i >= len(pageIDs) {
 				break
 			}
-			detail, detailErr := h.content.GetItemDetail(r.Context(), session, pageIDs[i], nil)
-			if detailErr != nil {
+			detail := detailsByID[pageIDs[i]]
+			if detail == nil {
 				continue
 			}
 			h.rememberDetailImages(*detail)
@@ -2606,13 +2645,17 @@ func (h *ItemsHandler) handleLibraryItem(w http.ResponseWriter, r *http.Request,
 // fallback behavior. Individually-unresolvable ids (e.g. season rows, which the
 // item-detail batch path does not handle) are simply absent and likewise fall
 // back to list rendering rather than a per-item detail fetch. Returns nil for an
-// empty input.
+// empty input, and when the batch fails after ctx is done, since each per-item
+// lookup would fail on the same context.
 func (h *ItemsHandler) batchListItemDetails(ctx context.Context, session *Session, contentIDs []string, libraryID *int) map[string]*upstreamItemDetail {
 	if len(contentIDs) == 0 {
 		return nil
 	}
 	if details, err := h.content.GetItemDetailsByIDs(ctx, session, contentIDs, libraryID); err == nil {
 		return details
+	}
+	if ctx.Err() != nil {
+		return nil
 	}
 	details := make(map[string]*upstreamItemDetail, len(contentIDs))
 	for _, id := range contentIDs {
@@ -2962,15 +3005,12 @@ func (h *ItemsHandler) handleSpecificItems(w http.ResponseWriter, r *http.Reques
 
 	items := make([]baseItemDTO, 0, len(query.specificIDs))
 	savedMode := savedCompatSubtitleMode(r.Context(), h.storeProvider, session)
-	for _, contentID := range query.specificIDs {
-		detail, itemErr := h.content.GetItemDetail(r.Context(), session, contentID, libraryIDPtr(query.parentLibraryID))
-		if itemErr != nil {
-			if isHTTPStatus(itemErr, http.StatusNotFound) {
-				continue
-			}
-			writeCompatUpstreamError(w, itemErr)
-			return
-		}
+	details, err := h.specificItemDetails(r.Context(), session, query.specificIDs, libraryIDPtr(query.parentLibraryID))
+	if err != nil {
+		writeCompatUpstreamError(w, err)
+		return
+	}
+	for _, detail := range details {
 		h.rememberDetailImages(*detail)
 		dto := h.mapper.itemFromDetailWithFields(*detail, favorites[detail.ContentID], progress[detail.ContentID], query.requestedFields)
 		if query.requestedFields == nil {
@@ -3032,6 +3072,35 @@ func (h *ItemsHandler) handleSpecificItems(w http.ResponseWriter, r *http.Reques
 	h.applyListFileFields(r.Context(), session, items, query)
 	applyItemsResponseOptions(items, query)
 	writeJSON(w, http.StatusOK, queryResultDTO{Items: items, TotalRecordCount: total, StartIndex: query.startIndex})
+}
+
+// specificItemDetails returns the details of an Ids list in its order. One
+// batch serves the movies, series, and episodes; GetItemDetail serves what the
+// batch leaves out, such as seasons, or every id when the batch fails. An id
+// GetItemDetail answers 404 for is left out, and any other error fails the
+// list.
+func (h *ItemsHandler) specificItemDetails(ctx context.Context, session *Session, contentIDs []string, libraryID *int) ([]*upstreamItemDetail, error) {
+	batch, batchErr := h.content.GetItemDetailsByIDs(ctx, session, contentIDs, libraryID)
+	if batchErr != nil {
+		batch = nil
+	}
+	details := make([]*upstreamItemDetail, 0, len(contentIDs))
+	for _, contentID := range contentIDs {
+		detail := batch[contentID]
+		var err error
+		if detail == nil {
+			detail, err = h.content.GetItemDetail(ctx, session, contentID, libraryID)
+		}
+		switch {
+		case isHTTPStatus(err, http.StatusNotFound):
+			// Left out of the list.
+		case err != nil:
+			return nil, err
+		case detail != nil:
+			details = append(details, detail)
+		}
+	}
+	return details, nil
 }
 
 // handlePlayedItems serves IsPlayed=True requests by querying completed

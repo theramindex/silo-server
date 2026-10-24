@@ -63,8 +63,8 @@ type playbackInfoRequest struct {
 	SiloSeekReanchor                    bool            `json:"SiloSeekReanchor"`
 	UserID                              string          `json:"UserId"`
 	MediaSourceID                       string          `json:"MediaSourceId"`
-	AudioStreamIndex                    *compatIntValue `json:"AudioStreamIndex,omitempty"`
-	SubtitleStreamIndex                 *compatIntValue `json:"SubtitleStreamIndex,omitempty"`
+	AudioStreamIndex                    compatIntValue  `json:"AudioStreamIndex"`
+	SubtitleStreamIndex                 compatIntValue  `json:"SubtitleStreamIndex"`
 	MaxStreamingBitrate                 int64           `json:"MaxStreamingBitrate"`
 	MaxAudioChannels                    int             `json:"MaxAudioChannels"`
 	AlwaysBurnInSubtitleWhenTranscoding bool            `json:"AlwaysBurnInSubtitleWhenTranscoding"`
@@ -387,11 +387,7 @@ func (h *PlaybackHandler) serverBitrateCap(ctx context.Context, session *Session
 	if h.ScopeResolver == nil {
 		return 0, nil
 	}
-	scope, err := h.ScopeResolver.Resolve(ctx, access.ResolveInput{
-		UserID:              session.StreamAppUserID,
-		ProfileID:           session.ProfileID,
-		SkipPINVerification: true,
-	})
+	scope, err := h.ScopeResolver.Resolve(ctx, compatScopeInput(session.StreamAppUserID, session.ProfileID))
 	if err != nil {
 		return 0, err
 	}
@@ -2164,6 +2160,10 @@ func (h *PlaybackHandler) HandleCapabilitiesFull(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// bitrateTestMaxSize is Jellyfin's own BitrateTest limit. It stays put when
+// Silo's native speed test asks for more (bandwidthprobe.MaxSize).
+const bitrateTestMaxSize = 100_000_000
+
 // HandleBitrateTest serves Size random bytes (default 102400) for clients that probe bandwidth.
 func (h *PlaybackHandler) HandleBitrateTest(w http.ResponseWriter, r *http.Request) {
 	// Jellyfin's authenticated bandwidth probe: transfer-observed, cap-exempt
@@ -2175,7 +2175,7 @@ func (h *PlaybackHandler) HandleBitrateTest(w http.ResponseWriter, r *http.Reque
 	size := 102400
 	if raw := firstQueryValue(r.URL.Query(), "Size"); raw != "" {
 		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 || value > bandwidthprobe.MaxSize {
+		if err != nil || value < 1 || value > bitrateTestMaxSize {
 			writeError(w, http.StatusBadRequest, "BadRequest", "Size must be between 1 and 100000000")
 			return
 		}
@@ -2317,8 +2317,8 @@ func (h *PlaybackHandler) HandlePlaybackInfo(w http.ResponseWriter, r *http.Requ
 		}
 		source.DefaultSubtitleStreamIndex = compatDetailSubtitleStreamIndex(detail, source.Version, downloaded, savedSubtitleMode, effectiveCompatAudioStreamIndex(source))
 		var requestedSubtitleIndex *int
-		if req.SubtitleStreamIndex != nil {
-			requestedSubtitleIndex = intPtr(int(*req.SubtitleStreamIndex))
+		if index, ok := req.SubtitleStreamIndex.get(); ok {
+			requestedSubtitleIndex = intPtr(index)
 		}
 		source.SelectedSubtitleStreamIndex = resolveSelectedSubtitleStreamIndex(source.Version, len(downloaded), downloadedKnown, requestedSubtitleIndex, source.DefaultSubtitleStreamIndex)
 		if selected := effectiveCompatSubtitleStreamIndex(source); !downloadedKnown && len(profile.SubtitleProfiles) > 0 && selected != nil && *selected >= nextDownloadedSubtitleIndex(source.Version) {
@@ -2570,8 +2570,8 @@ func (h *PlaybackHandler) buildPlaybackSource(
 	audioIndex := preferredAudioStreamIndex(version, profile)
 	subtitleIndex := defaultSubtitleStreamIndex(version)
 	selectedAudioIndex := audioIndex
-	if req.AudioStreamIndex != nil && isValidCompatAudioStreamIndex(version, int(*req.AudioStreamIndex)) {
-		selectedAudioIndex = intPtr(int(*req.AudioStreamIndex))
+	if index, ok := req.AudioStreamIndex.get(); ok && isValidCompatAudioStreamIndex(version, index) {
+		selectedAudioIndex = intPtr(index)
 	}
 
 	supportsDirectPlay := enableDirectPlay && profile.SupportsDirectPlayForAudioStream(version, selectedAudioIndex)
@@ -2795,7 +2795,14 @@ func (h *PlaybackHandler) mediaSourceDTO(routeItemID, playSessionID, compatToken
 			url.QueryEscape(playSessionID),
 		)
 	}
-	dto.TranscodingSubProtocol = "hls"
+	// Jellyfin Web and jellyfin-android play the direct URL whenever either
+	// direct flag is set, and Jellyfin Web picks hls.js from this field alone,
+	// so only a transcode-only source reports hls. Swiftfin plays any
+	// TranscodingUrl it gets and shows this field only as a label.
+	dto.TranscodingSubProtocol = compatStreamProtocolHTTP
+	if source.SupportsTranscoding && !source.SupportsDirectPlay && !source.SupportsDirectStream {
+		dto.TranscodingSubProtocol = compatStreamProtocolHLS
+	}
 	if source.SupportsTranscoding {
 		basePath := compatVideoPath(routeItemID, false)
 		if routePathSegment := compatHLSRoutePathSegment(source); routePathSegment != "" {
@@ -3721,10 +3728,10 @@ func applyPlaybackQueryOverrides(req *playbackInfoRequest, query url.Values) {
 		req.MediaSourceID = value
 	}
 	if value, ok := parseOptionalInt(firstQueryValue(query, "AudioStreamIndex")); ok {
-		req.AudioStreamIndex = compatIntValuePtr(value)
+		req.AudioStreamIndex = compatIntValueOf(value)
 	}
 	if value, ok := parseOptionalInt(firstQueryValue(query, "SubtitleStreamIndex")); ok {
-		req.SubtitleStreamIndex = compatIntValuePtr(value)
+		req.SubtitleStreamIndex = compatIntValueOf(value)
 	}
 	if value, ok := parseOptionalBool(firstQueryValue(query, "EnableDirectPlay")); ok {
 		req.EnableDirectPlay = &value
@@ -3774,9 +3781,17 @@ func parseOptionalInt(raw string) (int, bool) {
 	return value, true
 }
 
-type compatIntValue int
+// compatIntValue is a nullable integer from a Jellyfin request body. Like
+// Jellyfin, it accepts a number or a numeric string, and reads null, an empty
+// string or a blank string as unset: Jellyfin Web sends
+// "SubtitleStreamIndex":"" when playback starts from a series page.
+type compatIntValue struct {
+	value int
+	set   bool
+}
 
 func (v *compatIntValue) UnmarshalJSON(data []byte) error {
+	*v = compatIntValue{}
 	trimmed := strings.TrimSpace(string(data))
 	if trimmed == "" || trimmed == "null" {
 		return nil
@@ -3784,7 +3799,7 @@ func (v *compatIntValue) UnmarshalJSON(data []byte) error {
 
 	var number int
 	if err := json.Unmarshal(data, &number); err == nil {
-		*v = compatIntValue(number)
+		*v = compatIntValue{value: number, set: true}
 		return nil
 	}
 
@@ -3792,17 +3807,25 @@ func (v *compatIntValue) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	parsed, err := strconv.Atoi(strings.TrimSpace(raw))
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parsed, err := strconv.Atoi(raw)
 	if err != nil {
 		return err
 	}
-	*v = compatIntValue(parsed)
+	*v = compatIntValue{value: parsed, set: true}
 	return nil
 }
 
-func compatIntValuePtr(value int) *compatIntValue {
-	v := compatIntValue(value)
-	return &v
+// get returns the value and whether the request set one.
+func (v *compatIntValue) get() (int, bool) {
+	return v.value, v.set
+}
+
+func compatIntValueOf(value int) compatIntValue {
+	return compatIntValue{value: value, set: true}
 }
 
 func (h *PlaybackHandler) playbackUnavailable(w http.ResponseWriter, err error) {

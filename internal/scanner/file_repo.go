@@ -1818,29 +1818,13 @@ func (r *FileRepository) upsertAndClearMarkers(ctx context.Context, fileID int, 
 	if update != nil && !update.DetectedAt.IsZero() {
 		mutationAt = update.DetectedAt.UTC()
 	}
-	changed := markerSegmentFlags{}
-
+	var applyUpdate *MarkerUpdate
 	if hasUpdate {
-		applied, err := applyMarkerUpdateToMutationState(update, &state, mutationAt)
-		if err != nil {
-			return false, err
-		}
-		changed.intro = changed.intro || applied.intro
-		changed.credits = changed.credits || applied.credits
-		changed.recap = changed.recap || applied.recap
-		changed.preview = changed.preview || applied.preview
+		applyUpdate = update
 	}
-	if clearFlags.intro {
-		changed.intro = clearManualSegmentState(&state.intro, mutationAt) || changed.intro
-	}
-	if clearFlags.credits {
-		changed.credits = clearManualSegmentState(&state.credits, mutationAt) || changed.credits
-	}
-	if clearFlags.recap {
-		changed.recap = clearManualSegmentState(&state.recap, mutationAt) || changed.recap
-	}
-	if clearFlags.preview {
-		changed.preview = clearManualSegmentState(&state.preview, mutationAt) || changed.preview
+	changed, err := applyMarkerMutation(applyUpdate, clearFlags, &state, mutationAt)
+	if err != nil {
+		return false, err
 	}
 	if !changed.any() {
 		if err := tx.Commit(ctx); err != nil {
@@ -1983,9 +1967,15 @@ func applyMarkerUpdateToMutationState(update *MarkerUpdate, state *markerMutatio
 		{"recap", &state.recap, update.RecapStart, update.RecapEnd, update.RecapProvenance, &applied.recap},
 		{"preview", &state.preview, update.PreviewStart, update.PreviewEnd, update.PreviewProvenance, &applied.preview},
 	} {
+		start, end, kindRanges := patch.start, patch.end, ranges[patch.kind]
+		if patch.kind == models.MarkerSegmentCredits {
+			// The intro has already been patched, so this checks against the
+			// intro the file is left with.
+			start, end, kindRanges = placedCredits(state, start, end, kindRanges)
+		}
 		source, provider, confidence, algorithm := resolveSegmentProvenance(*update, patch.provenance)
 		changed, err := applySegmentRanges(patch.state, state.existingSource, source, provider, confidence, algorithm,
-			patch.start, patch.end, ranges[patch.kind], state.duration, patch.kind, mutationAt)
+			start, end, kindRanges, state.duration, patch.kind, mutationAt)
 		if err != nil {
 			return markerSegmentFlags{}, err
 		}
@@ -1994,13 +1984,67 @@ func applyMarkerUpdateToMutationState(update *MarkerUpdate, state *markerMutatio
 		if existingSource == nil {
 			existingSource = state.existingSource
 		}
-		if patch.start == nil && patch.end == nil && len(ranges[patch.kind]) == 0 && patch.state.provider != nil &&
+		if start == nil && end == nil && len(kindRanges) == 0 && patch.state.provider != nil &&
 			(existingSource == nil || *existingSource != models.MarkerSourceManual) &&
 			slices.Contains(update.RefreshedProviders, *patch.state.provider) {
 			*patch.changed = clearSegmentState(patch.state)
 		}
 	}
 	return applied, nil
+}
+
+// applyMarkerMutation applies the manual clears in clearFlags, then update
+// (nil for a clear-only request), to state, and reports which kinds changed.
+// Clears go first so the credits in update are checked against the intro the
+// request leaves the file with.
+func applyMarkerMutation(update *MarkerUpdate, clearFlags markerSegmentFlags, state *markerMutationState, mutationAt time.Time) (markerSegmentFlags, error) {
+	changed := markerSegmentFlags{}
+	if clearFlags.intro {
+		changed.intro = clearManualSegmentState(&state.intro, mutationAt)
+	}
+	if clearFlags.credits {
+		changed.credits = clearManualSegmentState(&state.credits, mutationAt)
+	}
+	if clearFlags.recap {
+		changed.recap = clearManualSegmentState(&state.recap, mutationAt)
+	}
+	if clearFlags.preview {
+		changed.preview = clearManualSegmentState(&state.preview, mutationAt)
+	}
+	if update != nil {
+		applied, err := applyMarkerUpdateToMutationState(update, state, mutationAt)
+		if err != nil {
+			return markerSegmentFlags{}, err
+		}
+		changed.intro = changed.intro || applied.intro
+		changed.credits = changed.credits || applied.credits
+		changed.recap = changed.recap || applied.recap
+		changed.preview = changed.preview || applied.preview
+	}
+	return changed, nil
+}
+
+// placedCredits drops the credits in an update that fail the placement every
+// marker source shares (markers.CheckCreditsPlacement), from its ranges and
+// from its singular bounds. Dropping them before the write lets a refresh that
+// returns only misplaced credits clear the provider's stored ones like any
+// other withdrawn range.
+func placedCredits(state *markerMutationState, start, end *float64, ranges []models.MarkerSegment) (*float64, *float64, []models.MarkerSegment) {
+	limits := markers.CreditsLimitsForFile(&state.file)
+	kept := limits.KeepPlaced(ranges, state.duration, state.intro.end)
+	if start != nil || end != nil {
+		s, e := state.credits.start, state.credits.end
+		if start != nil {
+			s = start
+		}
+		if end != nil {
+			e = end
+		}
+		if s != nil && e != nil && limits.CheckCreditsPlacement(*s, *e, state.duration, state.intro.end) != nil {
+			start, end = nil, nil
+		}
+	}
+	return start, end, kept
 }
 
 func writeMarkerMutationState(
@@ -3865,7 +3909,7 @@ func (r *FileRepository) ClearContentLinksByPathPrefix(ctx context.Context, fold
 		`, folderID, oldEpisodeIDs); err != nil {
 			return 0, fmt.Errorf("deleting stale episode library links by path prefix: %w", err)
 		}
-		if err := catalog.RecomputeSeriesLatestEpisodeAdded(ctx, tx, affectedSeriesIDs); err != nil {
+		if err := catalog.RecomputeSeriesEpisodeMembershipDenorms(ctx, tx, affectedSeriesIDs); err != nil {
 			return 0, err
 		}
 	}
@@ -3950,7 +3994,7 @@ func (r *FileRepository) UpdateEpisodeLink(ctx context.Context, fileID int, epis
 	`, affectedEpisodeIDs).Scan(&affectedSeriesIDs); err != nil {
 		return fmt.Errorf("collecting affected episode series: %w", err)
 	}
-	if err := catalog.RecomputeSeriesLatestEpisodeAdded(ctx, tx, affectedSeriesIDs); err != nil {
+	if err := catalog.RecomputeSeriesEpisodeMembershipDenorms(ctx, tx, affectedSeriesIDs); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -3964,10 +4008,12 @@ func (r *FileRepository) UpdateEpisodeLink(ctx context.Context, fileID int, epis
 // season/episode hints remain unlinked for the slower fallback path.
 func (r *FileRepository) BulkLinkEpisodesBySeries(ctx context.Context, seriesContentID string) (int, error) {
 	var linked int
-	// Lock the candidates in id order first, the order curated rebind,
-	// rename and split lock a series' files; the UPDATE alone locks them in
-	// plan order and can deadlock with those.
-	err := r.pool.QueryRow(ctx, `
+	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+		// Lock the candidates in id order first, the order curated rebind,
+		// rename and split lock a series' files; the UPDATE alone locks them
+		// in plan order and can deadlock with those.
+		var addedLinks bool
+		if err := tx.QueryRow(ctx, `
 		WITH locked AS (
 			SELECT id FROM media_files
 			WHERE content_id = $1
@@ -4007,21 +4053,22 @@ func (r *FileRepository) BulkLinkEpisodesBySeries(ctx context.Context, seriesCon
 			FROM updated
 			GROUP BY episode_id, media_folder_id
 			ON CONFLICT (episode_id, media_folder_id) DO NOTHING
-			RETURNING first_seen_at
-		),
-		-- Bump the series' latest-episode-added denorm for genuinely new
-		-- links only ("Latest Episodes" sort, issue #202). All inserted
-		-- rows belong to $1, so no per-series grouping is needed.
-		bumped AS (
-			UPDATE media_items mi
-			SET latest_episode_added_at = GREATEST(COALESCE(mi.latest_episode_added_at, sub.latest_added), sub.latest_added)
-			FROM (SELECT MAX(first_seen_at) AS latest_added FROM inserted) sub
-			WHERE mi.content_id = $1
-			  AND mi.type = 'series'
-			  AND sub.latest_added IS NOT NULL
+			RETURNING episode_id
 		)
-		SELECT COUNT(*) FROM updated
-	`, seriesContentID).Scan(&linked)
+		SELECT (SELECT COUNT(*) FROM updated), EXISTS (SELECT 1 FROM inserted)
+	`, seriesContentID).Scan(&linked, &addedLinks); err != nil {
+			return err
+		}
+		if !addedLinks {
+			return nil
+		}
+		// Genuinely new links move the series' membership denorms ("Latest
+		// Episodes", issue #202; "Latest Episode Air Date", issue #2741).
+		// Recompute them in a later statement: one that waited on a
+		// concurrent air-date correction's series lock would still apply
+		// this statement's older episode dates.
+		return catalog.RecomputeSeriesEpisodeMembershipDenorms(ctx, tx, []string{seriesContentID})
+	})
 	if err != nil {
 		return 0, fmt.Errorf("bulk-linking series files to episodes: %w", err)
 	}

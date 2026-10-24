@@ -18,6 +18,8 @@ export const v2Operations = {
   "DELETE /api/v2/admin/collections/{id}/image": "deleteAdminCollectionImage",
   "DELETE /api/v2/admin/collections/{id}/items/{item_id}": "removeAdminCollectionItem",
   "DELETE /api/v2/admin/dashboard/layout": "resetAdminDashboardLayout",
+  "DELETE /api/v2/admin/devices/{user_id}/{device_id}/connections/{connection_id}/learned-limit":
+    "resetAdminDeviceLearnedLimit",
   "DELETE /api/v2/admin/diagnostics/reports/{id}": "deleteAdminDiagnosticReport",
   "DELETE /api/v2/admin/history-import-sources/{id}": "deleteAdminHistoryImportSource",
   "DELETE /api/v2/admin/history-imports/mappings/{id}": "deleteAdminHistoryImportMapping",
@@ -73,6 +75,7 @@ export const v2Operations = {
   "DELETE /api/v2/notifications/web-push/subscriptions/{id}":
     "deleteNotificationWebPushSubscription",
   "DELETE /api/v2/notifications/webhooks/{id}": "deleteNotificationWebhook",
+  "DELETE /api/v2/playback/connection/learned-limit": "resetPlaybackLearnedLimit",
   "DELETE /api/v2/playback/{session_id}": "stopPlayback",
   "DELETE /api/v2/profile/sections": "resetProfileSectionOverrides",
   "DELETE /api/v2/profiles/{id}": "deleteProfile",
@@ -427,6 +430,7 @@ export const v2Operations = {
   "GET /api/v2/password-resets/{token}": "lookupPasswordReset",
   "GET /api/v2/playback/bandwidth-probe": "getPlaybackBandwidthProbe",
   "GET /api/v2/playback/capabilities": "getPlaybackCapabilities",
+  "GET /api/v2/playback/connection": "getPlaybackConnection",
   "GET /api/v2/playback/sessions/control/capabilities": "getPlaybackControlSocketCapabilities",
   "GET /api/v2/playback/sessions/{session_id}/control/ws": "connectPlaybackControlSocket",
   "GET /api/v2/playback/transcode/{session_id}/master.m3u8": "getPlaybackManifest",
@@ -779,6 +783,7 @@ export const v2Operations = {
   "POST /api/v2/notifications/{id}/read": "markNotificationRead",
   "POST /api/v2/password-resets": "requestPasswordReset",
   "POST /api/v2/password-resets/{token}/complete": "completePasswordReset",
+  "POST /api/v2/playback/bandwidth-probe/results": "reportPlaybackBandwidthProbe",
   "POST /api/v2/playback/route-events": "reportPlaybackRouteEvent",
   "POST /api/v2/playback/sessions/{session_id}/control/ws-ticket":
     "createPlaybackControlSocketTicket",

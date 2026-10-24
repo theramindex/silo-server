@@ -116,6 +116,11 @@ an unintended Off choice. Explicit playback choices, including Off, still win.
 If playback negotiates a different audio language, clients must omit
 `SubtitleStreamIndex` to request a fresh automatic subtitle selection. An echoed
 `-1` remains Off because it is indistinguishable from an intentional Off choice.
+As in Jellyfin, `AudioStreamIndex` and `SubtitleStreamIndex` in PlaybackInfo and
+session report bodies accept a number or a numeric string, and `null`, an empty
+string, or a blank string counts as omitting the field; Jellyfin Web sends an
+empty `SubtitleStreamIndex` when playback starts from a series page. An explicit
+`0` is stream 0.
 
 `PlaybackInfo` defaults follow the viewer's settings. `DefaultAudioStreamIndex`
 is the audio track Silo selects for the viewer (audio language preference,
@@ -255,6 +260,7 @@ An episode's `ParentThumbImageTag` still names its series' backdrop; the series'
 | Routes | Behavior |
 |---|---|
 | `GET /Items/{id}/Ancestors` | Visible episode/season/series/library ancestry. When an item belongs to multiple libraries, chooses its first visible library parent. |
+| `GET /Library/MediaFolders` | The session's visible libraries as a `QueryResult` of `CollectionFolder` items, with the `Id` and `CollectionType` that `/UserViews` reports (`movies`, `tvshows`, …). The synthetic Collections view is not a media folder and is left out. Silo has no hidden media folders, so `isHidden=true` returns an empty list. Jellyfin SDK `getMediaFolders()` discovers libraries here. |
 | `GET /Items/Filters`, `/Items/Filters2` | Visible catalog genre facets; the legacy shape includes years and official ratings. For Movie, Series, Season, or Episode queries, `Filters2` also lists `AudioLanguages` and `SubtitleLanguages` as `{Name: "English (en)", Value: "en"}` pairs sorted by name. |
 | `GET /Items/{id}/Collections` | Jellyfin 12 "Included In": visible BoxSets that store the item, sorted by name and paged by `StartIndex`/`Limit`. An item the viewer cannot see returns 404 regardless of membership; visible episodes and any season return an empty result. Smart collections have no stored membership and are not listed. |
 | `GET /Studios` | Visible catalog studios with paging. |
@@ -419,12 +425,22 @@ back to a playback grant. Revoked owner credentials invalidate the grant.
 Copied-video HLS master playlists name copied audio as Jellyfin 12 does:
 HE-AAC as `mp4a.40.5`, TrueHD as `mlpa`, and DTS as `dtsc`, `dtsh` (DTS-HD HRA
 and MA), or `dtse` (DTS Express). HE-AACv2 is `mp4a.40.29` (RFC 6381), where
-Jellyfin writes `mp4a.40.2`. For Dolby Vision without a compatible base
-layer (HEVC profile 5, AV1 profile 10), a client whose device profile lists
+Jellyfin writes `mp4a.40.2`. Copied AV1 Main profile is `av01.0.LLM.DD`, always
+Main tier because the probe does not record the tier. Copied VP9 profiles 0 and
+2 are `vp09.PP.LL.DD`. FFprobe reports no VP9 level, so the level comes from the
+picture size alone, as FFmpeg writes it into the init segment's `vpcC` box;
+Jellyfin also counts the frame rate. These short forms imply BT.709,
+limited-range, non-monochrome video, so HDR, full-range, and monochrome AV1 or
+VP9 get no entry. When Silo cannot name every format a variant carries (an
+unknown level, another AV1 or VP9 profile or color, or copied audio with no
+entry), that variant has no `CODECS` or `SUPPLEMENTAL-CODECS`, where Jellyfin
+writes a partial list or a short form. For Dolby Vision without a compatible
+base layer (HEVC profile 5, AV1 profile 10), a client whose device profile lists
 `DOVI` in a `VideoRangeType` condition also gets Jellyfin 12's `dvh1`/`dav1`
-variant, listed before the `hvc1` fallback. MPEG-TS remuxes keep the single
-variant. Audio and subtitle streams carry `LocalizedLanguage`, and audio
-streams carry `LocalizedOriginal`, in English.
+variant, listed before the fallback variant, unless the copied audio has no
+entry. MPEG-TS remuxes keep the single variant. Audio and subtitle streams
+carry `LocalizedLanguage`, and audio streams carry `LocalizedOriginal`, in
+English.
 
 HEVC Dolby Vision Profile 8 with a proven HDR10 base layer and no enhancement
 layer can use HLS fMP4 remux when a positive video-range condition names both
@@ -515,6 +531,15 @@ whose authority read preceded a concurrent logout may finish. Already issued sig
 node stream URLs retain their existing lifetime; logout does not withdraw them or
 cancel a transfer already authorized. Socket re-check timing is unchanged.
 
+`POST /Sessions/Logout` drops this node's cached copy of the compat session and
+deletes its stored row, returning `204` when the row is deleted or was already
+gone. When the delete fails it returns `500` with `Error: "ServerError"` and
+`Message: "Could not sign out"`. The stored row normally survives that failure,
+so the token keeps working until a later sign-out succeeds or the session
+expires; jellyfin-web clears its saved token whatever the status. The route
+authenticates first, so retrying after a delete that completed despite the error
+returns `401`.
+
 ### Quick Connect
 
 Jellyfin apps sign in with Quick Connect on top of Silo's device sign-in
@@ -602,10 +627,16 @@ connection's shared budget, as described in
 
 - `POST /Users/AuthenticateByName` spends the per-IP and `login` budgets before
   the global budget, like native `POST /api/v1/auth/login`. Both routes count
-  against the same per-IP `login` counter. It reads at most 64 KiB of the
-  body: when decoding the JSON value needs more, it answers 413 with
-  `{"Error":"PayloadTooLarge",...}` before any credential check. Only the
-  first JSON value is decoded; data after it is ignored, not rejected.
+  against the same per-IP `login` counter. The account name also spends its
+  sign-in attempt budget, shared with native sign-in on every node
+  ([Sign-in attempts per name](auth-api.md#sign-in-attempts-per-name)); a
+  locked name answers 429 `TooManyRequests` with `Retry-After`. It reads at
+  most 64 KiB of the body: when decoding the JSON value needs more, it answers
+  413 with `{"Error":"PayloadTooLarge",...}` before any credential check. Only
+  the first JSON value is decoded; data after it is ignored, not rejected. A
+  server too busy to check the password answers 503 `ServiceUnavailable`
+  with `Retry-After`, not a wrong password (see
+  [When the server is too busy to check a password](auth-api.md#when-the-server-is-too-busy-to-check-a-password)).
 - The Quick Connect routes spend the native device sign-in budgets, as the
   native device operations do: Initiate spends `device_start`, Connect and
   `/Users/AuthenticateWithQuickConnect` spend `device_poll`, and Authorize
