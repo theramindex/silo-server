@@ -1062,8 +1062,38 @@ every route reaches a terminal instead of cycling forever.
 Failure, seek, and quality replans may omit unchanged track identities. The
 server overlays only identities present in those requests and preserves the
 durable selected subtitle otherwise. Only `operation: "track_change"` gives an
-omitted `selected_tracks.subtitle` the explicit meaning "subtitles off". A
-fallback to another media version must remap the selected subtitle. It
+omitted `selected_tracks.subtitle` the explicit meaning "subtitles off".
+
+The attempt also keeps the audio and subtitle the viewer asked for, apart from
+what the current plan could deliver (`desired_tracks` on the attempt row). A
+start records the audio resolved on the requested file and the subtitle the
+client named there (or, when it named none, the one the plan selected). A
+`track_change`, `quality_change` or `output_change` (or a failure replan
+classified `audio_track_changed` or `subtitle_track_changed`) changes that
+intent, and only where its `selected_tracks` name a track other than the
+current plan's: a quality change can carry a track the client switched to
+locally, while the tracks clients echo with every replan never overwrite it.
+Other failure recoveries never change it, since they may name a track the
+client fell back to; a `track_change` that omits
+the subtitle turns subtitles off only when the current plan was showing one. Whenever a replan
+moves playback to another file, the server resolves that intent on the new
+file instead of remapping the current plan's selection: on the file a track
+was chosen on it is found by its source identity (sidecar path, embedded
+stream index, or downloaded subtitle id), and elsewhere audio matches by
+signature, then language and variant (exact regional tag, main or commentary,
+title, channels, codec), never by position alone. So a 2160p to 1080p move
+keeps Japanese audio even when the codec, channel count, or track order
+differs, and returning to the 2160p version restores a subtitle the 1080p
+version lacked. An attempt whose intent was left behind by a replan that did
+not maintain it (an older server during a rolling deploy) falls back to the
+current plan's selection. None of this writes the viewer's saved audio or
+subtitle preference: on `/api/v2`, starts and replans never save one, and
+clients save a pick with `PUT /api/v2/audio-prefs/{series_id}` and
+`PUT /api/v2/subtitle-prefs/{series_id}` (`DELETE` returns the series to Auto).
+The frozen `/api/v1` bridge keeps its old behavior and saves the audio each
+start and `track_change` plays.
+
+A fallback to another media version must remap the selected subtitle. It
 prefers a version with an equivalent track; when none has one, playback
 continues with subtitles off and the plan carries `subtitle_track_unavailable`
 rather than ending in a terminal. A selection the effective file cannot honor
@@ -1687,7 +1717,10 @@ remux without video encoding.
 
 A 4K version whose 4K transcoding is disabled takes its lower qualities from a
 lower-resolution version instead, when the item has one and the request allows
-version fallback. The menu then lists the
+version fallback. With 4K transcoding allowed, the same holds while
+`playback.prefer_lower_version_transcode` is on (the default), except that the
+4K rungs above the lower version's class stay on the menu and transcode the 4K
+version. The menu then lists the
 first non-4K version in fallback order at its plain resolution class (`1080p`
 or `720p`, with that version's height and bitrate; omitted when the version is
 taller than its class or the requested version is not taller than it), and the
@@ -1697,9 +1730,13 @@ the fallback adopts a later non-4K version, the plan it returns describes the
 version it adopted.
 Choosing any of them refuses the 4K source, so the fallback plays the lower
 version: unchanged for its plain label or a rung it fits, transcoded for a lower
-rung. `auto` returns to the 4K version. The menu stays the same while the
-lower version plays. It needs HLS and transcoding enabled, because the 4K
-refusal under any other policy is not one the fallback acts on.
+rung. `auto` returns to the 4K version unless a bandwidth estimate, cap or
+device limit needs a lower quality; that reduction also comes from the lower
+version, transcoded to fit, rather than the 4K source at original quality.
+When no version can play the reduction, the 4K version plans as though it had
+no lower version. The menu stays the same while the lower version plays. It
+needs HLS and transcoding enabled, because the 4K refusal under any other
+policy is not one the fallback acts on.
 
 | label | display_name | height | kbps |
 | --- | --- | --- | --- |

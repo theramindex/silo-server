@@ -21,7 +21,6 @@ import (
 
 	apimw "github.com/Silo-Server/silo-server/internal/api/middleware"
 	"github.com/Silo-Server/silo-server/internal/catalog"
-	"github.com/Silo-Server/silo-server/internal/clientip"
 	"github.com/Silo-Server/silo-server/internal/config"
 	evt "github.com/Silo-Server/silo-server/internal/events"
 	"github.com/Silo-Server/silo-server/internal/httpstream"
@@ -1195,7 +1194,7 @@ func (h *PlaybackHandler) buildAdminHistoryEntry(
 		WatchedSeconds:  session.Position,
 		DurationSeconds: durationPtr,
 		Completed:       completed,
-		ClientIP:        clientip.FromContext(ctx),
+		ClientIP:        session.ClientIP,
 		Watch:           session.Watch,
 	}
 	return entry, nil
@@ -1894,8 +1893,16 @@ func (h *PlaybackHandler) HandleGetTranscodeManifest(w http.ResponseWriter, r *h
 	}
 
 	w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
-	w.Header().Set("Cache-Control", "no-store, max-age=0")
+	// no-transform keeps proxies and CDNs from re-encoding the playlist,
+	// which drops the Content-Length below (Cloudflare does).
+	w.Header().Set("Cache-Control", "no-store, no-transform, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
+	// The playlist is complete in memory, so state its length. Without it a
+	// playlist past net/http's small write buffer goes out chunked, and a
+	// player that opens HLS sources with a ranged byte reader (AetherEngine
+	// on Apple platforms) takes the length-less 200 for a non-seekable stream
+	// and misreads the playlist as media.
+	w.Header().Set("Content-Length", strconv.Itoa(len(manifest)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(manifest)
 }

@@ -281,6 +281,9 @@ type Dependencies struct {
 	v2Wiring               func(apiv2.Dependencies)
 	v2RouteSnapshot        func([]streamtelemetry.WalkedRoute)
 	OnServerSettingUpdated func(ctx context.Context, key, value string)
+	// BeforeServerSettingCommit runs inside an admin settings save's
+	// transaction for each changed setting; an error rolls the save back.
+	BeforeServerSettingCommit func(ctx context.Context, tx pgx.Tx, key, value string) error
 	// AdminDefaults is the node's shared snapshot of the administrator's
 	// setting defaults. Without it the router builds one from its settings
 	// repo, which then refreshes only on its own admin writes and its TTL.
@@ -1699,6 +1702,7 @@ func newChiRouter(deps Dependencies) chi.Router {
 				deps.OnServerSettingUpdated(ctx, key, value)
 			}
 		}
+		adminHandler.BeforeServerSettingCommit = deps.BeforeServerSettingCommit
 		if deps.RecWorker != nil {
 			adminHandler.RecWorker = deps.RecWorker
 		}
@@ -2484,7 +2488,7 @@ func newChiRouter(deps Dependencies) chi.Router {
 	// userRepo is a concrete pointer, so it has to stay out of the
 	// interface parameter when unset — a typed nil would satisfy the
 	// handler's nil check and panic on first use.
-	var compatUsers handlers.UserRepository
+	var compatUsers handlers.CompatConnectUsers
 	if userRepo != nil {
 		compatUsers = userRepo
 	}

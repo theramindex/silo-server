@@ -9,6 +9,7 @@ OPTIONS /api/v2/*	non-media
 PATCH /api/v2/*	non-media
 POST /api/v2/*	non-media
 PUT /api/v2/*	non-media
+QUERY /api/v2/*	non-media
 TRACE /api/v2/*	non-media
 GET /api/v2/account/identities	non-media
 POST /api/v2/account/identities/link-complete	non-media
@@ -465,6 +466,7 @@ GET /api/v2/capabilities/ebooks	non-media
 GET /api/v2/capabilities/metadata-ai	non-media
 GET /api/v2/capabilities/not-interested	non-media
 GET /api/v2/capabilities/password-reset	non-media
+GET /api/v2/capabilities/personal-lists	non-media
 GET /api/v2/capabilities/ratings	non-media
 GET /api/v2/capabilities/trailers	non-media
 GET /api/v2/catalog	non-media
@@ -588,6 +590,7 @@ GET /api/v2/favorites	non-media
 DELETE /api/v2/favorites/{item_id}	non-media
 GET /api/v2/favorites/{item_id}	non-media
 PUT /api/v2/favorites/{item_id}	non-media
+GET /api/v2/favorites/{item_id}/membership	non-media
 GET /api/v2/history	non-media
 GET /api/v2/history-imports/capability	non-media
 POST /api/v2/history-imports/emby-connect/login	non-media
@@ -906,6 +909,7 @@ PUT /api/v2/watchlist/titles/{media_type}/{tmdb_id}	non-media
 DELETE /api/v2/watchlist/{item_id}	non-media
 GET /api/v2/watchlist/{item_id}	non-media
 PUT /api/v2/watchlist/{item_id}	non-media
+GET /api/v2/watchlist/{item_id}/membership	non-media
 GET /api/v2/webhook-sync/capabilities	non-media
 GET /api/v2/webhook-sync/connections	non-media
 POST /api/v2/webhook-sync/connections	non-media
@@ -1298,6 +1302,7 @@ OPTIONS /api/v2/*	non-media
 PATCH /api/v2/*	non-media
 POST /api/v2/*	non-media
 PUT /api/v2/*	non-media
+QUERY /api/v2/*	non-media
 TRACE /api/v2/*	non-media
 GET /api/v2/account/identities	non-media
 POST /api/v2/account/identities/link-complete	non-media
@@ -1754,6 +1759,7 @@ GET /api/v2/capabilities/ebooks	non-media
 GET /api/v2/capabilities/metadata-ai	non-media
 GET /api/v2/capabilities/not-interested	non-media
 GET /api/v2/capabilities/password-reset	non-media
+GET /api/v2/capabilities/personal-lists	non-media
 GET /api/v2/capabilities/ratings	non-media
 GET /api/v2/capabilities/trailers	non-media
 GET /api/v2/catalog	non-media
@@ -1877,6 +1883,7 @@ GET /api/v2/favorites	non-media
 DELETE /api/v2/favorites/{item_id}	non-media
 GET /api/v2/favorites/{item_id}	non-media
 PUT /api/v2/favorites/{item_id}	non-media
+GET /api/v2/favorites/{item_id}/membership	non-media
 GET /api/v2/history	non-media
 GET /api/v2/history-imports/capability	non-media
 POST /api/v2/history-imports/emby-connect/login	non-media
@@ -2195,6 +2202,7 @@ PUT /api/v2/watchlist/titles/{media_type}/{tmdb_id}	non-media
 DELETE /api/v2/watchlist/{item_id}	non-media
 GET /api/v2/watchlist/{item_id}	non-media
 PUT /api/v2/watchlist/{item_id}	non-media
+GET /api/v2/watchlist/{item_id}/membership	non-media
 GET /api/v2/webhook-sync/capabilities	non-media
 GET /api/v2/webhook-sync/connections	non-media
 POST /api/v2/webhook-sync/connections	non-media
