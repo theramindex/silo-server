@@ -145,6 +145,9 @@ func (p *HTTPProxy) ServeRoute(w http.ResponseWriter, r *http.Request, installat
 	headers := forwardedRequestHeaders(r.Header)
 	if _, _, userID, contextProfileID := pluginAccessUserFromContext(r.Context()); userID > 0 {
 		headers["X-Silo-User-Id"] = strconv.Itoa(userID)
+		if contextProfileID != "" {
+			headers["X-Silo-Profile-Id"] = contextProfileID
+		}
 		if admin {
 			headers["X-Silo-User-Role"] = "admin"
 		} else {
@@ -185,6 +188,18 @@ func (p *HTTPProxy) ServeRoute(w http.ResponseWriter, r *http.Request, installat
 	})
 	if err != nil {
 		http.Error(w, "plugin route failed", http.StatusBadGateway)
+		return
+	}
+
+	// theramindex fork: plugins may stream from their local listener without
+	// sending an infinite body through the buffered HTTP-routes RPC.
+	w.Header().Set("X-Silo-Stream-Relay", "1")
+	if target := pluginRelayTarget(response.GetHeaders()); target != "" {
+		if response.GetStatusCode() != 0 && response.GetStatusCode() != http.StatusOK {
+			http.Error(w, "invalid plugin stream response", http.StatusBadGateway)
+			return
+		}
+		servePluginRelay(w, r, target, descriptor.GetAccess(), authenticated, admin)
 		return
 	}
 
