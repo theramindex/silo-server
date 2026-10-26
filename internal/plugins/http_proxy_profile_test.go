@@ -73,6 +73,7 @@ func TestHTTPProxyUsesLaunchProfileWithoutRequestHeader(t *testing.T) {
 	).WithUserThemeLookup(themes).WithUserIdentityLookup(identities)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/1/page", nil)
+	req.Header.Set("X-Silo-Profile-Id", "forged-profile")
 	req = req.WithContext(WithPluginAccessUser(req.Context(), true, false, 7, "profile-1"))
 	rec := httptest.NewRecorder()
 	proxy.ServeRoute(rec, req, 1, true, false)
@@ -84,6 +85,7 @@ func TestHTTPProxyUsesLaunchProfileWithoutRequestHeader(t *testing.T) {
 		t.Fatalf("lookup profiles = theme %q identity %q", themes.profileID, identities.profileID)
 	}
 	if client.request == nil || client.request.Headers["X-Silo-Theme"] != "dark" ||
+		client.request.Headers["X-Silo-Profile-Id"] != "profile-1" ||
 		client.request.Headers["X-Silo-Profile-Name"] != "Living Room" {
 		t.Fatalf("forwarded request = %#v", client.request)
 	}
