@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+const (
+	relayAuthenticatedAccess = "authenticated"
+	relayAdminAccess         = "admin"
+	relayContentTypeHeader   = "Content-Type"
+)
+
 // A plugin can answer an authenticated GET/HEAD route with X-Silo-Relay-URL
 // instead of buffering an unbounded media body in a gRPC response. The target
 // is a literal loopback listener owned by the local plugin process. Plugins
@@ -31,7 +37,7 @@ func pluginRelayTarget(headers map[string]string) string {
 }
 func servePluginRelay(w http.ResponseWriter, r *http.Request, target, access string, authenticated, admin bool) {
 	refuse := func() { http.Error(w, "plugin stream unavailable", http.StatusBadGateway) }
-	if (!authenticated && !admin) || (access != "authenticated" && access != "admin") || (r.Method != http.MethodGet && r.Method != http.MethodHead) || len(target) > 8192 {
+	if (!authenticated && !admin) || (access != relayAuthenticatedAccess && access != relayAdminAccess) || (r.Method != http.MethodGet && r.Method != http.MethodHead) || len(target) > 8192 {
 		refuse()
 		return
 	}
@@ -53,23 +59,25 @@ func servePluginRelay(w http.ResponseWriter, r *http.Request, target, access str
 	if value := r.Header.Get("Range"); value != "" {
 		upstream.Header.Set("Range", value)
 	}
+	// #nosec G704 -- only validated literal loopback HTTP targets reach this call; redirects are disabled.
 	response, err := pluginRelayClient.Do(upstream)
 	if err != nil {
 		refuse()
 		return
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		if response.StatusCode == http.StatusNotFound {
+		switch response.StatusCode {
+		case http.StatusNotFound:
 			http.NotFound(w, r)
-		} else if response.StatusCode == http.StatusServiceUnavailable {
-			http.Error(w, "plugin stream temporarily unavailable", 503)
-		} else {
+		case http.StatusServiceUnavailable:
+			http.Error(w, "plugin stream temporarily unavailable", http.StatusServiceUnavailable)
+		default:
 			refuse()
 		}
 		return
 	}
-	for _, name := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
+	for _, name := range []string{relayContentTypeHeader, "Content-Length", "Content-Range", "Accept-Ranges"} {
 		if value := response.Header.Get(name); value != "" {
 			w.Header().Set(name, value)
 		}
