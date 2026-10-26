@@ -48,7 +48,7 @@ func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 		w.Header().Set("Content-Type", "video/mp2t")
 		w.Header().Set("Set-Cookie", "forbidden=1")
 		w.WriteHeader(http.StatusPartialContent)
-		fmt.Fprint(w, "first packet")
+		_, _ = fmt.Fprint(w, "first packet")
 		w.(http.Flusher).Flush()
 		<-r.Context().Done()
 	}))
@@ -67,7 +67,7 @@ func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 	}
 	data := make([]byte, len("first packet"))
 	_, err = io.ReadFull(response.Body, data)
-	response.Body.Close()
+	_ = response.Body.Close()
 	if err != nil || string(data) != "first packet" {
 		t.Fatalf("live bytes did not arrive before stream completion: %q %v", data, err)
 	}
@@ -85,9 +85,9 @@ func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 }
 func TestHTTPProxyRelayRejectsUntrustedTargetsAndPublicRoutes(t *testing.T) {
 	var hits atomic.Int32
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1); fmt.Fprint(w, "private") }))
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1); _, _ = fmt.Fprint(w, "private") }))
 	defer target.Close()
-	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 302) }))
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, http.StatusFound) }))
 	defer redirect.Close()
 	for _, tc := range []struct {
 		name, target, access string
