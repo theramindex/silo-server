@@ -4,6 +4,7 @@ package jellycompat
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"strings"
@@ -84,8 +85,27 @@ func TestLiveTVOffMatchesUpstream(t *testing.T) {
 		if want.Code != http.StatusOK || got.Code != want.Code {
 			t.Errorf("%s: off = %d, no providers = %d, want both 200", path, want.Code, got.Code)
 		}
-		if got.Body.String() != want.Body.String() {
-			t.Errorf("%s differs without providers\n off:          %s\n no providers: %s", path, want.Body.String(), got.Body.String())
+		wantBody, gotBody := want.Body.String(), got.Body.String()
+		if path == "/Users/Me" {
+			// Upstream now returns session/request timestamps. These vary between
+			// independent requests; compare every other field of the wire response.
+			withoutRequestTimes := func(body string) string {
+				var fields map[string]json.RawMessage
+				if err := json.Unmarshal([]byte(body), &fields); err != nil {
+					t.Fatal(err)
+				}
+				delete(fields, "LastLoginDate")
+				delete(fields, "LastActivityDate")
+				normalized, err := json.Marshal(fields)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return string(normalized)
+			}
+			wantBody, gotBody = withoutRequestTimes(wantBody), withoutRequestTimes(gotBody)
+		}
+		if gotBody != wantBody {
+			t.Errorf("%s differs without providers\n off:          %s\n no providers: %s", path, wantBody, gotBody)
 		}
 	}
 
