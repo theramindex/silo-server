@@ -59,7 +59,7 @@ func NewRouter(deps Dependencies) chi.Router {
 		MaxAge:           86400,
 	}))
 	r.Use(normalizeCompatPathMiddleware)
-	r.Use(httpstream.CompressExcept(5, skipCompatMediaCompression, "application/json"))
+	r.Use(httpstream.CompressExcept(skipCompatMediaCompression, "application/json"))
 	if debugPath := os.Getenv("JELLYCOMPAT_DEBUG_LOG"); debugPath != "" {
 		rotator := &lumberjack.Logger{
 			Filename:   debugPath,
@@ -276,6 +276,7 @@ func NewRouter(deps Dependencies) chi.Router {
 			r.Get("/Items/Latest", liveTV.wrapLatest(itemsHandler.HandleLatest))   // theramindex fork: Live TV views have no latest items
 			r.Get("/Items/Filters", itemsHandler.HandleFiltersStub)
 			r.Get("/Items/Filters2", itemsHandler.HandleFilters2Stub)
+			r.Get("/Items/Counts", itemsHandler.HandleItemCounts)
 			r.Get("/Items/Suggestions", itemsHandler.HandleSuggestions)
 			r.Get("/Users/{id}/Items/Latest", liveTV.wrapLatest(itemsHandler.HandleLatest)) // theramindex fork: Live TV views have no latest items
 			r.Get("/Items/{id}/Similar", itemsHandler.HandleSimilar)

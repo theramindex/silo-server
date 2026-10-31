@@ -44,6 +44,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/animeids"
 	"github.com/Silo-Server/silo-server/internal/api"
 	"github.com/Silo-Server/silo-server/internal/api/handlers"
+	"github.com/Silo-Server/silo-server/internal/apiusage"
 	"github.com/Silo-Server/silo-server/internal/apiv2"
 	"github.com/Silo-Server/silo-server/internal/artworkkey"
 	"github.com/Silo-Server/silo-server/internal/artworkurl"
@@ -90,6 +91,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/metadata"
 	"github.com/Silo-Server/silo-server/internal/metadata/tmdb"
 	"github.com/Silo-Server/silo-server/internal/netaccess"
+	"github.com/Silo-Server/silo-server/internal/netadmin"
 
 	// Built-in metadata providers self-register into the metadata package's
 	// builtin registry on import; buildProviders resolves their seeded chain
@@ -113,6 +115,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/ratelimit"
 	"github.com/Silo-Server/silo-server/internal/recommendations"
 	mediarequests "github.com/Silo-Server/silo-server/internal/requests"
+	"github.com/Silo-Server/silo-server/internal/requests/discoverrows"
 	"github.com/Silo-Server/silo-server/internal/s3client"
 	"github.com/Silo-Server/silo-server/internal/scanner"
 	"github.com/Silo-Server/silo-server/internal/scanqueue"
@@ -128,10 +131,12 @@ import (
 	taskrepository "github.com/Silo-Server/silo-server/internal/taskmanager/repository"
 	"github.com/Silo-Server/silo-server/internal/taskmanager/tasks"
 	"github.com/Silo-Server/silo-server/internal/taskmanager/triggers"
+	"github.com/Silo-Server/silo-server/internal/tcpcongestion"
 	"github.com/Silo-Server/silo-server/internal/telemetry"
 	"github.com/Silo-Server/silo-server/internal/themesongs"
 	"github.com/Silo-Server/silo-server/internal/transcodenode"
 	"github.com/Silo-Server/silo-server/internal/trickplay"
+	"github.com/Silo-Server/silo-server/internal/tuning"
 	"github.com/Silo-Server/silo-server/internal/usercollections"
 	"github.com/Silo-Server/silo-server/internal/userdb"
 	"github.com/Silo-Server/silo-server/internal/userstore"
@@ -144,6 +149,8 @@ import (
 	"github.com/Silo-Server/silo-server/migrations"
 	siloweb "github.com/Silo-Server/silo-server/web"
 )
+
+const serverModeTranscode = "transcode"
 
 // resolveNodeIdentity returns a stable node identifier used by the
 // heartbeat writer, reconciler, and shutdown cleanup. Resolution order:
@@ -947,14 +954,17 @@ func main() {
 	}
 
 	// Step 5: Auto-generate secrets
-	if settings["auth.jwt_secret"] == "" {
+	if strings.TrimSpace(settings["auth.jwt_secret"]) == "" {
 		secret := make([]byte, 32)
 		if _, err := rand.Read(secret); err != nil {
 			log.Fatalf("generating jwt secret: %v", err)
 		}
 		encoded := base64.StdEncoding.EncodeToString(secret)
+		// Fatal, not a warning: every process, this one too once its config
+		// watcher starts, reads the secret from the database, so a secret
+		// held only in memory would leave them with none.
 		if err := settingsRepo.Set(ctx, "auth.jwt_secret", encoded); err != nil {
-			slog.Warn("failed to persist generated JWT secret", "error", err)
+			log.Fatalf("persisting generated JWT secret: %v", err)
 		}
 		settings["auth.jwt_secret"] = encoded
 	}
@@ -1147,6 +1157,19 @@ func main() {
 		defer stopQuerySummary()
 	}
 
+	tuningCfg, adjustments := tuning.Parse(os.Getenv)
+	tuning.LogAdjustments(ctx, adjustments)
+	netadmin.LogState(ctx)
+	var limits tcpcongestion.Limits
+	if mode != serverModeTranscode {
+		limits = tcpcongestion.ReadLimits(ctx)
+	}
+	opts := tcpcongestion.Options{
+		Congestion: tuningCfg.TCPCongestion == tuning.TCPCongestionBBR,
+		SendBuffer: tuningCfg.TCPSendBuffer,
+		Limits:     limits,
+	}
+
 	// Proxy and transcode modes run with DB + Redis for hot-reload.
 	if mode == "proxy" || mode == "transcode" {
 		// Delivery writes run in the background with a short deadline. Honor it
@@ -1288,7 +1311,7 @@ func main() {
 		}
 
 		_ = opsRepo
-		startStandaloneServer(cfg.Server.Listen, handler, appCancel, shutdownStandalone, standaloneHooks)
+		startStandaloneServer(mode, cfg.Server.Listen, handler, appCancel, shutdownStandalone, standaloneHooks, opts)
 		return
 	}
 
@@ -1359,6 +1382,20 @@ func main() {
 		defer func() { _ = cache.CloseRedisClient(apiRedisClient) }()
 	}
 
+	// One TMDB client serves every feature in this process, so they share its
+	// response caches and spend one budget of tmdb.RequestsPerSecond: with
+	// Redis, one budget for every node together. Each wait bounds its own
+	// Redis call, so that client must let the deadline end a stalled read.
+	tmdbRedisClient, tmdbRedisErr := cache.NewDeadlineRedisClientForRole(cfg.Redis, "api")
+	if tmdbRedisErr != nil {
+		slog.Warn("redis client init failed; TMDB requests are limited per process", "error", tmdbRedisErr)
+	} else if tmdbRedisClient != nil {
+		defer func() { _ = cache.CloseRedisClient(tmdbRedisClient) }()
+	}
+	tmdbClient := tmdb.NewClientWithLimiter(cfg.TMDBAPIKey,
+		ratelimit.NewOutboundLimiter(tmdbRedisClient, "outbound:tmdb", tmdb.RequestsPerSecond))
+	defer tmdbClient.Close()
+
 	if mode == "" || mode == "integrated" || mode == "api" {
 		streamTelemetryRegistry = newStreamTelemetryRegistry(appCtx, nodeID, apiRedisClient)
 		streamTelemetryRegistry.Start(appCtx)
@@ -1404,6 +1441,7 @@ func main() {
 		SecretCipher:                 dataCipher,
 		EventBus:                     eventBus,
 		RedisClient:                  apiRedisClient,
+		TMDB:                         tmdbClient,
 		LogStreamHub:                 logStreamHub,
 		RealtimeHub:                  realtimeHub,
 		EventsHub:                    eventsHub,
@@ -1518,6 +1556,12 @@ func main() {
 		watchProviderService = watchsync.NewService(watchProviderRepo, watchProviderRegistry)
 		deps.WatchProviderService = watchProviderService
 		deps.WatchProviderRegistry = watchProviderRegistry
+	}
+
+	// Every API server drains the catalog item change outbox; a row in the
+	// database spaces the drains out across the cluster.
+	if mode == "integrated" || mode == "api" {
+		go realtimeHub.RunItemChangePublisher(appCtx, catalog.NewItemChangeOutbox(pool))
 	}
 
 	// Initialize node pools for integrated/api modes.
@@ -1775,28 +1819,14 @@ func main() {
 			BaseDir: pluginCacheDir,
 		})
 
-		libDataSource := pluginhost.LibraryDataSourceFunc(
-			func(ctx context.Context, _ string) ([]pluginhost.LibraryRecord, error) {
-				// TODO: scope by userID when the requests plugin needs it (Plan B).
-				// For now, all callers see admin-scope.
-				if deps.FolderRepo == nil {
-					return nil, nil
-				}
-				folders, err := deps.FolderRepo.List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				out := make([]pluginhost.LibraryRecord, 0, len(folders))
-				for _, f := range folders {
-					out = append(out, pluginhost.LibraryRecord{
-						ID:        strconv.Itoa(f.ID),
-						Name:      f.Name,
-						MediaType: mapFolderTypeToMediaType(f.Type),
-					})
-				}
-				return out, nil
-			},
-		)
+		libSource := pluginLibrarySource{groups: accessGroupStore}
+		if deps.FolderRepo != nil {
+			libSource.folders = deps.FolderRepo
+		}
+		if deps.DB != nil {
+			libSource.users = auth.NewUserRepository(deps.DB)
+		}
+		var libDataSource pluginhost.LibraryDataSource = libSource
 		presenceItemRepo := catalog.NewItemRepository(deps.DB)
 		catalogPresence := pluginhost.NewCatalogPresence(
 			func(ctx context.Context, mediaType string, tmdbIDs []string) ([]pluginhost.LibraryPresenceRecord, error) {
@@ -2776,6 +2806,9 @@ func main() {
 			}
 		}
 		deps.SessionSyncer = reconciler
+		deps.LiveSessionRowJSON = func(s *playback.Session) (json.RawMessage, error) {
+			return worker.SessionSyncRowJSON(buildLiveSessionSync(s, nodeIdentity), nodeIdentity)
+		}
 
 		nodeURL := fmt.Sprintf("http://%s%s", nodeIdentity, cfg.Server.Listen)
 		heartbeatWriter = worker.NewHeartbeatWriter(deps.DB, nodeIdentity, mode, nodeURL)
@@ -3048,6 +3081,7 @@ func main() {
 	defer stopActivityLog()
 	deps.ActivityLogWriter = activityWriter
 	deps.ActivityLogRepo = activitylog.NewRepo(pool)
+	deps.APIUsage = apiusage.NewStore(pool)
 	deps.NodeID = nodeID
 
 	// Create refresh worker early so the task manager can use it for FindCandidates.
@@ -3070,7 +3104,7 @@ func main() {
 		collItemRepo := catalog.NewItemRepository(deps.DB)
 		libraryItemRepo := catalog.NewLibraryItemRepository(deps.DB)
 		collectionService := catalog.NewLibraryCollectionService(collectionRepo, collItemRepo, libraryItemRepo, nil)
-		collectionService.TMDBCollections = api.NewTMDBCollectionFetcher(cfg.TMDBAPIKey)
+		collectionService.TMDBCollections = api.NewTMDBCollectionFetcher(tmdbClient)
 		deps.CollectionService = collectionService
 		collectionSyncScheduler = catalog.NewCollectionSyncScheduler(collectionRepo, collectionService, slog.Default())
 
@@ -3252,6 +3286,7 @@ func main() {
 		}
 		maintenanceSteps = append(maintenanceSteps, tasks.NewActivityLogCleanupTask(deps.DB, settingsRepo, activityPM))
 		taskMgr.Register(tasks.NewOperationalLogCleanupTask(deps.DB, settingsRepo, opsPM))
+		taskMgr.Register(tasks.NewSummarizeAPIUsageTask(deps.APIUsage))
 		maintenanceSteps = append(maintenanceSteps,
 			tasks.NewTaskHistoryCleanupTask(historyRepo, settingsRepo),
 			// Wired outside the autoscan service so events left by a disabled
@@ -3420,7 +3455,7 @@ func main() {
 				brandingReconciler,
 				identity,
 				deps.DB,
-			)
+			).WithLocation(blobstore.Location(deps.Blobs.Assets))
 			taskMgr.Register(reconcileArtwork)
 			go func() {
 				if err := reconcileArtwork.CheckStorageIdentity(appCtx); err != nil {
@@ -3463,7 +3498,7 @@ func main() {
 		// request was created.
 		requestReconcileSvc := mediarequests.NewService(
 			mediarequests.NewRepository(deps.DB, deps.SecretCipher),
-			tmdb.NewClient(cfg.TMDBAPIKey, 40),
+			tmdbClient,
 			mediarequests.NewCatalogPresence(
 				catalog.NewItemRepository(deps.DB),
 				catalog.NewProviderIDRepository(deps.DB),
@@ -3493,6 +3528,11 @@ func main() {
 		}
 		taskMgr.Register(tasks.NewReconcileRequestsTask(requestReconcileSvc, 100, deps.DB))
 		taskMgr.Register(tasks.NewRefreshRequestDownloadsTask(requestReconcileSvc, 200, deps.DB))
+		taskMgr.Register(tasks.NewRefreshRequestDiscoverListsTask(discoverrows.NewRefresher(
+			mediarequests.NewRepository(deps.DB, deps.SecretCipher),
+			discoverrows.NewSnapshotRepository(deps.DB),
+			tmdbClient,
+		)))
 		if deps.FolderRepo != nil && deps.LibraryScanQueue != nil && pluginService != nil && pluginInstallationStore != nil {
 			autoscanRepo := autoscan.NewRepository(deps.DB, deps.SecretCipher)
 			if err := autoscanRepo.MarkInterruptedEvents(appCtx); err != nil {
@@ -4072,7 +4112,7 @@ func main() {
 	defer stopLANDiscovery()
 	// Bind before serving so resident plugins, which reverse-proxy to this
 	// listener, are only started once it exists.
-	apiListener, apiListenErr := net.Listen("tcp", cfg.Server.Listen)
+	apiListener, _, apiListenErr := tcpcongestion.Listen(appCtx, "tcp", cfg.Server.Listen, tcpcongestion.ListenerAPI, opts)
 	if apiListenErr != nil {
 		errCh <- fmt.Errorf("HTTP server listen: %w", apiListenErr)
 	} else {
@@ -4101,22 +4141,9 @@ func main() {
 			}
 		}
 	}
-	if compatSrv != nil {
-		go func() {
-			slog.Info("Jellyfin compat server listening", "addr", compatSrv.Addr)
-			if listenErr := compatSrv.ListenAndServe(); listenErr != nil && listenErr != http.ErrServerClosed {
-				errCh <- fmt.Errorf("jellyfin compat server error: %w", listenErr)
-			}
-		}()
-	}
-	if absSrv != nil {
-		go func() {
-			slog.Info("ABS compat server listening", "addr", absSrv.Addr)
-			if listenErr := absSrv.ListenAndServe(); listenErr != nil && listenErr != http.ErrServerClosed {
-				errCh <- fmt.Errorf("abs compat server error: %w", listenErr)
-			}
-		}()
-	}
+	startCompatServer(appCtx, compatSrv, tcpcongestion.ListenerJellyfin, opts, errCh)
+	startCompatServer(appCtx, absSrv, tcpcongestion.ListenerABS, opts, errCh)
+	netadmin.Release()
 	// Step 11: Wait for termination signal.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
@@ -4258,7 +4285,7 @@ type standaloneServerHooks struct {
 
 // startStandaloneServer runs a standalone HTTP server for proxy/transcode modes.
 // It listens on the given address, handles graceful shutdown on SIGTERM/SIGINT.
-func startStandaloneServer(addr string, handler http.Handler, appCancel context.CancelFunc, shutdownWork func(context.Context) error, hooks standaloneServerHooks) {
+func startStandaloneServer(mode, addr string, handler http.Handler, appCancel context.CancelFunc, shutdownWork func(context.Context) error, hooks standaloneServerHooks, opts tcpcongestion.Options) {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
@@ -4270,7 +4297,15 @@ func startStandaloneServer(addr string, handler http.Handler, appCancel context.
 	errCh := make(chan error, 1)
 	// Bind before serving so the after-listen hook runs against a listener
 	// that exists.
-	listener, listenErr := net.Listen("tcp", addr)
+	var listener net.Listener
+	var listenErr error
+	if mode == "proxy" {
+		listener, _, listenErr = tcpcongestion.Listen(context.Background(), "tcp", addr, tcpcongestion.ListenerProxy, opts)
+	} else {
+		var config net.ListenConfig
+		listener, listenErr = config.Listen(context.Background(), "tcp", addr)
+	}
+	netadmin.Release()
 	if listenErr != nil {
 		errCh <- fmt.Errorf("HTTP server listen: %w", listenErr)
 	} else {
