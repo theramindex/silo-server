@@ -335,10 +335,9 @@ proxy has none. The Jellyfin-compatible playback redirects use the same
 accessor.
 
 A node finds its own row by URL first: `NODE_URL` on the node is matched
-against `stream_nodes.url`, ignoring a trailing slash on either side. Set
-`NODE_URL` explicitly on every node. Without it a node guesses
-`http://localhost:<port>` and adopts whatever row carries that URL, which on a
-multi-node deployment can be a different machine's policy.
+against `stream_nodes.url`, ignoring a trailing slash on either side. A proxy
+or transcode node refuses to start without `NODE_URL`: a URL guessed from its
+listen port could match a different machine's row and adopt its policy.
 
 If the URL does not match, the node falls back to `NODE_NAME` against the
 registered name. This covers split-horizon topologies where `stream_nodes.url`
@@ -1371,9 +1370,12 @@ for 5 minutes — a seven-day ranking barely moves within minutes — with the s
 | `limit` | int | Rows per list. Default 10, accepted range 1..25. |
 | `refresh` | bool | Bypass the cache for this read. |
 
-`plays` on both lists counts `user_watch_history` rows with source `playback`
-or `legacy` (the default for rows written without a source). Playback from Silo
-and Jellyfin clients both writes `playback` rows. Marking something watched is
+`plays` on both lists counts completed `user_watch_history` rows with source
+`playback` or `legacy` (the default for rows written without a source). Every
+playback stop writes a row, completed only past the watched threshold, so a
+title watched in several sittings is one play and a title abandoned partway is
+none; the time spent in those sittings still counts toward `total_seconds`.
+Playback from Silo and Jellyfin clients both writes `playback` rows. Marking something watched is
 not a play: `manual` rows from Silo clients and `jellycompat` rows from
 Jellyfin clients are all marks, and marking a series writes one row per
 episode, so both are excluded. Episodes are rolled up to their series, so a
@@ -2282,7 +2284,11 @@ client can represent it exactly, that must rise within the session), plus option
 whole body on retry.
 
 The server keeps one ledger per playback session in the process that serves
-the session's realtime lane. The ledger is bounded per session and released
+the session's realtime lane. With several API replicas, a command that reaches
+a replica without the lane is relayed to the replica that holds it, so every
+command for a session meets the same ledger whichever replica receives it
+([playback control relay](architecture/playback-control-relay.md)). The ledger
+is bounded per session and released
 with the session: terminate and the stop fallback drop it directly, and a
 throttled sweep on the command path prunes the ledgers of sessions that ended
 by any other route. It answers deterministically:
@@ -2309,16 +2315,23 @@ by any other route. It answers deterministically:
   rather than starting a fresh session
   ([playback API](playback-api.md#progress-and-stop)).
 - An unknown session is `404`; a server without playback control answers
-  `503 dependency_unavailable`.
+  `503 dependency_unavailable`. So does a command relayed to the replica
+  holding the lane when that replica does not answer in time: it may still
+  have applied the command, so retry with the same body, and a retry that
+  reaches it replays the recorded receipt.
 
 `GET /api/v2/admin/sessions/command-capabilities` reports `available`, the
 `actions` list and `sequenced_commands: true`. All of these require an acting
 administrator. Commands enforce the demo restriction; capability reads do not.
 The web session actions send
 pause, resume, stop and message through these operations under captured
-administrator authority, allocate a fresh identity per click, and raise the
-allocation floor from a stale refusal's `X-Silo-Latest-Sequence`; terminate
-stays on the bridge.
+administrator authority. Each click is a new identity, except that a command
+whose answer left its outcome unknown (a `5xx` or no response) keeps its
+identity, and repeating the same command on the same session under the same
+signed-in profile sends it again so the server replays the receipt; any other
+answer, a different command, or a profile or account change drops it. They
+raise the allocation floor from a stale refusal's `X-Silo-Latest-Sequence`;
+terminate stays on the bridge.
 
 
 ### Administrator terminate (v2)
@@ -2339,7 +2352,14 @@ reconstructs the session from a stream token that is still inside its TTL
 ([restart-resilient playback](architecture/restart-resilient-playback.md)). Only
 then is the dismissal dispatched on the session's realtime control lane, without
 waiting for an acknowledgement. Terminates for one session are serialized, so a
-repeat observes the first outcome instead of racing it.
+repeat observes the first outcome instead of racing it. With several API
+replicas, the terminate runs on the replica that holds the session's lane, which
+ends its live session and notifies the player. When no replica holds a lane, or
+its holder does not answer, the receiving replica revokes the session itself.
+When the holder did not answer, the answer is `503 dependency_unavailable`
+unless the receiving replica told the player itself: the holder may still be
+telling the player, or may already have ended the session, so whether the
+player was notified is unknown. Retrying the terminate is safe.
 
 The optional JSON body carries `reason`. The `200` receipt carries
 `session_id`, `authority_revoked`, `already_revoked`, `durable_state`,
@@ -3336,7 +3356,12 @@ failures until restarted or reconfigured), `state` (`stopped`, `starting`, `runn
 Plugins declaring `network_access_provider.v1` are resident; every other plugin starts on
 first use and reports `running`, `stopped`, or `failed` when its last launch on the answering
 server failed, with `last_error` saying why. A later successful launch, an administrator
-restart, an update or a configuration change clears that failure.
+restart, an update or a configuration change clears that failure. A plugin that isn't running
+also reports `failed` when the answering server has to restore its files from the stored
+archive and the archive can't be read (it won't open or extract, or doesn't match the
+installation). That server still lists the installation, without its manifest fields, so it
+can be turned off or uninstalled; a server that still has a good copy of the files is
+unaffected.
 
 `DELETE /api/v2/admin/plugins/installations/{id}` stops the plugin, deletes the row
 (configuration, bindings and archives cascade) and removes its files; on a failed row delete
@@ -3439,21 +3464,54 @@ against `/api/v2`.
 
 ### Account and permission audit details (v2)
 
-Successful v2 administrator account and access-group mutations record an audit
-row in the mutation transaction. Actions are `user.created`, `user.updated`,
-`user.deleted`, `access_group.created`, `access_group.updated`, and
-`access_group.deleted`. `target_type` and `target_id` identify the affected
-entity; `user_id` identifies the authenticated subject, and a present
-`impersonator_user_id` identifies the acting administrator. Actor filters use
+Successful v2 account, permission and credential mutations record an audit
+row in the mutation transaction. `target_type` and `target_id` identify the
+affected entity, and an action's prefix is its target type. `user_id`
+identifies the authenticated subject, and a present `impersonator_user_id`
+identifies the acting administrator. Actor filters use
 `COALESCE(impersonator_user_id, user_id)`.
 
-`changes` lists changed allowlisted identity/policy fields. `before` and `after`
-are optional strings containing canonical JSON values: JSON null represents an
-unset account override, while an absent side represents creation/deletion.
-A password change includes only `{ "field": "password" }`; passwords, hashes,
-tokens, arbitrary request bodies and headers are excluded. Permission arrays
-show the exact prior and resulting membership. Rollbacks record no successful
-domain action, and a repeated identical policy write has no change details.
+| Action | Operation | `changes` |
+| --- | --- | --- |
+| `user.created`, `user.updated`, `user.deleted` | v2 account administration | allowlisted identity and policy fields |
+| `access_group.created`, `access_group.updated`, `access_group.deleted` | v2 access-group administration | allowlisted group policy fields |
+| `user.impersonation_started` | `impersonateAdminUser` | `impersonation_session_id` (after) |
+| `user.impersonation_ended` | `endImpersonation` | `impersonation_session_id` (before) |
+| `user.ownership_transferred` | `transferAdminUserOwnership`; target is the new Owner | `owner_user_id` |
+| `user.password_reset_link_created` | `createAdminUserPasswordReset` | `delivery`, `expires_at` |
+| `user.password_reset_completed` | `completePasswordReset` | `password` (field name only) |
+| `user.password_changed` | `changePassword` | `password` (field name only) |
+| `user.login_session_revoked` | `deleteSession`, `deleteAdminUserLoginSession` | `login_session_id` (before) |
+| `user.login_sessions_revoked` | `deleteAdminUserLoginSessions` | `revoked_login_sessions` count; recorded when the call ended any login session or Audiobookshelf, Jellyfin-compatible or device sign-in |
+| `api_key.created`, `api_key.updated`, `api_key.deleted` | `createAdminAPIKey`, `updateAdminAPIKeyTier`, `deleteAdminAPIKey`, `createPersonalAPIKey`, `revokePersonalAPIKey` | `user_id` (owner), `label`, `rate_tier`, `scopes` (an empty list is an unscoped key with its owner's full access) |
+| `profile.created`, `profile.updated`, `profile.deleted` | `createProfile`, `updateProfile`, `deleteProfile` | `name`, `is_child`, `is_primary`, `max_content_rating`, `max_advisory_age`, `require_advisory_age`, `library_restrictions_enabled`, `allowed_library_ids`, `max_playback_quality`, `pin` |
+
+`changes` lists changed allowlisted fields. `before` and `after` are optional
+strings containing canonical JSON values: JSON null represents an unset account
+override, while an absent side represents creation/deletion. Permission arrays
+show the exact prior and resulting membership. A password change or reset
+includes only `{ "field": "password" }`. A profile's `pin` is `true` or
+`false` for whether the profile has a PIN; `true` on both sides is a PIN
+replaced by another. A profile row's `user_id` is the account that owns the
+profile. Login session IDs identify sessions and are not credentials.
+
+Audit rows never contain a password, password or PIN hash, PIN, access or
+refresh token, API key or its prefix, reset link, its token or digest, or an
+arbitrary request body or header. The path of `completePasswordReset` is stored
+with its link token replaced by `[redacted]`, and that row has no `user_id`
+because the request is unauthenticated.
+
+Rollbacks and refused requests record no domain action, and neither does a
+write that changes no allowlisted value: a repeated identical policy write,
+a profile update that only changes playback preferences or the avatar, or
+revoking a login session that had already ended. A committed domain row
+replaces the request's own row when both carry the same status. Outside
+`/api/v2/admin/`, only the operations listed above record domain rows (the
+v2 registry's `Audited` declaration); the frozen v1 routes keep request rows
+only. `requestPasswordReset` records none: it is anonymous, answers alike
+whether an account matched, and issues the link in the background, so its
+request row is the record. Profile rows require the PostgreSQL user store;
+the SQLite user store records request rows only.
 
 Audit history and live streams accept `action`, `actor_user_id`, `target_type`,
 and `target_id` alongside existing filters. History cursors bind these filters.

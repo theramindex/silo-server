@@ -30,9 +30,10 @@ which has no PostgreSQL or s6.
 The omnibus image is not a drop-in replacement for the base image, which an
 install that pulled `latest` before this layout ran. It runs Silo as `PUID` (911 unless set) instead of root, so media that only root could
 read becomes unreadable; re-owns the bind-mounted Silo, transcode, and download
-directories to that account on first start; needs root to start, so a
-container `user:` or a Kubernetes `runAsUser` stops it; refuses a proxy or
-transcode node without `NODE_URL`; and starts `/init` rather than `silo`.
+directories to that account on first start; and starts `/init` rather than
+`silo`. `/init` needs root, so a deployment that sets a container `user:` or a
+Kubernetes `runAsUser` must also set the entrypoint to `silo` (see
+[Starting without root](#starting-without-root)).
 
 Because the omnibus image starts from the base one, both run the same Silo
 binary against the same libvips, FFmpeg build, GPU runtimes, and Node.js. Keep
@@ -56,7 +57,9 @@ Two versions are load-bearing for existing installs:
 The s6-rc services under `omnibus/rootfs/etc/s6-overlay/s6-rc.d` start in this
 order:
 
-1. `init-envfile` turns each `FILE__NAME=/path` variable into `NAME`. The path
+1. `init-envfile` stops a start as any uid but 0 with a pointer to
+   [Starting without root](#starting-without-root), since every init script
+   needs root. It turns each `FILE__NAME=/path` variable into `NAME`. The path
    must resolve, outside `/config`, to a regular file that group and others
    cannot write and that no service account owns, in directories only root can
    change (sticky directories count); otherwise a service account could point
@@ -107,6 +110,31 @@ same `/config` refuses to start PostgreSQL. Bundled Redis keeps an append-only
 file (`appendfsync everysec`), forced on the command line even with a
 `redis.conf`: a snapshot alone can restore a playback session older than its
 revocation. A host crash can still lose about a second of writes.
+
+## Starting without root
+
+The init scripts only do container work: map the `silo` account onto `PUID`,
+lay out `/config`, hand directories to the service accounts, and run the
+bundled services. What Silo needs to behave correctly, including refusing a
+configuration it cannot run with, belongs in the `silo` binary. Keep it there,
+so that a container started with `silo` as its entrypoint, or an image built
+around the binary, behaves the same as this one.
+
+A container started with `silo` as its entrypoint and a non-root uid runs
+none of the init, so code in the binary must not rely on what the init does:
+
+- Nothing creates `/config/silo`, maps `PUID`, or re-owns a directory. Silo's
+  storage refuses a root reached through the dangling `/var/lib/silo` link
+  rather than writing somewhere else.
+- No bundled services, `FILE__` loading, GPU group discovery, or supervisor.
+- The working directory is `/`, and Docker sets `HOME` to `/` for a uid with no
+  passwd entry. That is why the Jellyfin Web installer keeps npm's cache in its
+  own workspace.
+- NET_ADMIN added to the container does not reach a non-root process, so Silo
+  starts without its helper (see [TCP congestion control](tcp-congestion.md)).
+
+How to deploy this way is in the user manual:
+[Run Silo without root](https://siloserver.org/docs/docker#run-silo-without-root).
 
 ## Accounts and data
 
@@ -166,6 +194,25 @@ takes longer. A database that does not accept connections cannot be rebuilt,
 so it keeps its recorded version and logs a warning on each start. `init-postgres` rewrites `conf.d/00-omnibus.conf` and
 `pg_hba.conf` on every start and makes sure `postgresql.conf` includes
 `conf.d`; `POSTGRES_TUNE` writes `postgresql.auto.conf`, which loads after it.
+Silo tunes with `ALTER SYSTEM` once it is up, and PostgreSQL applies some of
+those settings, such as `shared_buffers`, only at start. So while
+`POSTGRES_TUNE` is on, `init-postgres` also writes
+`conf.d/02-omnibus-tune.conf` from `silo postgres-tune-conf`, which prints the
+restart-only settings Silo sizes from memory and CPUs, read from the same
+environment and `/config/silo/.env`. A new cluster then starts with them, and
+Silo's later `ALTER SYSTEM` writes the same values, so no restart is pending.
+`max_connections` and `io_method` stay out: the first is sized from
+`database.max_connections`, which lives in the database, and an `io_method`
+PostgreSQL rejects would drop the whole file (below). Both apply at the next
+restart. With tuning off, or when Silo cannot size the settings, the file is
+removed. A value outside a setting's range in a configuration file stops
+PostgreSQL from starting, where `ALTER SYSTEM` refuses it, so `init-postgres`
+also removes the file, with a warning, when `postgres -C` rejects the
+configuration with it in place (for example `POSTGRES_TUNE_MEMORY` below
+512kB). The check cannot catch shared memory the host cannot provide, from an
+overstated `POSTGRES_TUNE_MEMORY`: the first start fails then, as the restart
+after `ALTER SYSTEM` would. On an existing cluster
+`postgresql.auto.conf` still decides, and `10-local.conf` overrides the file.
 Rewriting `pg_hba.conf` matters for a data directory from the official
 PostgreSQL image, whose file trusts every local connection.
 
@@ -198,14 +245,15 @@ working.
 ## Nodes
 
 The same image runs a proxy or transcode node. With `MODE=proxy` or
-`MODE=transcode`, `init-config` requires `DATABASE_URL`, `REDIS_URL`, and
-`NODE_URL` (without it Silo guesses a URL from its listen port, and two nodes
-would share session keys), starts none of the bundled services, and ignores `ENABLE_REDIS`, `ENABLE_MEILISEARCH`,
+`MODE=transcode`, `init-config` requires `DATABASE_URL` and `REDIS_URL`,
+starts none of the bundled services, and ignores `ENABLE_REDIS`, `ENABLE_MEILISEARCH`,
 and `ENABLE_NODE_ACCESS` with a warning. Silo already keeps migrations and
 `POSTGRES_TUNE` to the primary modes (`integrated`, `api`), so a node never
 changes the shared database's schema or settings. `/config` holds the node's
-own state. An administrator adds the node on the main server, which then checks
-its health over `NODE_URL`.
+own state. Silo itself refuses to start either mode without `NODE_URL`, the
+node's identity. An administrator registers the node's URL on the main server,
+which checks the node's health at that registered URL; it can differ from
+`NODE_URL` (see [Proxy origins by access path](../admin-api.md#proxy-origins-by-access-path)).
 
 A main server shares its bundled services with nodes when `.env` sets
 `ENABLE_NODE_ACCESS=true` and the two commented port lines in
