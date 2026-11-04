@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
+	"github.com/Silo-Server/silo-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginsdk/runtime"
 )
 
@@ -118,6 +119,22 @@ func newClient(installationID int, rpc *sdkruntime.Client, manifest *pluginv1.Pl
 
 func (c *Client) Manifest() *pluginv1.PluginManifest {
 	return proto.CloneOf(c.manifest)
+}
+
+// TestConfiguration tests the draft without configuring the plugin process.
+func (c *Client) TestConfiguration(ctx context.Context, req *pluginv1.TestConfigurationRequest) (*pluginv1.TestConfigurationResponse, error) {
+	c.mu.RLock()
+	unhealthy := c.unhealthy
+	c.mu.RUnlock()
+	if unhealthy {
+		return nil, ErrPluginUnhealthy
+	}
+	if !manifest.SupportsConfigurationCheck(c.manifest) {
+		return nil, ErrCapabilityNotFound
+	}
+	callCtx, cancel := ensureDeadline(ctx, 20*time.Second)
+	defer cancel()
+	return c.rpc.ConfigurationChecks().TestConfiguration(callCtx, req)
 }
 
 func (c *Client) Capabilities() []*pluginv1.CapabilityDescriptor {

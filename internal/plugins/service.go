@@ -29,6 +29,7 @@ import (
 
 type pluginClient interface {
 	Manifest() *pluginv1.PluginManifest
+	TestConfiguration(context.Context, *pluginv1.TestConfigurationRequest) (*pluginv1.TestConfigurationResponse, error)
 	MetadataProvider(capabilityID string) (*pluginhost.MetadataProviderClient, error)
 	ImageResolver(capabilityID string) (*pluginhost.ImageResolverClient, error)
 	MarkerProvider(capabilityID string) (*pluginhost.MarkerProviderClient, error)

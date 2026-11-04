@@ -75,6 +75,9 @@ export function PluginSettingsPanels({
   const saveAuthBinding = useSavePluginAuthBinding();
   const saveTaskBinding = useSavePluginTaskBinding();
   const capabilities = installation.capabilities ?? [];
+  const canTestConfiguration =
+    installation.metadata?.configuration_check === true ||
+    capabilities.some((c) => c.type === "metadata_provider.v1" || c.type === "marker_provider.v1");
   const globalConfigs = installation.global_configs ?? [];
   const globalConfigSchema = installation.global_config_schema ?? [];
   const authBindings = installation.auth_bindings ?? [];
@@ -120,11 +123,14 @@ export function PluginSettingsPanels({
               configuredSecrets={saved?.configured_secrets}
               isSaving={saveConfig.isPending}
               isTesting={testConfig.isPending}
-              onTest={(key, nextValue, clearSecrets) =>
-                testConfig.mutateAsync({
-                  id: installation.id,
-                  body: { key, value: nextValue, clear_secrets: clearSecrets },
-                })
+              onTest={
+                canTestConfiguration
+                  ? (key, nextValue, clearSecrets) =>
+                      testConfig.mutateAsync({
+                        id: installation.id,
+                        body: { key, value: nextValue, clear_secrets: clearSecrets },
+                      })
+                  : undefined
               }
               onSave={(key, nextValue, clearSecrets) =>
                 saveConfig.mutate({

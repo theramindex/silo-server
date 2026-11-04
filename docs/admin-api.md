@@ -3425,10 +3425,18 @@ The entry is administrator-only and the web client never replays a submission
 automatically. A revision precondition (`If-Match`) is a follow-up, not part of this port.
 
 `POST /api/v2/admin/plugins/installations/{id}/config/test` probes one prospective entry:
-the server starts a temporary plugin instance with the merged configuration, runs the
-plugin's connection check under a 20 s timeout, and stops the instance. Nothing is stored.
-A metadata provider is checked with a movie search; a marker provider is asked for its
-account statistics, which need the staged credentials.
+the server starts a temporary plugin instance, runs its connection check under a 20 s
+RPC timeout, and stops the instance. Nothing is stored. A plugin declaring the manifest
+metadata `"configuration_check": true` receives every global entry through the SDK's
+`ConfigurationChecks.TestConfiguration`, with the draft entry merged over its saved value.
+The host sends no entries to `Runtime.Configure` for this path, so startup cannot apply the
+draft to the plugin's running state. A failed verdict displays the plugin's message;
+an unimplemented declared check is unsupported, and a transport failure displays a generic
+message rather than an upstream error that might contain credentials.
+Without that declaration, the existing probes keep their behavior: the temporary process
+is configured with the merged entries, a metadata provider is checked with a movie search,
+and a marker provider is asked for its account statistics. Other plugins have no check,
+so the web settings panel hides the button.
 A completed failed check, including a plugin without connection-check support, is a 200
 result with `success` false and the message; only transport or store failures are problems.
 The probe launches a process and may call a billed provider, so it is non-retryable: the

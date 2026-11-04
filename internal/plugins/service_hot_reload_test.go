@@ -190,6 +190,10 @@ func (f *fakePluginClient) Manifest() *pluginv1.PluginManifest {
 	return f.manifest
 }
 
+func (f *fakePluginClient) TestConfiguration(context.Context, *pluginv1.TestConfigurationRequest) (*pluginv1.TestConfigurationResponse, error) {
+	return nil, nil
+}
+
 func (f *fakePluginClient) MetadataProvider(string) (*pluginhost.MetadataProviderClient, error) {
 	f.metadataProviderCalls++
 	return nil, nil

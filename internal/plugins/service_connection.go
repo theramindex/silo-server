@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
+	publicmanifest "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginsdk/manifest"
 
 	"github.com/Silo-Server/silo-server/internal/pluginhost"
 )
@@ -131,13 +132,23 @@ func (s *Service) TestGlobalConfigWithClears(
 	if err != nil {
 		return err
 	}
-	if _, err := connectionCheckCapability(manifest); err != nil {
-		return err
+	customCheck := publicmanifest.SupportsConfigurationCheck(manifest)
+	if !customCheck {
+		if _, err := connectionCheckCapability(manifest); err != nil {
+			return err
+		}
 	}
 
 	configEntries, err := s.mergedGlobalConfigEntries(ctx, installationID, key, value)
 	if err != nil {
 		return err
+	}
+	// A plugin-defined check receives drafts only through TestConfiguration.
+	// In particular, Configure must never persist a staged endpoint or start
+	// background work against it while this temporary process starts.
+	startupConfig := configEntries
+	if customCheck {
+		startupConfig = nil
 	}
 
 	binaryPath, err := s.localInstallPath(installation)
@@ -149,7 +160,7 @@ func (s *Service) TestGlobalConfigWithClears(
 		InstallationID: testInstallationID,
 		BinaryPath:     binaryPath,
 		Manifest:       manifest,
-		Config:         configEntries,
+		Config:         startupConfig,
 	})
 	if err != nil {
 		return &ConnectionTestError{
@@ -169,7 +180,31 @@ func (s *Service) TestGlobalConfigWithClears(
 		}
 	}()
 
+	if customCheck {
+		return runPluginConfigurationCheck(ctx, client, configEntries)
+	}
 	return runPluginConnectionCheck(ctx, client, manifest)
+}
+
+func runPluginConfigurationCheck(ctx context.Context, client pluginClient, entries []*pluginv1.ConfigEntry) error {
+	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	result, err := client.TestConfiguration(probeCtx, &pluginv1.TestConfigurationRequest{Config: entries})
+	if err != nil {
+		if status.Code(err) == codes.Unimplemented {
+			return &ConnectionTestError{Message: connectionCheckUnsupportedMessage, Cause: ErrConnectionTestUnsupported}
+		}
+		// Transport messages can contain credentials or upstream response bodies.
+		return &ConnectionTestError{Message: "The plugin could not complete the connection check. Check its settings and try again.", Cause: err}
+	}
+	if result == nil || !result.GetOk() {
+		message := strings.TrimSpace(result.GetMessage())
+		if message == "" {
+			message = "Connection check failed. Check the plugin settings."
+		}
+		return &ConnectionTestError{Message: message}
+	}
+	return nil
 }
 
 // prepareStagedGlobalConfig applies one staged global config entry the way

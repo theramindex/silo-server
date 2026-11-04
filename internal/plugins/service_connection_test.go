@@ -33,6 +33,75 @@ type putGlobalConfigCall struct {
 	value          map[string]any
 }
 
+type configurationCheckClient struct {
+	*fakePluginClient
+	check func(context.Context, *pluginv1.TestConfigurationRequest) (*pluginv1.TestConfigurationResponse, error)
+}
+
+func (c *configurationCheckClient) TestConfiguration(ctx context.Context, req *pluginv1.TestConfigurationRequest) (*pluginv1.TestConfigurationResponse, error) {
+	return c.check(ctx, req)
+}
+
+func TestPluginConfigurationCheckDraftIsolation(t *testing.T) {
+	for _, tc := range []struct {
+		name, replacement, wantSecret, message string
+		clear                                  []string
+		response                               *pluginv1.TestConfigurationResponse
+		rpcError                               error
+	}{
+		{name: "blank preserves secret", wantSecret: "saved-secret", response: &pluginv1.TestConfigurationResponse{Ok: true}},
+		{name: "replacement", replacement: "draft-secret", wantSecret: "draft-secret", response: &pluginv1.TestConfigurationResponse{Ok: true}},
+		{name: "clear", clear: []string{"api_key"}, response: &pluginv1.TestConfigurationResponse{Message: "Enter an API key"}, message: "Enter an API key"},
+		{name: "nil response", wantSecret: "saved-secret", message: "Connection check failed"},
+		{name: "missing service", wantSecret: "saved-secret", rpcError: status.Error(codes.Unimplemented, "missing"), message: "not supported"},
+		{name: "transport error", wantSecret: "saved-secret", rpcError: status.Error(codes.Internal, "saved-secret"), message: "could not complete"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest := connectionTestManifest(t, "silo.checks", "0.1.0")
+			manifest.Metadata = &structpb.Struct{Fields: map[string]*structpb.Value{"configuration_check": structpb.NewBoolValue(true)}}
+			manifest.GlobalConfigSchema[0].JsonSchema = `{"type":"object","properties":{"api_key":{"type":"string","format":"password"}},"additionalProperties":false}`
+			store := &fakeServiceConfigStore{configsByInstallation: map[int][]*RuntimeConfig{
+				7: {{InstallationID: 7, Key: "connection", Value: map[string]any{"api_key": "saved-secret"}}, {InstallationID: 7, Key: "other", Value: map[string]any{"enabled": true}}},
+			}}
+			calls := 0
+			client := &configurationCheckClient{fakePluginClient: &fakePluginClient{manifest: manifest}}
+			client.check = func(ctx context.Context, req *pluginv1.TestConfigurationRequest) (*pluginv1.TestConfigurationResponse, error) {
+				calls++
+				if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) > 20*time.Second {
+					t.Fatal("configuration check has no bounded deadline")
+				}
+				values := map[string]map[string]any{}
+				for _, entry := range req.GetConfig() {
+					values[entry.GetKey()] = entry.GetValue().AsMap()
+				}
+				secret, _ := values["connection"]["api_key"].(string)
+				if secret != tc.wantSecret || values["other"]["enabled"] != true {
+					t.Fatal("check did not receive the merged draft and other saved entries")
+				}
+				return tc.response, tc.rpcError
+			}
+			host := &fakeServiceHost{startResult: client}
+			service := &Service{installations: installedPluginStore(t, 7, manifest), configs: store, host: host}
+			err := service.TestGlobalConfigWithClears(t.Context(), 7, "connection", map[string]any{"api_key": tc.replacement}, tc.clear)
+			if tc.message == "" && err != nil || tc.message != "" && (err == nil || !strings.Contains(err.Error(), tc.message)) {
+				t.Fatalf("connection check result = %v, want %q", err, tc.message)
+			}
+			if err != nil && strings.Contains(err.Error(), "saved-secret") {
+				t.Fatal("transport error exposed a secret")
+			}
+			if calls != 1 || len(host.started) != 1 || len(host.stopped) != 1 || host.started[0].InstallationID >= 0 || host.stopped[0] != host.started[0].InstallationID {
+				t.Fatal("check did not clean up its temporary process")
+			}
+			if len(host.started[0].Config) != 0 || client.metadataProviderCalls != 0 {
+				t.Fatal("draft reached Configure or a legacy probe instead of the plugin check")
+			}
+			if len(store.puts) != 0 || store.casCalls != 0 || store.configsByInstallation[7][0].Value["api_key"] != "saved-secret" {
+				t.Fatal("connection check changed the saved configuration")
+			}
+		})
+	}
+}
+
 func TestPreserveStoredSecretsMergesNestedObjectsWithoutMutatingInputs(t *testing.T) {
 	savedConnection := map[string]any{
 		"credentials": map[string]any{
