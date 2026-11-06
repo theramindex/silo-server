@@ -9,6 +9,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/blobstore"
 )
 
+//nolint:funlen // Keep the rotation safety cases in one table with a shared clock and fixtures.
 func TestPlanRotation(t *testing.T) {
 	now := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
 	day := func(n int) time.Time { return now.Add(-time.Duration(n) * 24 * time.Hour) }

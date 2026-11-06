@@ -113,8 +113,7 @@ func timedOut(err error) string {
 // overwritten blob, and rolls back a failure in the blob or rename steps with
 // the databases closed until the original is whole again.
 func RestoreSwap(ctx context.Context, src *Source, loader DatabaseLoader, ctl ControlDB, opts SwapOptions) error {
-	out := writerOrDiscard(opts.Out)
-	m := src.Manifest
+	out, m := writerOrDiscard(opts.Out), src.Manifest
 	// A database-only backup leaves the live files as they are.
 	opts.DatabaseOnly = opts.DatabaseOnly || !m.HasBlobs()
 	live, unlock, err := lockLive(ctx, ctl, opts.LiveURL)

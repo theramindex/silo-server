@@ -398,7 +398,7 @@ func readLimited(r io.Reader, h *tar.Header, limit int64) ([]byte, error) {
 	return data, nil
 }
 
-func (p *restoreSetParser) readIndex(data []byte) error {
+func validateRestoreSetFormat(data []byte) error {
 	// The format and version are read first and alone, so a newer format is
 	// refused with its own message, whatever else changed in it.
 	var head struct {
@@ -419,6 +419,13 @@ func (p *restoreSetParser) readIndex(data []byte) error {
 	}
 	if head.Version < 1 {
 		return fmt.Errorf("%s: version %d is not valid", restoreSetIndexName, head.Version)
+	}
+	return nil
+}
+
+func (p *restoreSetParser) readIndex(data []byte) error {
+	if err := validateRestoreSetFormat(data); err != nil {
+		return err
 	}
 	var index RestoreSetIndex
 	if err := p.decode(data, &index); err != nil {
