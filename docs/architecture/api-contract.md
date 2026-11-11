@@ -604,7 +604,8 @@ Validation failures add an `errors` array. Each entry contains `location` using 
 Rejected values are never echoed. Stack traces, database/upstream errors, filesystem paths,
 internal node URLs, credentials, tokens, private media data, and other implementation detail are
 never returned to the client. Problem responses default to `Cache-Control: no-store` unless a
-specific public problem is reviewed as cacheable.
+specific public problem is reviewed as cacheable. Clients translate a problem by its type and
+field codes, not its text; see [interface translation](i18n.md#problem-details).
 
 Server logs remain useful to the self-hosting administrator. They use the existing structured
 logger and `logredact` key-based secret filtering rather than a v2-specific redaction framework.
@@ -698,10 +699,12 @@ values older than canonicalization, carry none.
 
 Enums are lowercase strings, never numbers. Request enums are closed and reject unknown values
 with `422`; response enums are additive and clients retain an unknown/raw fallback. Existing
-values are never renamed or repurposed. Polymorphic objects use a required string discriminator
-and named schemas. Request variants are closed; response variants are additive and native clients
-retain an unknown-variant representation. Untyped maps are limited to intentional named extension
-bags.
+values are never renamed or repurposed. A nullable enum lists `null` among its values, because
+JSON Schema applies `type` and `enum` separately: the generator adds it, and the spec lint fails a
+nullable enum anywhere in a component schema without it unless `apiv2.NullEnumWithheld` names the
+member. Polymorphic objects use a required string discriminator and named schemas. Request
+variants are closed; response variants are additive and native clients retain an unknown-variant
+representation. Untyped maps are limited to intentional named extension bags.
 
 ### Query and pagination conventions
 
@@ -1612,7 +1615,8 @@ the refresh `mode` and `image_size` are strict enums answered `422`; the queued-
 (`deleteLibrary`, `refreshLibraryMetadata`) answer `409` without v1's `active_job` echo, pending
 the long-running-work foundation rule; `uploadLibraryPoster` is the first multipart operation
 (`multipart/form-data` only, else `415`; a wrong part media type is `422` at `body.poster`; over
-10 MiB is `413`); `getLibrarySectionItems` answers the section itself rather than a `{section}`
+10 MiB is `413`); `listLibrarySections` leaves out rows with no items for the viewer, which v1
+answers empty (see catalog-home); `getLibrarySectionItems` answers the section itself rather than a `{section}`
 wrapper, and
 `getLibraryCollections` has one shape whether or not collection groups are configured.
 
@@ -1638,6 +1642,15 @@ same viewer and `image_size` (no cross-row duplicate filter). The rows are built
 under one fixed budget that covers each row's whole build, its item fetch and its card lookups; a
 row that errors or is not built in time is left out rather than failing or delaying the layout,
 and the client reads it from `getHomeSectionItems`. `included_sections` is `[]` when nothing was requested.
+`listHomeSections` and `listLibrarySections` answer only rows that have items for the viewer: a row
+whose titles all sit outside the viewer's library access or rating limits, an off-season seasonal
+row, a row whose fetch failed, and a row whose recipe avoids duplicates and whose items all appeared
+in earlier rows are left out, so no client has to hide an empty row itself. The rule applies to the
+rows each request resolves, so a web-only hero row or a different `item_limit` can still change
+which rows a client gets. The layout still lists every resolved row, because it is built before any row is fetched. `getHomeSectionItems` answers an
+empty row asked for by ID, and answers a row the duplicate filter emptied with its items, because
+the cross-row filter runs only on the aggregate reads. The frozen v1 aggregate reads keep
+answering empty rows other than an off-season seasonal row and one emptied by hiding watched titles.
 Because v2 rejects unknown query parameters, a client sends `include_items` only after
 `getHomeCapabilities` (`GET /api/v2/home/capabilities`, v2-only) reports `include_items_max`, the
 largest value the layout accepts (4); the document is `not_configured`, without the field, when the
@@ -1665,11 +1678,25 @@ miss cards that a fetcher drops after applying its limit. A client sends `item_l
 two reads only when `getHomeCapabilities` reports `row_item_limit_max` (100), which a server that
 predates the parameter on them does not send. A row that draws a random subset on each read may answer
 different cards when read again.
+`Section`, `SectionLayoutEntry`, `ProfileSectionSetting`, `AdminSection`, and `RecommendationRow`
+carry optional `title_key` and `title_args` (an object of strings) while the row's `title` is
+server text, so a client can show the title in its own language, and `ProfileSectionSetting` carries
+`default_title_key` and `default_title_args` for its `default_title`; `getHomeCapabilities` reports `section_title_keys: true` when the
+server sends them. A client acts on `title_key` whenever it is present.
+The Requests Discover rows (`DiscoverRowRef`, `DiscoverSection`, and `AdminDiscoverRow` on a
+read) carry `title_key` the same way while a built-in row holds its default title, and each
+`RecipePreset` carries `display_name_key`, `description_short_key`, and `description_long_key`
+for its text. These came after `section_title_keys`, so the flag does not say whether a server
+sends them; a client reads each key when it is present. A layout write takes no `title_key`.
+`page_sections.title_key` stores the key beside the title, and a trigger
+clears it on any update that changes the title without changing the key, so an older binary's
+rename cannot leave a stale key. See [the catalog API](../catalog-api.md#section-titles).
 Deliberate differences from v1, all recorded on the ledger rows: the calendar `start`/`end` are
 `date`-formatted, `filter` and `image_size` are strict enums, and an unknown `timezone` is `422`
 rather than a silent UTC fallback; `library_id` is a string `ID` and `air_at` a UTC-millisecond
 instant; the dismissal `surface` is a path enum, `progress_updated_at` an instant, and both
-dismissal operations answer `204`; `getHomeSectionItems` answers the section itself rather than
+dismissal operations answer `204`; `listHomeSections` leaves out rows with no items for the
+viewer, which v1 answers empty; `getHomeSectionItems` answers the section itself rather than
 a `{section}` wrapper; `listSectionRecipes` groups recipes in an ordered `categories` array of
 `{category, recipes}` instead of a map, never emits `hidden`, and declares each preset's
 `default_params` as the `section-config` extension bag; `listSectionRecipeCandidates` always
@@ -1725,7 +1752,8 @@ no-op. Semantics are in
 shared `CatalogItem`, rendered by the same seam the v1 discover page uses
 (`internal/api/handlers/recommendations_service.go`), so the plain lists are a
 `CatalogItemCollection` (bounded, no `page`) and the grouped reads answer `RecommendationRow`
-(`{type, title, kind, key, items}`). Deliberate differences from v1, all recorded on the ledger
+(`{type, title, kind, key, items}`, plus `title_key` and `title_args` while the title is one the
+server words, as on sections). Deliberate differences from v1, all recorded on the ledger
 rows: the engine's `score`, `reason`, and bare `media_item_id` lists are not carried (no client
 reads them); `label` is `title` and `section_kind`/`section_key` are `kind`/`key`; `for-you/main`
 answers an empty row rather than `null`; `days` and `limit` are declared parameters answered
