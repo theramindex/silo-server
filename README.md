@@ -83,6 +83,33 @@ Existing library data is preserved when upgrading.
   </tr>
 </table>
 
+## Ramindex web premiere reminders
+
+This fork adds metadata-driven reminders with IPTV channel shortcuts to the web
+calendar and series/episode details. It requires a compatible Dispatcharr, XC,
+or HDHomeRun adapter advertising an optional channel `watchPath`.
+
+1. Open **Calendar → Premiere reminders** in the desired profile.
+2. Map a broadcaster to one or more accessible channels and choose an expected
+   window (15–240 minutes; default 60). Series details offer show overrides.
+3. Add a show to favorites/watchlist or complete an episode to establish viewing
+   interest. Existing notification preferences and series mutes still apply.
+
+A profile gets at most one reminder per original episode premiere. During the
+configured window, one mapped channel opens directly and multiple feeds open a
+chooser. Timing uses the catalog's episode date plus series airtime and timezone;
+a date-only entry cannot create a timed action. No EPG episode matching or DVR is
+required. Metadata can change, and the selected regional feed may show something
+else at that instant. The shortcut means “premiere expected,” not verified live.
+
+Mappings, preferences, and notification receipts use the server's existing
+PostgreSQL database and its normal startup migration. The new controls are
+web-only. Older plugins keep working without shortcuts, and the updated adapters
+retain ordinary guide/playback compatibility with servers lacking this extension.
+See [the premiere API and delivery rules](docs/notifications-api.md#metadata-premiere-reminders-ramindex-extension)
+for profile scope, timing, deduplication, and capability discovery.
+
+
 ## Quick start
 
 Requires Docker Compose 2.24 or newer. The default Compose file runs the

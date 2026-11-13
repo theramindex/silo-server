@@ -56,6 +56,7 @@ type liveTVInfo struct {
 // Folders for a user who groups categories by "|", and ProfileIDs and
 // ProfileFolders apply a user's channel profile selection.
 type liveTVChannel struct {
+	WatchPath      string                `json:"watchPath,omitempty"`
 	ID             string                `json:"id"`
 	Number         string                `json:"number"`
 	Name           string                `json:"name"`

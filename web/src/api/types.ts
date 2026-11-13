@@ -3047,6 +3047,11 @@ export type EventChannel =
   | "download_preparations";
 
 export interface NotificationReasonFlags {
+  // external.notification: server-validated plain text and local destination.
+  source?: string;
+  event_id?: string;
+  message?: string;
+  url?: string;
   // episode.available reasons
   favorite?: boolean;
   watchlist?: boolean;

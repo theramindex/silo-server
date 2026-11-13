@@ -746,3 +746,66 @@ snapshot. The form reports queued/pending verification and prevents editing the
 submitted address while its request is pending. It does not claim an email was
 sent. The dispatcher and retention policy above close the worker uncertainty and
 receipt/payload retention items; the migration must precede dispatching nodes.
+
+
+## Metadata premiere reminders (Ramindex extension)
+
+The `/api/v2/premieres` surface requires the authenticated account and a verified
+profile. `GET /capabilities` reports availability, with ordinary capability ETag
+revalidation. It is unavailable when the fork's Live TV bridge is disabled or the
+plugin services are absent.
+
+- `GET /settings` returns `preferences`, `mappings` and that profile's accessible
+  plugin channels. Preferences are `enabled` and `window_minutes` (15–240,
+  default 60). The notification master switch remains authoritative.
+- `PUT /settings` atomically replaces that profile's preferences and mappings.
+  Each mapping names `broadcaster`, optional `series_id`, `channel_ids` and
+  `window_minutes`. Channel IDs must belong to the current recipient lineup.
+  `channels_available` reports lineup lookup failures; saved mappings remain
+  readable, and turning reminders off works when channels disappear.
+  A series override takes precedence; unresolved multiple broadcasters produce
+  no shortcut. No account or profile selector is accepted in the body.
+- `GET /api/v2/premieres` returns `items` for the current
+  metadata window, optionally restricted with `item_id` to a series or episode.
+  Each entry contains episode/series identity, UTC `starts_at`/`ends_at`,
+  `active`, broadcaster and channel page links. Calendar library and maturity
+  access rules apply. A channel link uses the authenticated plugin-content
+  mount and never carries an upstream media URL.
+
+The schedule is the catalog's original episode date combined with its series
+wall-clock airtime and source timezone. A date-only entry cannot generate a timed
+shortcut. This is an expected premiere, not EPG confirmation of current content.
+The existing calendar's season-premiere badge is not the eligibility filter:
+ordinary episodes participate too. Streaming-only titles need an explicit usable
+channel mapping; no stream is fabricated from a streaming service's name.
+
+The API host checks configured profiles every minute, using qualifying series
+only and at most four profiles concurrently. Favorites and watchlist
+relationships qualify immediately, subject to existing reason preferences.
+Viewing interest requires a completed episode, not playback progress alone, and
+uses `notify_next_up`. Series mutes, current catalog access and the notification
+master switch are checked before admission. The scheduler sends at most five
+minutes after the expected start; it never sends a backlog after that grace
+period. An episode completed by the recipient is skipped.
+
+Pending reminders are derived from durable catalog metadata, so corrections and
+restarts do not leave a second stale schedule. `premiere_receipts` records one
+series/season/episode identity per account/profile independently of inbox retention.
+Receipt admission, the `episode.premiere` inbox delivery and durable push outbox
+inserts share one transaction. Multiple channels, libraries, hosts and subsequent
+reruns do not create another premiere delivery. Deleting a profile removes its
+mappings, preferences and receipts.
+
+Premiere deliveries carry the same plain display fields as incoming notifications
+and expire at the configured window's end. They link to the episode page with
+`premiere=1`, where channels and timing are resolved again. Already delivered
+messages cannot be recalled. Existing email/Discord preferences apply; expiry may
+suppress a reminder before a digest is due. Webhook fanout is not enabled for this
+notification type.
+
+The web calendar and series/episode details expose the action only during the
+expected window. A single channel opens directly; several open a chooser. Native
+clients may discover the new API, but existing native detail screens do not expose
+these web controls. Their generic notification handling remains the compatibility
+fallback; richer native premiere navigation is a separate client integration.
+Jellyfin's existing Live TV bridge is unchanged and has no premiere-reminder inbox.

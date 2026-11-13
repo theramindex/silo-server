@@ -137,6 +137,11 @@ func (s *webPushSender) processAttempt(ctx context.Context, attempt DeliveryAtte
 			attempt.AttemptNumber+1, nil, "subscription reassigned", nil)
 		return
 	}
+	if deliveryExpired(*row, time.Now()) {
+		_ = s.subscriptions.FinalizeAttempt(ctx, attempt.ID, WebhookOutcomeFailed,
+			attempt.AttemptNumber+1, nil, "notification expired", nil)
+		return
+	}
 
 	publicKey, privateKey, err := s.service.vapidKeys(ctx)
 	if err != nil {

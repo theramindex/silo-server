@@ -1,3 +1,4 @@
+import PremiereShortcut from "./PremiereShortcut";
 import { useState } from "react";
 import DefaultArtwork from "@/components/DefaultArtwork";
 import ViewTransitionLink from "@/components/ViewTransitionLink";
@@ -99,6 +100,11 @@ export default function CalendarEventCard({ event }: { event: CalendarEvent }) {
           <div className="text-muted-foreground mt-0.5 text-[11px] font-medium">{airTime}</div>
         ) : null}
       </ViewTransitionLink>
+      {event.type === "episode" && (
+        <div className="px-1 pt-2">
+          <PremiereShortcut itemId={event.content_id} />
+        </div>
+      )}
     </div>
   );
 }

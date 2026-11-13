@@ -960,6 +960,7 @@ func TestRetrySafetyMismatchesFire(t *testing.T) {
 // mutation that is not listed here, the same rule guardedWithoutLegacyRow
 // applies to concurrency.
 var mutationWithoutLegacyRow = map[string]string{
+ "setPremiereSettings": "V2-only profile premiere settings. Replacing a complete configuration with the same body converges on the same rows.",
 	"reportPlaybackBandwidthProbe":             "V2-only connection speed observation; no v1 equivalent.",
 	"resetAdminDeviceLearnedLimit":             "V2-only device connection limit reset; no v1 equivalent.",
 	"resetPlaybackLearnedLimit":                "V2-only buffering-quality connection observation reset; no v1 equivalent.",

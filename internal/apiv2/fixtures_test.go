@@ -1767,7 +1767,8 @@ func fixtureCases() []fixtureCase {
 	cases = append(cases, seasonalThemeFixtureCases()...)
 	cases = append(cases, personalListMembershipFixtureCases()...)
 	cases = append(cases, sectionItemLimitFixtureCases()...)
-	return append(cases, adminCatalogItemsFixtureCases()...)
+	cases = append(cases, adminCatalogItemsFixtureCases()...)
+	return append(cases, premiereFixtureCases()...)
 }
 
 // sectionItemLimitFixtureCases pin the item_limit bound of the aggregate

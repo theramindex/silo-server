@@ -13357,6 +13357,28 @@
       "body_file": "precondition_required.json"
     },
     {
+      "name": "premiere_capabilities_unavailable",
+      "operation_id": "getPremiereCapabilities",
+      "scenario": "Premiere settings stay hidden when the optional Live TV bridge is unavailable.",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/premieres/capabilities",
+        "headers": {
+          "Authorization": "Bearer tok-member",
+          "X-Profile-Id": "p-owner"
+        }
+      },
+      "expected_status": 200,
+      "response_headers": {
+        "Cache-Control": "private, no-cache",
+        "Content-Type": "application/json",
+        "ETag": "\"4cec07f11085e52f8e9fe54c518b632aaf93bb4df3d0149549a42d3cac44c3ce\""
+      },
+      "response_media_type": "application/json",
+      "schema": "#/components/schemas/PremiereCapability",
+      "body_file": "premiere_capabilities_unavailable.json"
+    },
+    {
       "name": "prepare_download_again",
       "operation_id": "prepareDownloadAgain",
       "scenario": "A finished download whose server file expired returns to preparing with the same revision.",

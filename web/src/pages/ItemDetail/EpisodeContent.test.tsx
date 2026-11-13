@@ -9,6 +9,9 @@ import { installPolicyStorageMocks, jsonResponse } from "@/pages/admin-policy/po
 import type { FileVersion, ItemDetail, Season } from "@/api/types";
 import { catalogKeys } from "@/hooks/queries/keys";
 import EpisodeContent from "./EpisodeContent";
+
+// Playback/audio behavior is independent of the separately tested shortcut.
+vi.mock("@/components/calendar/PremiereShortcut", () => ({ default: () => null }));
 import { makeFileVersion, makeItemDetail } from "./itemDetail.test-support";
 
 const mocks = vi.hoisted(() => {

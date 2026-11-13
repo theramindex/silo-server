@@ -3134,6 +3134,10 @@ func newChiRouter(deps Dependencies) chi.Router {
 		calendarTrending := sections.NewTrendingSnapshotRepository(deps.DB)
 		calendarHandler = handlers.NewCalendarHandler(calendarRepo, detailSvc, calendarPopular, calendarTrending)
 		v2deps.Calendar = calendarHandler
+		v2deps.Premieres = newPremiereService(deps)
+		if v2deps.Premieres != nil && deps.AppContext != nil {
+			go v2deps.Premieres.Run(deps.AppContext)
+		}
 	}
 	if homeDismissalHandler != nil {
 		v2deps.HomeDismissals = homeDismissalHandler

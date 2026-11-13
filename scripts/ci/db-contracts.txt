@@ -796,3 +796,5 @@
 # in_watchlist after the batch read the watchlist first.
 ./internal/userstore/pgstore TestQueueItemViewerStateMatchesSingleReads
 ./internal/api/handlers TestItemDetailViewerStateBatchDB
+
+./internal/notifications TestPremiereSchedulePersistenceAndIsolation

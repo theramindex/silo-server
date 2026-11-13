@@ -30,7 +30,16 @@ function notification(
       "follower",
     ] as const)
       if (key in raw && typeof raw[key] === "boolean") reasonFlags[key] = raw[key];
-    for (const key of ["request_id", "media_type", "title", "reason"] as const)
+    for (const key of [
+      "request_id",
+      "media_type",
+      "title",
+      "reason",
+      "source",
+      "event_id",
+      "message",
+      "url",
+    ] as const)
       if (key in raw && typeof raw[key] === "string") reasonFlags[key] = raw[key];
     for (const key of ["tmdb_id", "year"] as const)
       if (key in raw && typeof raw[key] === "number") reasonFlags[key] = raw[key];

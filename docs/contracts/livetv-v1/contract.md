@@ -33,6 +33,15 @@ layout; the optional fields below let Silo apply a user's own folder settings:
   selection. A path two profiles share is listed once for each. Sent when the folders are
   built from channel profiles.
 
+### Optional playback page
+
+`watchPath` optionally identifies a local plugin page that opens this channel, for
+example `/dispatcharr#/watch/<encoded-channel-id>`. It contains no provider
+credentials or stream URL. The host prefixes its authenticated installation mount
+and acquires the plugin launch cookie before navigation. Absolute URLs, traversal
+paths and protocol-relative URLs are rejected. Providers without this field retain
+their existing guide and playback behavior but offer no calendar shortcut.
+
 ## GET /silo-compat/livetv/v1/stream?channel_id=<id>&format=ts|hls|any&session_id=<id>
 200 `{"url":"<absolute URL>","container":"ts"|"hls","mode":"redirect"|"server","leased":bool}`
 - `mode=server` means the URL embeds credentials. Silo must fetch it server-side and never

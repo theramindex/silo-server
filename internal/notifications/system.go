@@ -487,6 +487,11 @@ func (s *System) PurgeProfile(ctx context.Context, userID int, profileID string)
 			return fmt.Errorf("purge email prefs: %w", err)
 		}
 	}
+	for _, table := range []string{"premiere_channel_mappings", "premiere_receipts", "premiere_preferences"} {
+		if _, err := s.pool.Exec(ctx, "DELETE FROM "+table+" WHERE user_id=$1 AND profile_id=$2", userID, profileID); err != nil {
+			return fmt.Errorf("purge premiere state: %w", err)
+		}
+	}
 	return nil
 }
 

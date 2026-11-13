@@ -1,3 +1,4 @@
+import PremiereShortcut from "@/components/calendar/PremiereShortcut";
 import { useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { leafUserData, type FileVersion, type ItemDetail } from "@/api/types";
@@ -441,6 +442,12 @@ export default function EpisodeContent({
           }
         />
 
+        <div className="page-shell py-3">
+          <PremiereShortcut
+            itemId={item.content_id}
+            explainExpired={new URLSearchParams(window.location.search).get("premiere") === "1"}
+          />
+        </div>
         {(siblingsLoading || siblingEpisodes.length > 1) && (
           <section className="page-shell episode-detail-navigation" aria-label="More episodes">
             {/* More Episodes carousel — most useful, so show first */}

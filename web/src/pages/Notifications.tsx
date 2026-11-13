@@ -52,6 +52,8 @@ function formatNotificationTime(value: string): string {
 }
 
 function notificationTitle(notification: AppNotification): string {
+  if (notification.type === "episode.premiere")
+    return notification.reason_flags?.title || "Notification";
   if (notification.type === "episode.available") {
     return notification.series_title || "New episode available";
   }
@@ -67,6 +69,7 @@ function notificationTitle(notification: AppNotification): string {
 }
 
 function notificationDescription(notification: AppNotification): string {
+  if (notification.type === "episode.premiere") return notification.reason_flags?.message || "";
   if (notification.type === "episode.available") {
     const code = formatEpisodeCode(notification);
     return (
@@ -104,6 +107,7 @@ function notificationDescription(notification: AppNotification): string {
  * title's page from the TMDB id their payload carries.
  */
 function notificationHref(notification: AppNotification): string | null {
+  if (notification.type === "episode.premiere") return notification.reason_flags?.url || null;
   if (notification.episode_id) return `/item/${notification.episode_id}`;
   if (notification.series_id) return `/item/${notification.series_id}`;
   if (notification.type === "request.approved" || notification.type === "request.declined") {

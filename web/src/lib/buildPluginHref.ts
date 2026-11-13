@@ -17,8 +17,11 @@ export function buildPluginHref(basePath: string): string {
   if (theme) params.set("theme", theme);
   const qs = params.toString();
   if (!qs) return basePath;
-  const sep = basePath.includes("?") ? "&" : "?";
-  return `${basePath}${sep}${qs}`;
+  const hashIndex = basePath.indexOf("#");
+  const path = hashIndex < 0 ? basePath : basePath.slice(0, hashIndex);
+  const fragment = hashIndex < 0 ? "" : basePath.slice(hashIndex);
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${qs}${fragment}`;
 }
 
 export async function navigateToPluginRoute(basePath: string): Promise<void> {

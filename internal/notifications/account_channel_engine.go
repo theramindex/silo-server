@@ -475,6 +475,15 @@ func (w *accountChannelWorker[K]) processRecipient(ctx context.Context, rec acco
 	}
 
 	last := rows[len(rows)-1]
+	// Expired external alerts remain in the inbox, but must not arrive late
+	// through a digest or retry. Advance past them without sending them.
+	active := make([]DeliveryRow, 0, len(items))
+	for _, item := range items {
+		if !deliveryExpired(item, w.now()) {
+			active = append(active, item)
+		}
+	}
+	items = active
 	// A combined-mode digest can read entirely behind the watermark; clamp so
 	// the watermark only ever moves forward.
 	watermark := maxCursor(Cursor{CreatedAt: last.CreatedAt, ID: last.ID}, since)

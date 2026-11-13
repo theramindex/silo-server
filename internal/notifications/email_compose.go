@@ -179,6 +179,13 @@ func requestsAllFulfilled(items emailItems) bool {
 
 // otherLine renders operational and unknown delivery types generically.
 func otherLine(row DeliveryRow) string {
+	if row.Type == DeliveryTypePremiere {
+		flags := premiereFlags(row)
+		if flags.Message != "" {
+			return flags.Title + " — " + flags.Message
+		}
+		return flags.Title
+	}
 	if row.Type == DeliveryTypeWebhookAutoDisabled {
 		return "A webhook stopped working — open notification settings to fix it"
 	}

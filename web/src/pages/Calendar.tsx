@@ -1,3 +1,4 @@
+import PremiereSettings from "@/components/calendar/PremiereSettings";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { CalendarDays } from "lucide-react";
@@ -127,6 +128,7 @@ export default function Calendar() {
       <div className="px-4 pt-4 pb-4 sm:px-6 sm:pt-6 lg:px-10 xl:px-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Calendar</h1>
+          <PremiereSettings />
           <div className="flex flex-wrap items-center gap-2">
             {/* Preset pills (desktop) */}
             <div

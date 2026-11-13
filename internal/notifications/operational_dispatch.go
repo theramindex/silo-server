@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -15,6 +16,8 @@ import (
 // filter: profile-level gating happens before dispatch.
 type OperationalDispatch struct {
 	WebhookFilter func(Webhook) bool
+	// admit runs event admission under the insertion transaction.
+	admit func(context.Context, pgx.Tx) error
 }
 
 // DispatchOperational durably creates one operational delivery. The inbox row
@@ -42,11 +45,25 @@ func (s *System) DispatchOperational(ctx context.Context, delivery Delivery, opt
 			return nil, err
 		}
 	}
+	// Resolve settings before taking a pool connection. Concurrent admissions
+	// can wait on event locks while holding every other connection; a settings
+	// read through the pool inside this transaction would then deadlock.
+	webhooksEnabled := opts.WebhookFilter != nil && s.webhookRepo != nil && s.Settings.WebhooksEnabled(ctx)
+	webPushEnabled := s.webPushRepo != nil && s.Settings.WebPushEnabled(ctx)
+	var pushPlatforms []string
+	if s.pushDeviceRepo != nil {
+		pushPlatforms = s.Settings.EnabledPushPlatforms(ctx)
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin operational dispatch tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if opts.admit != nil {
+		if err := opts.admit(ctx, tx); err != nil {
+			return nil, err
+		}
+	}
 
 	if recipient != nil {
 		allowed, err := recipient.canOpen(ctx, tx, delivery.UserID, delivery.ProfileID, *delivery.SeriesID, 0)
@@ -68,7 +85,7 @@ func (s *System) DispatchOperational(ctx context.Context, delivery Delivery, opt
 	row := inserted[0]
 	owner := profileKey{delivery.UserID, delivery.ProfileID}
 
-	if opts.WebhookFilter != nil && s.webhookRepo != nil && s.Settings.WebhooksEnabled(ctx) {
+	if webhooksEnabled {
 		hooksByProfile, err := s.webhookRepo.ListEnabledByProfiles(ctx, tx, []profileKey{owner})
 		if err != nil {
 			return nil, err
@@ -88,7 +105,7 @@ func (s *System) DispatchOperational(ctx context.Context, delivery Delivery, opt
 			return nil, err
 		}
 	}
-	if s.webPushRepo != nil && s.Settings.WebPushEnabled(ctx) {
+	if webPushEnabled {
 		subsByProfile, err := s.webPushRepo.ListEnabledByProfiles(ctx, tx, []profileKey{owner})
 		if err != nil {
 			return nil, err
@@ -106,8 +123,8 @@ func (s *System) DispatchOperational(ctx context.Context, delivery Delivery, opt
 		}
 	}
 	if s.pushDeviceRepo != nil {
-		if platforms := s.Settings.EnabledPushPlatforms(ctx); len(platforms) > 0 {
-			devicesByProfile, err := s.pushDeviceRepo.ListEnabledPushByProfiles(ctx, tx, []profileKey{owner}, platforms)
+		if len(pushPlatforms) > 0 {
+			devicesByProfile, err := s.pushDeviceRepo.ListEnabledPushByProfiles(ctx, tx, []profileKey{owner}, pushPlatforms)
 			if err != nil {
 				return nil, err
 			}
