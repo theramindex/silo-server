@@ -456,11 +456,14 @@ const locationHeader = "Location"
 // survives is then unspecified; ambiguousLocation reports that for Location.
 func filteredResponseHeaders(headers map[string]string) (filtered map[string]string, ambiguousLocation bool) {
 	allowed := map[string]struct{}{
-		"content-type":  {},
-		"cache-control": {},
-		"etag":          {},
-		"last-modified": {},
-		"location":      {},
+		"content-type":                 {},
+		"cache-control":                {},
+		"etag":                         {},
+		"last-modified":                {},
+		"location":                     {},
+		"cross-origin-opener-policy":   {},
+		"cross-origin-embedder-policy": {},
+		"cross-origin-resource-policy": {},
 	}
 	filtered = make(map[string]string, len(headers))
 	locations := 0

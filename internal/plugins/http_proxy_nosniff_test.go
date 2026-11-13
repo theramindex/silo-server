@@ -17,9 +17,11 @@ func (nosniffRouteClient) Handle(context.Context, *pluginv1.HandleHTTPRequest) (
 	return &pluginv1.HandleHTTPResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
-			"Content-Type":           "text/plain",
-			"X-Content-Type-Options": "sniff-please",
-			"Set-Cookie":             "stolen=1",
+			"Content-Type":                 "text/plain",
+			"X-Content-Type-Options":       "sniff-please",
+			"Set-Cookie":                   "stolen=1",
+			"Cross-Origin-Opener-Policy":   "same-origin",
+			"Cross-Origin-Embedder-Policy": "require-corp",
 		},
 		Body: []byte("<script>alert(1)</script>"),
 	}, nil
@@ -57,7 +59,8 @@ func TestHTTPProxyPluginContentIsNosniff(t *testing.T) {
 	rec := httptest.NewRecorder()
 	proxy.ServeRoute(rec, req, 1, false, false)
 	if rec.Code != http.StatusOK || rec.Header().Get("X-Content-Type-Options") != "nosniff" ||
-		rec.Header().Get("Content-Type") != "text/plain" || rec.Header().Get("Set-Cookie") != "" {
+		rec.Header().Get("Content-Type") != "text/plain" || rec.Header().Get("Set-Cookie") != "" ||
+		rec.Header().Get("Cross-Origin-Opener-Policy") != "same-origin" || rec.Header().Get("Cross-Origin-Embedder-Policy") != "require-corp" {
 		t.Fatalf("route: status = %d headers = %v", rec.Code, rec.Header())
 	}
 
