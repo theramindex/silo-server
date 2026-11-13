@@ -18,6 +18,7 @@ type LiveTVChannelLink struct{ ID, Name, Group, Provider, URL string }
 func (l *LiveTV) ChannelLinks(ctx context.Context, caller LiveTVCaller) ([]LiveTVChannelLink, error) {
 	out := []LiveTVChannelLink{}
 	prefs := map[int]liveProfilePrefs{}
+	providers := map[int]string{}
 	for _, ch := range l.Lineup(ctx, caller) {
 		p, ok := prefs[ch.InstallationID]
 		if !ok {
@@ -36,11 +37,16 @@ func (l *LiveTV) ChannelLinks(ctx context.Context, caller LiveTVCaller) ([]LiveT
 		if err != nil || !strings.HasPrefix(ch.WatchPath, "/") || strings.HasPrefix(ch.WatchPath, "//") || u.Host != "" || u.Scheme != "" || strings.ContainsAny(u.Path, "\\\r\n") || strings.Contains(u.Path, "..") {
 			continue
 		}
-		info, err := l.Info(ctx, caller, ch.InstallationID)
-		if err != nil {
-			return nil, err
+		provider, ok := providers[ch.InstallationID]
+		if !ok {
+			info, err := l.Info(ctx, caller, ch.InstallationID)
+			if err != nil {
+				return nil, err
+			}
+			provider = info.Name
+			providers[ch.InstallationID] = provider
 		}
-		out = append(out, LiveTVChannelLink{ID: ch.EncodedID, Name: ch.Name, Group: ch.Group, Provider: info.Name, URL: fmt.Sprintf("%s/plugins/%d%s", plugins.ContentPrefix, ch.InstallationID, ch.WatchPath)})
+		out = append(out, LiveTVChannelLink{ID: ch.EncodedID, Name: ch.Name, Group: ch.Group, Provider: provider, URL: fmt.Sprintf("%s/plugins/%d%s", plugins.ContentPrefix, ch.InstallationID, ch.WatchPath)})
 	}
 	return out, nil
 }

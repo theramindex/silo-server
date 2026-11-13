@@ -235,6 +235,14 @@ func (s *PremiereService) Events(ctx context.Context, user int, profile, item st
 
 func (s *PremiereService) events(ctx context.Context, user int, profile, item string, af catalog.AccessFilter, now time.Time, restrict []string) ([]PremiereEvent, error) {
 	out := []PremiereEvent{}
+	// An unconfigured profile needs no IPTV lookup, even on a large shared lineup.
+	var configured bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM premiere_channel_mappings WHERE user_id=$1 AND profile_id=$2)`, user, profile).Scan(&configured); err != nil {
+		return nil, err
+	}
+	if !configured {
+		return out, nil
+	}
 	cfg, err := s.Configuration(ctx, user, profile)
 	if err != nil {
 		return nil, err
