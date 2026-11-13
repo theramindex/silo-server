@@ -125265,7 +125265,7 @@
   "web.shell.sidebar.apps": [
     {
       "type": 0,
-      "value": "应用"
+      "value": "附加组件"
     }
   ],
   "web.shell.sidebar.calendar": [

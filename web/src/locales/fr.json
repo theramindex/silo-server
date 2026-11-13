@@ -146507,7 +146507,7 @@
   "web.shell.sidebar.apps": [
     {
       "type": 0,
-      "value": "Applications"
+      "value": "Extensions"
     }
   ],
   "web.shell.sidebar.calendar": [

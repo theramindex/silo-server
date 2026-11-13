@@ -4,11 +4,9 @@ import { Link, useLocation, useParams } from "react-router";
 import ViewTransitionLink from "@/components/ViewTransitionLink";
 import {
   getProfileMenuSide,
-  groupAppNavLinks,
   isSidebarExpanded,
   isSidebarRailCollapsed,
   sidebarSurfaceStyle,
-  UNCATEGORIZED_APP_GROUP,
   type AppNavLink,
 } from "@/components/AppSidebar.logic";
 import { SiloBrand } from "@/components/SiloBrand";
@@ -259,9 +257,7 @@ export default function AppSidebar({ onNavigate, collapsed = false, swap }: AppS
     }
     return links;
   }, [pluginSettings]);
-  // Grouped view of the Apps entries (null → keep the flat list under the
-  // single "Apps" header). See groupAppNavLinks for the SDK category contract.
-  const pluginNavGroups = useMemo(() => groupAppNavLinks(pluginNavLinks), [pluginNavLinks]);
+
   const primaryMenuLinks = useMemo<ResolvedPrimaryMenuLink[] | null>(() => {
     if (!primaryMenu) return null;
 
@@ -985,30 +981,13 @@ export default function AppSidebar({ onNavigate, collapsed = false, swap }: AppS
             </ul>
           </div>
 
-          {/* Apps (plugin-supplied user navigation), grouped by the first
-            segment of the manifest's slash-delimited category when 2+
-            distinct categories exist; flat list otherwise. */}
+          {/* Plugin user navigation stays flat to avoid category/link repetition. */}
           {pluginNavLinks.length > 0 && (
             <div className="sidebar-apps">
               <SidebarSectionHeader show={showLabels}>
                 {t("web.shell.sidebar.apps")}
               </SidebarSectionHeader>
-              {pluginNavGroups ? (
-                <div className="space-y-3">
-                  {pluginNavGroups.map((group) => (
-                    <div key={group.category} className="sidebar-apps-group">
-                      <SidebarSectionHeader show={showLabels}>
-                        {group.category === UNCATEGORIZED_APP_GROUP
-                          ? t("web.shell.sidebar.otherApps")
-                          : group.category}
-                      </SidebarSectionHeader>
-                      {renderAppNavList(group.links)}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                renderAppNavList(pluginNavLinks)
-              )}
+              {renderAppNavList(pluginNavLinks)}
             </div>
           )}
         </nav>

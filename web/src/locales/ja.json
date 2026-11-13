@@ -123941,7 +123941,7 @@
   "web.shell.sidebar.apps": [
     {
       "type": 0,
-      "value": "アプリ"
+      "value": "アドオン"
     }
   ],
   "web.shell.sidebar.calendar": [
