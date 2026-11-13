@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="assets/icon.png" alt="Silo logo" width="112" height="112">
+  <img src="assets/ramedia-mark.svg" alt="Ramedia Server logo" width="112" height="112">
 </p>
 
-<h1 align="center">Silo</h1>
+<h1 align="center">Ramedia Server</h1>
+
+<p align="center">An independent fork of <a href="https://github.com/Silo-Server/silo-server">Silo</a>, maintained by Ramindex.</p>
 
 <p align="center">
   A self-hosted media server for films, series, audiobooks, ebooks, podcasts, and manga.
@@ -18,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick start</a>
+  <a href="#build-ramedia-server">Build Ramedia Server</a>
   · <a href="https://siloserver.org/docs">Documentation</a>
   · <a href="docs/release-versioning.md">Builds &amp; releases</a>
   · <a href="https://discord.gg/siloserver">Discord</a>
@@ -29,7 +31,7 @@
 ---
 
 > [!WARNING]
-> Silo is pre-release. APIs, configuration, and database migrations may change
+> Ramedia Server is pre-release. APIs, configuration, and database migrations may change
 > before the first stable release. Back up your deployment before updating.
 
 ## 1.0 release scope
@@ -42,7 +44,7 @@ release date. The broader capabilities below include those beta
 implementations, not a promise that every media type is supported in 1.0.
 Existing library data is preserved when upgrading.
 
-## What Silo does
+## What Ramedia Server does
 
 <table>
   <tr>
@@ -83,9 +85,9 @@ Existing library data is preserved when upgrading.
   </tr>
 </table>
 
-## Ramindex web premiere reminders
+## Ramedia Server web premiere reminders
 
-This fork adds metadata-driven reminders with IPTV channel shortcuts to the web
+Ramedia Server adds metadata-driven reminders with IPTV channel shortcuts to the web
 calendar and series/episode details. It requires a compatible Dispatcharr, XC,
 or HDHomeRun adapter advertising an optional channel `watchPath`.
 
@@ -106,11 +108,27 @@ Mappings, preferences, and notification receipts use the server's existing
 PostgreSQL database and its normal startup migration. The new controls are
 web-only. Older plugins keep working without shortcuts, and the updated adapters
 retain ordinary guide/playback compatibility with servers lacking this extension.
-See [the premiere API and delivery rules](docs/notifications-api.md#metadata-premiere-reminders-ramindex-extension)
+See [the premiere API and delivery rules](docs/notifications-api.md#metadata-premiere-reminders-ramedia-server-extension)
 for profile scope, timing, deduplication, and capability discovery.
 
 
-## Quick start
+## Build Ramedia Server
+
+The product name is Ramedia Server; repository, executable, API and plugin IDs
+retain their Silo-compatible names. Build from this fork with the root Dockerfile
+for an existing PostgreSQL/Redis deployment. To build the bundled image:
+
+```sh
+docker build -t ramedia-server:base .
+docker build -f omnibus/Dockerfile --build-arg SILO_IMAGE=ramedia-server:base -t ramedia-server:local .
+```
+
+See [Ramedia Server branding and compatibility](docs/ramedia-server.md).
+
+## Upstream installation reference
+
+The following is the upstream Silo installation reference. For Ramedia Server,
+build this fork and choose that image in your deployment configuration.
 
 Requires Docker Compose 2.24 or newer. The default Compose file runs the
 omnibus image: Silo with a bundled PostgreSQL (with pgvector) and Redis, plus

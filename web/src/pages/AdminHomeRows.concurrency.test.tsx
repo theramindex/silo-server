@@ -342,7 +342,7 @@ describe("admin section captured snapshots", () => {
       "Restored the default rows on Home. 1 library page may have been restored.",
       {
         description:
-          "Movies: it may have been restored, but Silo couldn't confirm it. Reload it to check.",
+          "Movies: it may have been restored, but Ramedia Server couldn't confirm it. Reload it to check.",
       },
     );
   });
@@ -352,7 +352,9 @@ describe("admin section captured snapshots", () => {
     rows.push({ ...initial("c"), title: "Studio Ghibli", section_type: "collection" });
     revision = 2;
     const dialog = await openRestore();
-    expect(dialog).toHaveTextContent("The 3 rows on Home are replaced by Silo's default rows.");
+    expect(dialog).toHaveTextContent(
+      "The 3 rows on Home are replaced by Ramedia Server's default rows.",
+    );
     expect(dialog).toHaveTextContent(
       "Studio Ghibli shows a collection and is removed. The collection itself stays in Collections.",
     );

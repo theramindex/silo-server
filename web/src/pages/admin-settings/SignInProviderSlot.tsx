@@ -316,8 +316,8 @@ function useBindingSwitch({
       title={`Turn off ${label}?`}
       description={
         localLoginOn
-          ? `People who sign in with ${label} can't sign in until it's back on. Their Silo accounts, and the connections to ${label}, stay.`
-          : `Password sign-in is off, so only break-glass admins can sign in until ${label} is back on. Silo accounts, and their connections to ${label}, stay.`
+          ? `People who sign in with ${label} can't sign in until it's back on. Their Ramedia Server accounts, and the connections to ${label}, stay.`
+          : `Password sign-in is off, so only break-glass admins can sign in until ${label} is back on. Ramedia Server accounts, and their connections to ${label}, stay.`
       }
       confirmLabel="Turn off"
       variant="destructive"
@@ -325,7 +325,7 @@ function useBindingSwitch({
         write(
           false,
           localLoginOn
-            ? `${label} is off. Only Silo passwords sign in now.`
+            ? `${label} is off. Only Ramedia Server passwords sign in now.`
             : `${label} is off. Password sign-in is off too, so only break-glass admins can sign in now.`,
         )
       }
@@ -486,7 +486,7 @@ function ProviderPanel({
       label="Create accounts on first sign-in"
       htmlFor={autoProvisionId}
       dirty={autoProvision !== savedAutoProvision(installation)}
-      description="People the provider lets in get a Silo account the first time they sign in. Off: only people whose Silo account is already connected can sign in."
+      description="People the provider lets in get a Ramedia Server account the first time they sign in. Off: only people whose Ramedia Server account is already connected can sign in."
       descriptionId={autoProvisionDescription}
     >
       <Switch
@@ -502,8 +502,9 @@ function ProviderPanel({
   if (mode === "oauth") {
     steps.push({
       key: "register",
-      title: "Register Silo at your provider",
-      description: "Create a confidential client for Silo and add this redirect URI to it.",
+      title: "Register Ramedia Server at your provider",
+      description:
+        "Create a confidential client for Ramedia Server and add this redirect URI to it.",
       body: (
         <>
           {!publicUrlSet ? (
@@ -807,8 +808,8 @@ function NoProviderPanel({
   if (!active) {
     return (
       <p className="text-muted-foreground pt-5 text-sm">
-        No sign-in provider is on, so people sign in with Silo passwords. Pick a provider above to
-        set it up.
+        No sign-in provider is on, so people sign in with Ramedia Server passwords. Pick a provider
+        above to set it up.
       </p>
     );
   }
@@ -843,7 +844,7 @@ function TurnOffActiveProvider({
     <div className="pt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
-          {label} is on. Turn it off to sign in with Silo passwords only.
+          {label} is on. Turn it off to sign in with Ramedia Server passwords only.
         </p>
         <Button
           type="button"
@@ -945,7 +946,7 @@ export function SignInProviderSlot({
         state: providerState(installation, missingSignInSetup(layout)),
       };
     }),
-    { id: "none", title: "None", detail: "Only Silo passwords." },
+    { id: "none", title: "None", detail: "Only Ramedia Server passwords." },
   ];
 
   return (

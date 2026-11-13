@@ -156,12 +156,13 @@ export default function SignInSettings() {
       <div className="flex-1 space-y-5">
         {capabilities.isError || (caps && !supported) ? (
           <p className="text-muted-foreground text-sm" role="status">
-            External sign-in isn't available on this server, so only Silo passwords sign in.
+            External sign-in isn't available on this server, so only Ramedia Server passwords sign
+            in.
           </p>
         ) : null}
 
         <FieldGroup
-          label="Silo passwords"
+          label="Ramedia Server passwords"
           dirty={[LOCAL_LOGIN_KEY, ...PASSWORD_ACCOUNT_KEYS].some((key) => form.isDirty(key))}
           actions={
             <Link
@@ -257,16 +258,16 @@ export default function SignInSettings() {
               label="Match existing accounts by email"
               dirty={form.isDirty(EMAIL_MATCH_KEY)}
               type="toggle"
-              description="A first sign-in connects to the regular Silo account with the same email, when the provider says the email is verified. Admin, owner and break-glass accounts are never matched."
+              description="A first sign-in connects to the regular Ramedia Server account with the same email, when the provider says the email is verified. Admin, owner and break-glass accounts are never matched."
               value={emailMatchOn ? "true" : "false"}
               onChange={(value) => form.setValue(EMAIL_MATCH_KEY, value)}
               status={
                 <SettingFieldStatus tone={emailMatchOn ? "warn" : "muted"}>
-                  Whoever controls that email at the provider takes over the Silo account. Silo
-                  doesn't verify account emails, so the account matched is whichever one registered
-                  or set the address first; matching signs it out everywhere and deletes its API
-                  keys. Turn this on only if the provider verifies every email and people can't
-                  change their own.
+                  Whoever controls that email at the provider takes over the Ramedia Server account.
+                  Ramedia Server doesn't verify account emails, so the account matched is whichever
+                  one registered or set the address first; matching signs it out everywhere and
+                  deletes its API keys. Turn this on only if the provider verifies every email and
+                  people can't change their own.
                 </SettingFieldStatus>
               }
             />

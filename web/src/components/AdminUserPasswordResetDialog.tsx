@@ -153,7 +153,7 @@ export function AdminUserPasswordResetDialog({
     if (!user.enabled) return "Enable the account to create a reset link.";
     return (
       <>
-        Set the Silo public URL to create reset links.{" "}
+        Set the Ramedia Server public URL to create reset links.{" "}
         <Link
           to="/admin/settings/general"
           className="text-foreground inline-flex items-center gap-1 font-medium hover:underline"

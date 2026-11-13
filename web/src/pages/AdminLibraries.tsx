@@ -2213,8 +2213,8 @@ function UnmatchedItemsSection() {
                           aria-label={`${ignoredView ? "Restore" : "Ignore"} ${u.title}`}
                           title={
                             ignoredView
-                              ? "Put this item back on the unmatched list so Silo tries to match it again"
-                              : "Mark this item as intentionally unmatched: Silo stops trying to match it and moves it to the Ignored view"
+                              ? "Put this item back on the unmatched list so Ramedia Server tries to match it again"
+                              : "Mark this item as intentionally unmatched: Ramedia Server stops trying to match it and moves it to the Ignored view"
                           }
                           onClick={() =>
                             setIgnored.mutate({

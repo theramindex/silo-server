@@ -171,7 +171,7 @@ function HolidayDatesFields({
 const SOURCES = [
   {
     value: "recommendations",
-    label: "Silo recommendations",
+    label: "Ramedia Server recommendations",
     hint: "The list's titles you have, most popular first, then similar titles from your library.",
   },
   {

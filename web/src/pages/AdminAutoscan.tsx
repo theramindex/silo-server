@@ -51,7 +51,7 @@ function AutoscanSourcesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Autoscan"
-        subtitle="Silo re-scans a library as soon as something changes, instead of waiting for the next scheduled scan. Add a source for each thing you want watched."
+        subtitle="Ramedia Server re-scans a library as soon as something changes, instead of waiting for the next scheduled scan. Add a source for each thing you want watched."
         actions={
           <>
             {settings.data &&

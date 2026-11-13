@@ -152,7 +152,8 @@ function useCustomizationBlocker(): ReactNode {
       <div className="surface-panel-subtle rounded-xl border p-4" role="alert">
         <p className="font-medium">Your server needs an update</p>
         <p className="text-muted-foreground mt-1 text-sm">
-          Poster size and the menu can be changed once your server runs a newer version of Silo.
+          Poster size and the menu can be changed once your server runs a newer version of Ramedia
+          Server.
         </p>
       </div>
     );
@@ -311,7 +312,7 @@ function MenuSettings() {
   return (
     <SettingsGroup
       title="Menu"
-      description="The links along the top of Silo in your web browsers. Search and your profile are always there."
+      description="The links along the top of Ramedia Server in your web browsers. Search and your profile are always there."
       actions={
         clientOverride ? (
           <ResetButton

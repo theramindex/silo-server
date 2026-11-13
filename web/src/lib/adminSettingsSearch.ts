@@ -82,7 +82,7 @@ export const ADMIN_SETTINGS_NAV: AdminSettingsSearchItem[] = [
       "Server name",
       "Login subtitle",
       "Network",
-      "Silo public URL",
+      "Ramedia Server public URL",
       "Show on the local network",
       "Local network address",
       "Trusted proxies",
@@ -214,7 +214,7 @@ export const ADMIN_SETTINGS_NAV: AdminSettingsSearchItem[] = [
   {
     id: "sign-in",
     label: "Sign-in",
-    description: "Silo passwords and signups, single sign-on, and network sign-in.",
+    description: "Ramedia Server passwords and signups, single sign-on, and network sign-in.",
     keywords: [
       "sso",
       "single sign-on",
@@ -245,7 +245,7 @@ export const ADMIN_SETTINGS_NAV: AdminSettingsSearchItem[] = [
       "tailscale",
     ],
     settings: settingIndex(
-      "Silo passwords",
+      "Ramedia Server passwords",
       "Allow password sign-in",
       "Public signups",
       "Self-service password reset",
@@ -272,7 +272,7 @@ export const ADMIN_SETTINGS_NAV: AdminSettingsSearchItem[] = [
   {
     id: "security",
     label: "Security",
-    description: "Which local servers Silo may contact, and request rate limits.",
+    description: "Which local servers Ramedia Server may contact, and request rate limits.",
     keywords: [
       "private destinations",
       "ssrf",
@@ -671,7 +671,7 @@ export const ADMIN_SETTINGS_NAV: AdminSettingsSearchItem[] = [
     id: "email",
     label: "Email",
     description:
-      "The mail server Silo sends invitations, password resets, and notification emails through.",
+      "The mail server Ramedia Server sends invitations, password resets, and notification emails through.",
     keywords: [
       "email",
       "smtp",

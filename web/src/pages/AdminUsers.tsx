@@ -226,7 +226,7 @@ function AdminUsersPage() {
       )}
       <PageHeader
         title="Users"
-        subtitle="Manage access, defaults, and invite flow for the people using Silo."
+        subtitle="Manage access, defaults, and invite flow for the people using Ramedia Server."
         actions={
           <>
             {serverSettings !== undefined && (

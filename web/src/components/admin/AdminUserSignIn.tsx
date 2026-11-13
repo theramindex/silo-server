@@ -155,9 +155,9 @@ function connectPasswordNote(
   user: AdminUser,
   installation: PluginInstallation | undefined,
 ): string {
-  if (user.break_glass) return " As a break-glass account it keeps its Silo password.";
+  if (user.break_glass) return " As a break-glass account it keeps its Ramedia Server password.";
   if (installation && isNetworkSignIn(installation)) {
-    return user.password_login ? " It keeps its Silo password too." : "";
+    return user.password_login ? " It keeps its Ramedia Server password too." : "";
   }
   return " Connecting turns off password sign-in for this account.";
 }
@@ -307,9 +307,10 @@ function LinkIdentityDialog({
               placeholder="https://id.example.com|8f14e45f"
             />
             <p id={subjectHintId} className="text-muted-foreground text-xs">
-              The provider's exact ID for the person, as Silo stores it. OpenID Connect: the issuer
-              and subject joined by | (Entra ID: tenant ID and object ID). LDAP: the directory's
-              unique ID, such as entryUUID or objectGUID. Silo never matches on a name or email.
+              The provider's exact ID for the person, as Ramedia Server stores it. OpenID Connect:
+              the issuer and subject joined by | (Entra ID: tenant ID and object ID). LDAP: the
+              directory's unique ID, such as entryUUID or objectGUID. Ramedia Server never matches
+              on a name or email.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -466,10 +467,10 @@ export function AdminUserSignIn({
         <Panel title="Password sign-in">
           <p className="text-sm">
             {!user.password_login
-              ? `Off: ${user.username} can't sign in with a Silo password.`
+              ? `Off: ${user.username} can't sign in with a Ramedia Server password.`
               : passwordWaitsForServer
-                ? `On for this account, but password sign-in is off for the server, so ${user.username} can't sign in with a Silo password until it's back on.`
-                : `On: ${user.username} can sign in with a Silo password.`}
+                ? `On for this account, but password sign-in is off for the server, so ${user.username} can't sign in with a Ramedia Server password until it's back on.`
+                : `On: ${user.username} can sign in with a Ramedia Server password.`}
           </p>
           {passwordWaitsForServer ? (
             <p className="text-muted-foreground text-xs">

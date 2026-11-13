@@ -206,7 +206,7 @@ function SourceControl({
       <TMDBListURLField
         id={`${id}-tmdb-list`}
         label="TMDB list link"
-        help="Paste a public list from themoviedb.org. Silo reads it again about every 12 hours."
+        help="Paste a public list from themoviedb.org. Ramedia Server reads it again about every 12 hours."
         value={typedLink}
         onChange={(raw) => {
           setTypedLink(raw);

@@ -125,7 +125,7 @@ function QualitySetting() {
 
       <SettingRow
         label="Maximum bitrate"
-        description="Cap how much bandwidth playback may use. No limit means Silo picks for the chosen resolution."
+        description="Cap how much bandwidth playback may use. No limit means Ramedia Server picks for the chosen resolution."
         control={(id) => (
           <Select
             value={bitrateValue === "" ? NO_BITRATE_LIMIT : bitrateValue}
@@ -548,7 +548,7 @@ export default function PlaybackSettings() {
           // whose position would be a guess the user could act on.
           <SettingRow
             label="Skip intros"
-            description="Available once Silo has checked what this server supports."
+            description="Available once Ramedia Server has checked what this server supports."
             control={(id) => (
               <Select disabled>
                 <SelectTrigger id={id} className="w-full sm:w-[220px]">
@@ -567,7 +567,7 @@ export default function PlaybackSettings() {
         ) : (
           <SettingRow
             label="Auto-skip intros"
-            description="Jump past intros automatically when Silo can detect them."
+            description="Jump past intros automatically when Ramedia Server can detect them."
             control={(id) => (
               <Switch
                 id={id}
@@ -619,7 +619,7 @@ export default function PlaybackSettings() {
 
         <SettingRow
           label="Auto-skip recaps"
-          description="Skip 'previously on…' recaps automatically when Silo can detect them."
+          description="Skip 'previously on…' recaps automatically when Ramedia Server can detect them."
           control={(id) => (
             <Switch
               id={id}

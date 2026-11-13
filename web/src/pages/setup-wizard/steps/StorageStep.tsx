@@ -370,7 +370,7 @@ export function StorageStep() {
               ? "Storage lock status is unavailable. Reload before changing the backend."
               : artworkLocked
                 ? "Locked: files have already been stored on this backend. Change it from Admin › Server › Storage, which moves them."
-                : "Where Silo keeps artwork, subtitles, and other library assets."
+                : "Where Ramedia Server keeps artwork, subtitles, and other library assets."
           }
           onChange={(value) => {
             form.setValue("artwork.storage_backend", value);
@@ -482,7 +482,7 @@ export function StorageStep() {
             disabled={busy}
             locationLocked={locationStatusUnavailable || privateLocked}
             locationStatusUnavailable={locationStatusUnavailable}
-            lockedDescription="Locked: Silo records a configured private bucket at startup, even when empty. Stored library assets also lock this location. Change it from Admin › Server › Storage."
+            lockedDescription="Locked: Ramedia Server records a configured private bucket at startup, even when empty. Stored library assets also lock this location. Change it from Admin › Server › Storage."
           />
         </Backend>
       </StepSection>

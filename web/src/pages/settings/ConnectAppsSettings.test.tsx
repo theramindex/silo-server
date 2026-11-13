@@ -89,7 +89,7 @@ function makeConnectInfo(
 
 const LOCAL_PROVIDER: AuthProviderOption = {
   id: "local",
-  display_name: "Silo account",
+  display_name: "Ramedia Server account",
   mode: "credentials",
   default: true,
 };
@@ -357,7 +357,7 @@ describe("ConnectAppsSettings", () => {
     render("silo");
 
     expect(container.textContent).toContain(
-      "Silo's phone apps don't offer this account a way to sign in",
+      "Ramedia Server's phone apps don't offer this account a way to sign in",
     );
     expect(container.textContent).toContain(`${window.location.origin}/login?local=1`);
     expect(container.textContent).not.toContain("Your account password");

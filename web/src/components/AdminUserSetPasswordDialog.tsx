@@ -98,8 +98,8 @@ export function AdminUserSetPasswordDialog({
           <DialogHeader>
             <DialogTitle>Set a password</DialogTitle>
             <DialogDescription>
-              {user.username} can't sign in with a Silo password now. Setting one turns password
-              sign-in back on for this account. A connected sign-in provider keeps working.
+              {user.username} can't sign in with a Ramedia Server password now. Setting one turns
+              password sign-in back on for this account. A connected sign-in provider keeps working.
               {waitsForServer
                 ? " Password sign-in is off for the server, so the password works only once it's turned back on in Settings → Sign-in."
                 : ""}

@@ -141,7 +141,7 @@ function PluginsBoard() {
   const header = (
     <PageHeader
       title="Plugins"
-      subtitle="Add metadata sources, playback markers, request routing, and watch sync to Silo."
+      subtitle="Add metadata sources, playback markers, request routing, and watch sync to Ramedia Server."
       actions={
         <Button
           variant="outline"

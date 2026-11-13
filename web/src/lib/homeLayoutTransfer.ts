@@ -156,10 +156,10 @@ export function parseHomeLayoutFile(text: string): HomeLayoutParseResult {
     return { ok: false, error: "This isn't valid JSON." };
   }
   if (!isRecord(data) || data.format !== HOME_LAYOUT_FORMAT) {
-    return { ok: false, error: "This isn't a Silo home layout export." };
+    return { ok: false, error: "This isn't a Ramedia Server home layout export." };
   }
   if (typeof data.version === "number" && data.version > HOME_LAYOUT_VERSION) {
-    return { ok: false, error: "This export comes from a newer version of Silo." };
+    return { ok: false, error: "This export comes from a newer version of Ramedia Server." };
   }
   if (
     data.version !== HOME_LAYOUT_VERSION ||

@@ -54,7 +54,7 @@ export default function EmailSettings() {
       <div className="flex-1 space-y-5">
         <FieldGroup
           label="Mail server"
-          description="Silo sends invitations, password resets, and notification emails through it."
+          description="Ramedia Server sends invitations, password resets, and notification emails through it."
           restartAll={allRestart}
           dirty={anyDirty}
         >
@@ -77,7 +77,7 @@ export default function EmailSettings() {
           <SettingField
             label="From name"
             dirty={form.isDirty("email.from_name")}
-            hint="Silo"
+            hint="Ramedia Server"
             value={form.getValue("email.from_name")}
             onChange={(v) => form.setValue("email.from_name", v)}
             restartRequired={restartKeys.has("email.from_name")}

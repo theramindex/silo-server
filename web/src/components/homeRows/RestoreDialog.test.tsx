@@ -51,14 +51,14 @@ describe("RestoreDialog", () => {
       />,
     );
     expect(bullets()).toEqual([
-      "The 9 rows on the Movies page are replaced by Silo's default rows.",
+      "The 9 rows on the Movies page are replaced by Ramedia Server's default rows.",
       "Studio Ghibli shows a collection and is removed. The collection itself stays in Collections.",
       "Home doesn't change.",
     ]);
     unmount();
     render(<Harness otherLibraryLabels={[]} collectionRowTitles={["A", "B", "C", "D", "E"]} />);
     expect(bullets()).toEqual([
-      "The 9 rows on Home are replaced by Silo's default rows.",
+      "The 9 rows on Home are replaced by Ramedia Server's default rows.",
       "Rows that show collections, like A, B, C and 2 more, are removed. The collections themselves stay in Collections.",
     ]);
   });
@@ -67,7 +67,7 @@ describe("RestoreDialog", () => {
     render(<Harness />);
     const toggle = screen.getByRole("switch", { name: "Also restore every library page" });
     expect(toggle).toHaveAccessibleDescription(
-      "Movies, TV Shows go back to Silo's default rows too.",
+      "Movies, TV Shows go back to Ramedia Server's default rows too.",
     );
     await userEvent.click(toggle);
     expect(
@@ -75,11 +75,11 @@ describe("RestoreDialog", () => {
         name: "Restore Home and every library page to the default rows?",
       }),
     ).toHaveAccessibleDescription(
-      "Home and every library page go back to the rows Silo starts with.",
+      "Home and every library page go back to the rows Ramedia Server starts with.",
     );
     expect(bullets()).toEqual([
-      "The 9 rows on Home are replaced by Silo's default rows.",
-      "Library pages (Movies, TV Shows) also go back to Silo's default rows, and their collection rows are removed.",
+      "The 9 rows on Home are replaced by Ramedia Server's default rows.",
+      "Library pages (Movies, TV Shows) also go back to Ramedia Server's default rows, and their collection rows are removed.",
     ]);
     const reset = screen.getByRole("switch", {
       name: "Also reset every profile's Home and library pages",
@@ -103,10 +103,12 @@ describe("RestoreDialog", () => {
     );
     expect(
       screen.getByRole("dialog", { name: "Restore every library page to the default rows?" }),
-    ).toHaveAccessibleDescription("Every library page goes back to the rows Silo starts with.");
+    ).toHaveAccessibleDescription(
+      "Every library page goes back to the rows Ramedia Server starts with.",
+    );
     expect(bullets()).toEqual([
-      "The 9 rows on the Movies page are replaced by Silo's default rows.",
-      "The other library pages (TV Shows) also go back to Silo's default rows, and their collection rows are removed. Home doesn't change.",
+      "The 9 rows on the Movies page are replaced by Ramedia Server's default rows.",
+      "The other library pages (TV Shows) also go back to Ramedia Server's default rows, and their collection rows are removed. Home doesn't change.",
     ]);
     expect(
       screen.getByRole("switch", { name: "Also reset every profile's library pages" }),

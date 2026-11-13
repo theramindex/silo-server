@@ -82,7 +82,7 @@ function SettingsIndex({ groups }: { groups: readonly UserSettingsNavGroup[] }) 
       <PageHeader
         className="mt-10 sm:mt-12"
         title="Settings"
-        subtitle="Make Silo work the way you like."
+        subtitle="Make Ramedia Server work the way you like."
       />
       <CurrentProfileLink className="surface-panel-subtle min-h-14 rounded-2xl px-4 py-3" />
       <SettingsSearchInput

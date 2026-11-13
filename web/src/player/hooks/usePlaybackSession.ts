@@ -393,7 +393,7 @@ function describePlaybackSessionError(
   if (isTransientPlayerRequestError(error)) {
     return {
       title: "Playback unavailable",
-      message: "Silo couldn't reach the server. Check your connection, then try again.",
+      message: "Ramedia Server couldn't reach the server. Check your connection, then try again.",
     };
   }
 

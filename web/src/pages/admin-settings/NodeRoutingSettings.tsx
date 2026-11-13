@@ -124,7 +124,7 @@ const ROUTING_FIELDS: readonly RoutingField[] = [
 
 const ROUTING_PRESETS = {
   standard: {
-    label: "Silo Defaults",
+    label: "Ramedia Server Defaults",
     values: {
       "playback.routing.direct_play_egress": "prefer_proxy",
       "playback.routing.remux_execution": "prefer_transcode",

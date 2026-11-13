@@ -99,7 +99,7 @@ function reportRestore(
       const label =
         alsoPages.find((page) => page.id === libraryId)?.label ?? `Library ${libraryId}`;
       if (outcome === "unknown")
-        return `${label}: it may have been restored, but Silo couldn't confirm it. Reload it to check.`;
+        return `${label}: it may have been restored, but Ramedia Server couldn't confirm it. Reload it to check.`;
       return `${label}: ${adminSectionMutationMessage(error, "Could not restore the default rows")}`;
     })
     .join(" ");
@@ -395,7 +395,7 @@ export default function AdminHomeRows() {
     {
       key: "restore",
       label: "Restore defaults…",
-      help: "Put back the rows Silo starts with on this page.",
+      help: "Put back the rows Ramedia Server starts with on this page.",
       icon: RotateCcw,
       // The restore itself is an admin row write, so `pending` covers it.
       disabled: !canManageCurrentScope || snapshotLoading || adapter.pending,

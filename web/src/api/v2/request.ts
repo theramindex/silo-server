@@ -342,7 +342,7 @@ export class V2TimeoutError extends Error {
 
 /** Identifies this client to the server; the same header pair the contract fixtures send. */
 export const V2_CLIENT_HEADERS: Readonly<Record<string, string>> = {
-  "X-Silo-Client": "Silo Web",
+  "X-Silo-Client": "Ramedia Server Web",
   "X-Silo-Client-Version": typeof __SILO_WEB_VERSION__ === "string" ? __SILO_WEB_VERSION__ : "dev",
 };
 

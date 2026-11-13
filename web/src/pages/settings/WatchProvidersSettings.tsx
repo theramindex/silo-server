@@ -841,7 +841,7 @@ function WatchProviderCard({
                   <ToggleRow
                     id={`watch-provider-${providerKey}-watchlist-order`}
                     label="Mirror watchlist order"
-                    description={`Order your Silo watchlist to match its ${displayName} sort order. Items not on ${displayName} stay at the bottom.`}
+                    description={`Order your Ramedia Server watchlist to match its ${displayName} sort order. Items not on ${displayName} stay at the bottom.`}
                     checked={connection.sync_watchlist_order_enabled}
                     disabled={isBusy || !connection.import_watchlist_enabled}
                     onChange={(checked) =>

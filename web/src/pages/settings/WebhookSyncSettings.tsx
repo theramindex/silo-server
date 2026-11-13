@@ -593,7 +593,7 @@ export default function WebhookSyncSettings() {
 
       <SettingsGroup
         title="Add a connection"
-        description="Create a provider-specific webhook endpoint and choose the default Silo profile."
+        description="Create a provider-specific webhook endpoint and choose the default Ramedia Server profile."
       >
         <div className="flex flex-col gap-3">
           <Label className="text-sm font-medium">Provider</Label>
@@ -944,7 +944,8 @@ export default function WebhookSyncSettings() {
                     <div className="space-y-0.5">
                       <Label className="text-sm font-medium">Profile mapping</Label>
                       <p className="text-muted-foreground text-[13px] leading-relaxed">
-                        Map each external user to a Silo profile. Unmapped users are ignored.
+                        Map each external user to a Ramedia Server profile. Unmapped users are
+                        ignored.
                       </p>
                     </div>
 
@@ -1043,7 +1044,7 @@ export default function WebhookSyncSettings() {
                           </li>
                           <li>
                             Plex sends no webhook when someone marks an item watched or unwatched by
-                            hand, so only playback reaches Silo.
+                            hand, so only playback reaches Ramedia Server.
                           </li>
                         </ol>
                       ) : null}
@@ -1081,7 +1082,7 @@ export default function WebhookSyncSettings() {
                                 items: [
                                   {
                                     event: "Users → Add to Favorites, Remove from Favorites",
-                                    note: "Syncs favorites to the mapped Silo profile.",
+                                    note: "Syncs favorites to the mapped Ramedia Server profile.",
                                   },
                                   {
                                     event: "Users → Mark Played, Mark Unplayed",
@@ -1095,7 +1096,7 @@ export default function WebhookSyncSettings() {
                                 items: [
                                   {
                                     event: "Playback → Start, Pause, Unpause",
-                                    note: "Silo only records completion, not in-progress state.",
+                                    note: "Ramedia Server only records completion, not in-progress state.",
                                   },
                                 ],
                               },
@@ -1128,9 +1129,9 @@ export default function WebhookSyncSettings() {
                               watch progress and{" "}
                               <span className="text-foreground">User Data Saved</span> for items
                               marked played or unplayed. User Data Saved also fires during playback;
-                              Silo ignores those deliveries. Leave{" "}
-                              <span className="text-foreground">Playback Progress</span> off — Silo
-                              ignores it and it generates heavy traffic.
+                              Ramedia Server ignores those deliveries. Leave{" "}
+                              <span className="text-foreground">Playback Progress</span> off —
+                              Ramedia Server ignores it and it generates heavy traffic.
                             </li>
                             <li>
                               Paste the template below into{" "}

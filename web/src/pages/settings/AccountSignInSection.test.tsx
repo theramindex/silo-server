@@ -25,7 +25,12 @@ vi.mock("@/lib/externalSignIn", async (original) => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: toastSuccess } }));
 
-const LOCAL = { id: "local", mode: "credentials", display_name: "Silo account", default: true };
+const LOCAL = {
+  id: "local",
+  mode: "credentials",
+  display_name: "Ramedia Server account",
+  default: true,
+};
 const OIDC = {
   id: "plugin:5:oidc",
   installation_id: "5",
@@ -183,14 +188,16 @@ it("explains the server's refusal to remove the last sign-in method", async () =
   const dialog = await screen.findByRole("alertdialog");
   fireEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
   expect((await within(dialog).findByRole("alert")).textContent).toBe(
-    "Company SSO is the only way to sign in to your account, so it can't be disconnected. Ask an admin to set a Silo password for you first.",
+    "Company SSO is the only way to sign in to your account, so it can't be disconnected. Ask an admin to set a Ramedia Server password for you first.",
   );
 });
 
 async function openOAuthConnect() {
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Connect Company SSO" }));
-  fireEvent.change(screen.getByLabelText("Silo password"), { target: { value: "local pw" } });
+  fireEvent.change(screen.getByLabelText("Ramedia Server password"), {
+    target: { value: "local pw" },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Continue to Company SSO" }));
 }
 
@@ -215,7 +222,7 @@ it.each([
   [
     "POST /api/v2/account/identities/link-ticket",
     problem("validation_failed", 422, "body.password"),
-    "That isn't your current Silo password.",
+    "That isn't your current Ramedia Server password.",
   ],
   [
     "POST /api/v2/account/identities/link-start",
@@ -233,7 +240,9 @@ async function submitDirectoryConnect() {
   auth.providers = [LOCAL, LDAP];
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Connect Directory" }));
-  fireEvent.change(screen.getByLabelText("Silo password"), { target: { value: "local pw" } });
+  fireEvent.change(screen.getByLabelText("Ramedia Server password"), {
+    target: { value: "local pw" },
+  });
   fireEvent.change(screen.getByLabelText("Directory username"), { target: { value: "alice" } });
   fireEvent.change(screen.getByLabelText("Directory password"), { target: { value: "dir pw" } });
   fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -258,7 +267,10 @@ it("connects a directory with its username and password", async () => {
 });
 
 it.each([
-  [problem("validation_failed", 422, "body.password"), "That isn't your current Silo password."],
+  [
+    problem("validation_failed", 422, "body.password"),
+    "That isn't your current Ramedia Server password.",
+  ],
   [
     problem("validation_failed", 422, "body.directory_password"),
     "Directory didn't accept that username and password.",
@@ -274,13 +286,17 @@ async function submitNetworkConnect() {
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Connect Tailscale" }));
   expect(
-    screen.getByText(/Confirm your Silo password to connect Alice Example's Tailscale account/),
+    screen.getByText(
+      /Confirm your Ramedia Server password to connect Alice Example's Tailscale account/,
+    ),
   ).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Silo password"), { target: { value: "local pw" } });
+  fireEvent.change(screen.getByLabelText("Ramedia Server password"), {
+    target: { value: "local pw" },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 }
 
-it("connects the network identity of this device with the Silo password only", async () => {
+it("connects the network identity of this device with the Ramedia Server password only", async () => {
   await submitNetworkConnect();
   await screen.findByText("Connected Tailscale. Sign in with it from now on.");
   expect(opCalls("POST /api/v2/account/identities/link-network")[0]?.options).toEqual({

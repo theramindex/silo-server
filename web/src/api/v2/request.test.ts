@@ -85,7 +85,7 @@ describe("v2 request boundary", () => {
       Accept: "application/json",
       Authorization: "Bearer tok-user",
       "X-Profile-Id": "p-owner",
-      "X-Silo-Client": "Silo Web",
+      "X-Silo-Client": "Ramedia Server Web",
       "X-Silo-Client-Family": "web",
     });
     expect(progressRequest.init.headers["X-Silo-Client-Version"]).toMatch(/\S/);

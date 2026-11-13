@@ -823,8 +823,8 @@ export function useSetUnmatchedItemIgnored() {
         variables.ignored ? `Ignored ${variables.title}` : `Restored ${variables.title}`,
         {
           description: variables.ignored
-            ? "Silo won't try to match it again. You can restore it from the Ignored view."
-            : "It's back on the unmatched list, and Silo will try to match it again.",
+            ? "Ramedia Server won't try to match it again. You can restore it from the Ignored view."
+            : "It's back on the unmatched list, and Ramedia Server will try to match it again.",
           action: { label: "Undo", onClick: () => undoMutation.mutate(variables) },
         },
       );

@@ -49,11 +49,13 @@ const successMessages: Record<Exclude<SessionActionKind, "message">, string> = {
 };
 
 const fallbackMessages: Record<Exclude<SessionActionKind, "message">, string> = {
-  pause: "Pause could not reach the player directly. Silo will end the session shortly instead.",
-  resume: "Resume could not reach the player directly. Silo will end the session shortly instead.",
-  stop: "Stop could not reach the player directly. Silo will end the session shortly instead.",
+  pause:
+    "Pause could not reach the player directly. Ramedia Server will end the session shortly instead.",
+  resume:
+    "Resume could not reach the player directly. Ramedia Server will end the session shortly instead.",
+  stop: "Stop could not reach the player directly. Ramedia Server will end the session shortly instead.",
   terminate:
-    "Terminate could not reach the player directly. Silo will end the session shortly instead.",
+    "Terminate could not reach the player directly. Ramedia Server will end the session shortly instead.",
 };
 
 const unsupportedPlaybackControlCopy =
@@ -150,7 +152,7 @@ export function AdminSessionActions({
       if (receipt.outcome === "replayed") {
         const fallback =
           receipt.delivery === "fallback_scheduled"
-            ? " Silo could not reach the player and scheduled the session to end."
+            ? " Ramedia Server could not reach the player and scheduled the session to end."
             : "";
         toast.success(
           `Your earlier ${action} request was already accepted.${fallback} Choose ${action} again to send a new command.`,

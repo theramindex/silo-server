@@ -109,7 +109,7 @@ it("points to General settings while no public URL is set", () => {
   expect(screen.getByRole("radio", { name: "Create a link to share" })).toBeDisabled();
   expect(screen.getByRole("radio", { name: "Email a reset link" })).toBeDisabled();
   expect(screen.getByRole("radio", { name: "Set a temporary password" })).toBeChecked();
-  expect(screen.getByText(/Set the Silo public URL to create reset links/)).toBeInTheDocument();
+  expect(screen.getByText(/Set the Ramedia Server public URL to create reset links/)).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /General settings/ })).toHaveAttribute(
     "href",
     "/admin/settings/general",

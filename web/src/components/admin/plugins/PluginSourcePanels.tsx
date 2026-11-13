@@ -107,7 +107,7 @@ export function PluginRepositoriesPanel({
           <h2 id="plugin-repositories-heading" className="text-[15px] font-semibold">
             Repositories
           </h2>
-          <p className="text-muted-foreground text-[13px]">Where Silo finds plugins.</p>
+          <p className="text-muted-foreground text-[13px]">Where Ramedia Server finds plugins.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
           {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}

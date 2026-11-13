@@ -1,5 +1,7 @@
+import { PRODUCT_NAME } from "./productBrand";
+
 /** Default app name, overridable by admin branding settings. */
-export let APP_DOCUMENT_TITLE = "Silo";
+export let APP_DOCUMENT_TITLE = PRODUCT_NAME;
 
 /**
  * The label of the currently-mounted page (set by useDocumentTitle). Tracked
@@ -19,7 +21,7 @@ export function setActiveDocumentTitleLabel(label: string | null | undefined) {
  * server name as soon as branding resolves.
  */
 export function setAppDocumentTitle(name: string) {
-  APP_DOCUMENT_TITLE = name || "Silo";
+  APP_DOCUMENT_TITLE = name || PRODUCT_NAME;
   if (typeof document !== "undefined") {
     document.title = formatDocumentTitle(activeLabel);
   }

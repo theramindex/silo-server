@@ -2606,7 +2606,7 @@ describe("usePlaybackSession mid-stream reconnect", () => {
     act(() => result.current.recoverFromFailure({ classification: "startup_timeout" }, 0));
     await waitFor(() =>
       expect(result.current.error).toBe(
-        "Silo couldn't reach the server. Check your connection, then try again.",
+        "Ramedia Server couldn't reach the server. Check your connection, then try again.",
       ),
     );
     expect(result.current.connectionStatus).toBe("connected");

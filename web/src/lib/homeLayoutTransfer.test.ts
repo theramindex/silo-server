@@ -159,11 +159,11 @@ describe("parseHomeLayoutFile", () => {
     expect(parseHomeLayoutFile("{")).toEqual({ ok: false, error: "This isn't valid JSON." });
     expect(parseHomeLayoutFile('{"format":"other"}')).toEqual({
       ok: false,
-      error: "This isn't a Silo home layout export.",
+      error: "This isn't a Ramedia Server home layout export.",
     });
     expect(parseHomeLayoutFile('{"format":"silo-home-layout","version":2}')).toEqual({
       ok: false,
-      error: "This export comes from a newer version of Silo.",
+      error: "This export comes from a newer version of Ramedia Server.",
     });
     expect(parseHomeLayoutFile('{"format":"silo-home-layout","version":1}')).toEqual({
       ok: false,

@@ -132,7 +132,7 @@ describe("GeneralSettings", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Redis settings are unavailable");
     expect(screen.queryByRole("group", { name: "Redis" })).toBeNull();
-    expect(network().getByLabelText("Silo public URL")).toBeEnabled();
+    expect(network().getByLabelText("Ramedia Server public URL")).toBeEnabled();
   });
 
   it("saves other edits but not a Redis draft hidden by a credential status error", async () => {

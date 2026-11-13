@@ -231,9 +231,9 @@ export default function SearchSettings() {
                 status={
                   enablingSemanticSearch ? (
                     <SettingFieldStatus tone="warn">
-                      Enabling this changes the index format. After you save and restart, Silo
-                      rebuilds the index automatically. Keyword search stays available while it
-                      rebuilds.
+                      Enabling this changes the index format. After you save and restart, Ramedia
+                      Server rebuilds the index automatically. Keyword search stays available while
+                      it rebuilds.
                     </SettingFieldStatus>
                   ) : undefined
                 }
@@ -256,7 +256,7 @@ export default function SearchSettings() {
                   label="Index name prefix"
                   value={form.getValue("catalog.search.meilisearch.index") || "silo_media_items"}
                   onChange={(value) => form.setValue("catalog.search.meilisearch.index", value)}
-                  description="Only needed when Silo servers share one Meilisearch."
+                  description="Only needed when Ramedia Server servers share one Meilisearch."
                   disabled={!meiliEnabled}
                   restartRequired={restartKeys.has("catalog.search.meilisearch.index")}
                 />

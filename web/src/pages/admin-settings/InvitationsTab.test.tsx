@@ -195,7 +195,7 @@ it("asks for the public URL before anyone fills in an invitation", () => {
   expect(screen.getByTitle("Email a new link")).toBeDisabled();
   expect(screen.getByTitle("Revoke this link")).not.toBeDisabled();
   expect(
-    screen.getByText(/Set the Silo public URL to create invitation links/),
+    screen.getByText(/Set the Ramedia Server public URL to create invitation links/),
   ).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /General settings/ })).toHaveAttribute(
     "href",

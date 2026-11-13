@@ -372,7 +372,7 @@ function MarkerProviderTile({
         <SettingFieldRow
           label="Provider priority"
           htmlFor={priorityID}
-          description="Silo uses the marker with the highest confidence. When two providers are equally confident, it prefers the lower number."
+          description="Ramedia Server uses the marker with the highest confidence. When two providers are equally confident, it prefers the lower number."
         >
           <Input
             id={priorityID}

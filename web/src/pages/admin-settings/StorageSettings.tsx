@@ -325,14 +325,14 @@ function S3Group({
                 {publicBackendChangePending
                   ? "Saving this bucket opens a managed transition from local storage. Choose what to copy before switching."
                   : scope === "private" && artworkLockedBackend !== "s3"
-                    ? "Saving this location opens a managed transition. You can start fresh or copy avatars, diagnostics, and catalog artifacts from where they are kept now; Silo verifies the old and new locations before switching."
-                    : "Saving this location opens a managed transition. You can start fresh or copy data from the current S3 storage; Silo verifies the old and new locations before switching."}
+                    ? "Saving this location opens a managed transition. You can start fresh or copy avatars, diagnostics, and catalog artifacts from where they are kept now; Ramedia Server verifies the old and new locations before switching."
+                    : "Saving this location opens a managed transition. You can start fresh or copy data from the current S3 storage; Ramedia Server verifies the old and new locations before switching."}
               </p>
             ) : (
               <p className="text-muted-foreground mt-1">
                 {scope === "public"
                   ? "The first artwork write records this location. Uploaded posters, collection artwork, and branding cannot be re-downloaded, so choose the bucket before scanning."
-                  : "Silo records a configured private bucket at startup. Choose it before storing avatars, diagnostics, or catalog artifacts; changing it later requires a managed transition."}
+                  : "Ramedia Server records a configured private bucket at startup. Choose it before storing avatars, diagnostics, or catalog artifacts; changing it later requires a managed transition."}
               </p>
             )}
           </div>
@@ -858,7 +858,7 @@ export default function StorageSettings() {
                 ? artworkStorage?.backend === "s3"
                   ? "Choose Automatic or Local disk to review a managed transition from S3."
                   : "Edit the local path, or choose S3 and fill in Public storage. Saving opens a managed transition review."
-                : "Where Silo keeps artwork, subtitles, and other library assets."
+                : "Where Ramedia Server keeps artwork, subtitles, and other library assets."
             }
             restartRequired={restartKeys.has("artwork.storage_backend")}
           />
@@ -997,7 +997,7 @@ export default function StorageSettings() {
               <div className="min-w-0 space-y-1">
                 <p className="text-sm font-medium">Manual restart required</p>
                 <p className="text-muted-foreground text-xs">
-                  The storage switch is committed, but this host could not restart Silo
+                  The storage switch is committed, but this host could not restart Ramedia Server
                   automatically. Restart the server to activate the new storage safely.
                 </p>
               </div>
@@ -1020,9 +1020,9 @@ export default function StorageSettings() {
                 {privateOnlyTransition ? "Change private storage" : "Change artwork storage"}
               </DialogTitle>
               <DialogDescription>
-                Silo verifies and copies the selected data before switching. Public catalog
-                references are reconciled in the background after restart when the public location
-                changes. The old storage is never deleted automatically.
+                Ramedia Server verifies and copies the selected data before switching. Public
+                catalog references are reconciled in the background after restart when the public
+                location changes. The old storage is never deleted automatically.
               </DialogDescription>
             </DialogHeader>
 
@@ -1091,7 +1091,7 @@ export default function StorageSettings() {
                     {privateOnlyTransition
                       ? "New private storage location"
                       : transitionBackend === "local"
-                        ? "Local disk (default Silo behavior)"
+                        ? "Local disk (default Ramedia Server behavior)"
                         : "New S3 location"}
                   </p>
                   <p className="text-muted-foreground mt-0.5 text-xs">

@@ -2,7 +2,7 @@ import type { Profile } from "@/api/types";
 import type { AccountIdentity } from "@/hooks/queries/account";
 import type { AuthProviderOption } from "@/hooks/useAuth";
 
-export const SILO_APP_EXAMPLES = "Silo for iPhone, Apple TV, Android, Android TV, and this website";
+export const SILO_APP_EXAMPLES = "Ramedia Server on the web; compatible Silo apps for iPhone, Apple TV, Android, and Android TV";
 
 export const JELLYFIN_APP_EXAMPLES = "Infuse, Swiftfin, JellyCon, Findroid, Jellyfin Media Player";
 

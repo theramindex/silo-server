@@ -123,12 +123,12 @@ function ScopeBanner({ kind, typedCredentials }: { kind: AppKind; typedCredentia
       )}
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-medium">
-          {isJellyfin ? "For Jellyfin-compatible apps only" : "For Silo's own apps"}
+          {isJellyfin ? "For Jellyfin-compatible apps only" : "For Ramedia Server's own apps"}
         </p>
         <p className="text-muted-foreground text-xs leading-relaxed">
           {isJellyfin ? JELLYFIN_APP_EXAMPLES : SILO_APP_EXAMPLES}.{" "}
           {isJellyfin
-            ? "These credentials will not work on a Silo sign-in screen."
+            ? "These credentials will not work on a Ramedia Server sign-in screen."
             : typedCredentials
               ? "Don't add a # to either field here."
               : null}
@@ -204,7 +204,7 @@ function TroubleshootingPanel({
     },
     {
       q: "Your account password itself contains a #",
-      a: "Type it in full and append #PIN anyway. Silo splits at the last # only.",
+      a: "Type it in full and append #PIN anyway. Ramedia Server splits at the last # only.",
     },
     {
       q: "Two profiles share a name",
@@ -360,7 +360,7 @@ export default function ConnectAppsSettings() {
       >
         {(
           [
-            { id: "silo", label: "Silo app or website", icon: MonitorSmartphone },
+            { id: "silo", label: "Ramedia Server and compatible apps", icon: MonitorSmartphone },
             { id: "jellyfin", label: "Jellyfin-compatible app", icon: Cast },
           ] as const
         ).map((option) => {
@@ -420,8 +420,8 @@ export default function ConnectAppsSettings() {
             <p className="text-sm font-medium">This account can't sign in to a Jellyfin app</p>
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
               {serverPasswordSignInOff
-                ? "An administrator turned off password sign-in on this server, and the compatibility API only accepts Silo passwords. Use a Silo app instead."
-                : "It signs in through an external provider rather than a Silo password, and the compatibility API only accepts Silo passwords. Use a Silo app, or ask an administrator about an account with password sign-in."}
+                ? "An administrator turned off password sign-in on this server, and the compatibility API only accepts local server passwords. Use a Silo app instead."
+                : "It signs in through an external provider rather than a local server password, and the compatibility API only accepts local server passwords. Use a Silo app, or ask an administrator about an account with password sign-in."}
             </p>
           </div>
         ) : isJellyfin && !compatEnabled ? (
@@ -441,7 +441,7 @@ export default function ConnectAppsSettings() {
           <div className="border-border rounded-md border border-dashed px-3.5 py-4">
             <p className="text-sm font-medium">
               {passwordLoginAvailable
-                ? "Silo's phone apps don't offer this account a way to sign in"
+                ? "Ramedia Server's phone apps don't offer this account a way to sign in"
                 : "This account can't sign in to a new device yet"}
             </p>
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
@@ -458,7 +458,7 @@ export default function ConnectAppsSettings() {
                   To sign in on a phone, connect a sign-in provider in Settings → Account.
                 </>
               ) : (
-                "Silo's sign-in screens don't offer a password sign-in it can use, and it isn't connected to a sign-in provider. Connect one in Settings → Account, or ask an administrator."
+                "Ramedia Server's sign-in screens don't offer a password sign-in it can use, and it isn't connected to a sign-in provider. Connect one in Settings → Account, or ask an administrator."
               )}
             </p>
           </div>
@@ -473,7 +473,7 @@ export default function ConnectAppsSettings() {
                 label="Sign in with"
                 icon={LogIn}
                 kind={kind}
-                hint={`On a device connected to ${siloSignIn.providerName}, open the server through ${siloSignIn.providerName} and choose Continue as on the sign-in screen. There's no Silo password to type.`}
+                hint={`On a device connected to ${siloSignIn.providerName}, open the server through ${siloSignIn.providerName} and choose Continue as on the sign-in screen. There's no Ramedia Server password to type.`}
               >
                 <span className="font-medium">{siloSignIn.providerName}</span>
               </FieldRow>
@@ -496,7 +496,7 @@ export default function ConnectAppsSettings() {
                 kind={kind}
                 hint={
                   siloSignIn.provider.native_start_path
-                    ? `Choose ${siloSignIn.provider.display_name} on the sign-in screen and sign in there. There's no Silo password to type.`
+                    ? `Choose ${siloSignIn.provider.display_name} on the sign-in screen and sign in there. There's no Ramedia Server password to type.`
                     : `Sign-in with ${siloSignIn.provider.display_name} can't start until an administrator sets the server's public address.`
                 }
               >
@@ -599,7 +599,7 @@ export default function ConnectAppsSettings() {
                   isJellyfin
                     ? buildJellyfinPasswordHint(selectedProfile)
                     : siloSignIn.kind === "directory"
-                      ? `Your ${siloSignIn.provider.display_name} password, not a Silo one. The profile PIN is asked for separately, in the app.`
+                      ? `Your ${siloSignIn.provider.display_name} password, not a Ramedia Server one. The profile PIN is asked for separately, in the app.`
                       : "Your account password. The profile PIN is asked for separately, in the app."
                 }
               >
@@ -616,7 +616,8 @@ export default function ConnectAppsSettings() {
                 <X className="text-info mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
                   Jellyfin apps offer only two boxes and never prompt for a profile, so the profile
-                  name and PIN are appended here. This format is rejected on a Silo sign-in screen.
+                  name and PIN are appended here. This format is rejected on a Ramedia Server
+                  sign-in screen.
                 </span>
               </p>
             ) : (

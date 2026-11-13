@@ -372,7 +372,8 @@ describe("AppSidebar", () => {
 
     const markup = renderSidebar("/");
 
-    expect(markup).toContain(">Apps<");
+    // The deployed host uses the flat Add-ons section (916c13b95).
+    expect(markup).toContain(">Add-ons<");
     expect(markup).toContain(">Alpha<");
     expect(markup).toContain(">Beta<");
     // Both plugins share the first category segment "Tools", so no

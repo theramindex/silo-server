@@ -1112,7 +1112,7 @@ function describeProcessMemory(attribution: ResourceAttribution, heap: boolean):
   const value = finiteNumber(
     heap ? attribution.process?.heap_live_bytes : attribution.process?.resident_bytes,
   );
-  const label = heap ? "Go live heap" : "Silo process RAM";
+  const label = heap ? "Go live heap" : "Ramedia Server process RAM";
   if (value == null) return mutedMetric(label, "This source could not be measured.");
   return {
     label,
@@ -1120,7 +1120,7 @@ function describeProcessMemory(attribution: ResourceAttribution, heap: boolean):
     detail: heap ? "at the last GC" : "resident memory",
     title: heap
       ? "Live Go heap at the last garbage collection. Native allocations and child processes are outside this measurement."
-      : "Resident memory of this Silo process, including native allocations and shared mappings. Child process memory is separate; subtracting Go heap does not give exact native memory.",
+      : "Resident memory of this Ramedia Server process, including native allocations and shared mappings. Child process memory is separate; subtracting Go heap does not give exact native memory.",
     muted: false,
     warning: false,
     fill: null,

@@ -435,7 +435,7 @@ export default function Layout({ children }: LayoutProps) {
               <Menu className="h-5 w-5" />
             </button>
             <ViewTransitionLink to="/" className="flex items-center gap-2.5">
-              <SiloBrand className="h-10 w-[94px]" />
+              <SiloBrand className="h-10 w-[120px]" />
             </ViewTransitionLink>
           </div>
           <div className="flex items-center gap-2">

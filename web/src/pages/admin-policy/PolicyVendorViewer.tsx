@@ -109,9 +109,9 @@ export function PolicyVendorViewer() {
   return (
     <div className="space-y-5">
       <p className="text-muted-foreground max-w-prose text-sm">
-        These rules ship with each Silo release and always apply — upgrading Silo updates them
-        without touching your overrides. Summaries below; the Rego source under each card is the
-        authoritative version.
+        These rules ship with each Ramedia Server release and always apply — upgrading Ramedia
+        Server updates them without touching your overrides. Summaries below; the Rego source under
+        each card is the authoritative version.
       </p>
 
       {DOMAIN_ORDER.map((domain) => {

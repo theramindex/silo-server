@@ -411,7 +411,7 @@ export default function AppearanceSettings() {
         open={confirmRestoreOverlaysOpen}
         onOpenChange={setConfirmRestoreOverlaysOpen}
         title="Restore badge defaults"
-        description="Replace the server-wide badge defaults with Silo's built-in configuration. The badge on/off switch is left alone, and nothing is written until you save."
+        description="Replace the server-wide badge defaults with Ramedia Server's built-in configuration. The badge on/off switch is left alone, and nothing is written until you save."
         confirmLabel="Restore"
         variant="destructive"
         onConfirm={restoreOverlayDefaults}

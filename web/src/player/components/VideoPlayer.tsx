@@ -5327,7 +5327,7 @@ export function VideoPlayer({
               <p className="text-sm text-white/60">
                 {connectionStatus === "reconnecting"
                   ? "The connection to the server was lost. Playback will continue where you left off."
-                  : (connectionError ?? "Silo couldn't reconnect to the server.")}
+                  : (connectionError ?? "Ramedia Server couldn't reconnect to the server.")}
               </p>
             </div>
             <div className="flex gap-2">

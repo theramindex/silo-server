@@ -84,7 +84,7 @@ const STATUS_HELP: Array<{ state: RequestDisplayState; description: string }> = 
   {
     state: "failed",
     description:
-      "Silo or the download automation hit an error. You can remove it if nothing was delivered.",
+      "Ramedia Server or the download automation hit an error. You can remove it if nothing was delivered.",
   },
 ];
 

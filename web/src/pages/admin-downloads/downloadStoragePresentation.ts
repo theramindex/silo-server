@@ -170,7 +170,7 @@ export function storageWarnings(storage: AdminDownloadStorage): StorageWarning[]
         id: `untracked:${location.key}`,
         tone: "info",
         title: `${formatStorageBytes(location.untracked_bytes)} of untracked files on ${location.name}.`,
-        body: "Silo has no record of these files, so clean-up never removes them.",
+        body: "Ramedia Server has no record of these files, so clean-up never removes them.",
         location: location.key,
         action: "review_untracked",
       });

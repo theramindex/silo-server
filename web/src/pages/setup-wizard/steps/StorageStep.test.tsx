@@ -172,7 +172,7 @@ describe("StorageStep", () => {
     expect(screen.getByLabelText("Folder inside the bucket")).toBeDisabled();
     expect(screen.getByLabelText("Access key")).toBeEnabled();
     expect(
-      screen.getByText(/Silo records a configured private bucket at startup/),
+      screen.getByText(/Ramedia Server records a configured private bucket at startup/),
     ).toBeInTheDocument();
   });
 

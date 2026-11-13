@@ -19,11 +19,11 @@ self.addEventListener("push", (event) => {
   } catch {
     data = {};
   }
-  const title = data.title || "Silo";
+  const title = data.title || "Ramedia Server";
   const options = {
     body: data.body || "",
-    icon: data.icon || "/web-app-icon-192.png",
-    badge: "/web-app-icon-192.png",
+    icon: data.icon || "/web-app-icon-192.png?v=ramedia",
+    badge: "/web-app-icon-192.png?v=ramedia",
     tag: data.tag || undefined,
     data: { url: data.url || "/notifications" },
   };

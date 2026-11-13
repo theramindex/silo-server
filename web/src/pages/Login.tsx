@@ -645,8 +645,8 @@ export default function Login() {
                   </Select>
                   {hasDirectoryProvider ? (
                     <p id={providerPickerHintId} className="text-muted-foreground text-xs">
-                      Automatic: accounts with a Silo password sign in with it, everyone else with
-                      the directory.
+                      Automatic: accounts with a Ramedia Server password sign in with it, everyone
+                      else with the directory.
                     </p>
                   ) : null}
                 </div>

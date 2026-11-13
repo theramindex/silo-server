@@ -172,7 +172,7 @@ function ProviderGroup({ provider }: { provider: NetworkAccessProviderSummary })
   return (
     <FieldGroup
       label={provider.display_name}
-      description={`Access Silo through your ${provider.display_name} network without port forwarding.`}
+      description={`Access Ramedia Server through your ${provider.display_name} network without port forwarding.`}
     >
       {status.isLoading ? (
         <div className="space-y-3" aria-busy="true">

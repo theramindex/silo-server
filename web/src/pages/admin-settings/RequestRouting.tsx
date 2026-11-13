@@ -114,8 +114,8 @@ export function RequestRoutingGroup({
       label="Where requests go"
       description={
         advanced
-          ? "Silo checks the rules from the top. The first rule that matches a request decides where it goes; anything no rule matches goes to Everything else. Changes save right away."
-          : "Choose how Silo picks the server for each request. Changes save right away."
+          ? "Ramedia Server checks the rules from the top. The first rule that matches a request decides where it goes; anything no rule matches goes to Everything else. Changes save right away."
+          : "Choose how Ramedia Server picks the server for each request. Changes save right away."
       }
     >
       {routesLoading || serversLoading || routing.isPending ? (

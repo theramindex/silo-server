@@ -36,7 +36,7 @@ const SHARED_TRIGGERS: WebhookTrigger[] = [
   },
   {
     label: "On Rename",
-    reason: "Fires when files are renamed, so Silo does not lose track of them.",
+    reason: "Fires when files are renamed, so Ramedia Server does not lose track of them.",
     required: false,
   },
 ];
@@ -45,12 +45,12 @@ const SONARR_TRIGGERS: WebhookTrigger[] = [
   ...SHARED_TRIGGERS,
   {
     label: "On Episode File Delete",
-    reason: "Lets Silo drop episodes you removed, instead of leaving dead entries.",
+    reason: "Lets Ramedia Server drop episodes you removed, instead of leaving dead entries.",
     required: false,
   },
   {
     label: "On Series Delete",
-    reason: "Lets Silo drop a series you deleted along with its files.",
+    reason: "Lets Ramedia Server drop a series you deleted along with its files.",
     required: false,
   },
 ];
@@ -59,12 +59,12 @@ const RADARR_TRIGGERS: WebhookTrigger[] = [
   ...SHARED_TRIGGERS,
   {
     label: "On Movie File Delete",
-    reason: "Lets Silo drop movies you removed, instead of leaving dead entries.",
+    reason: "Lets Ramedia Server drop movies you removed, instead of leaving dead entries.",
     required: false,
   },
   {
     label: "On Movie Delete",
-    reason: "Lets Silo drop a movie you deleted along with its files.",
+    reason: "Lets Ramedia Server drop a movie you deleted along with its files.",
     required: false,
   },
 ];
@@ -80,12 +80,13 @@ export function triggersFor(provider: AutoscanWebhookProvider | "auto"): Webhook
     ...SHARED_TRIGGERS,
     {
       label: "On Episode File Delete / On Movie File Delete",
-      reason: "Whichever your service offers — lets Silo drop files you removed.",
+      reason: "Whichever your service offers — lets Ramedia Server drop files you removed.",
       required: false,
     },
     {
       label: "On Series Delete / On Movie Delete",
-      reason: "Whichever your service offers — lets Silo drop titles you deleted with their files.",
+      reason:
+        "Whichever your service offers — lets Ramedia Server drop titles you deleted with their files.",
       required: false,
     },
   ];

@@ -63,9 +63,9 @@ export function tierNotice(tier: string): string | null {
     case "approved_community":
       return "Reviewed by Silo maintainers to work as described and be safe for its documented use. Its author maintains and supports it, not the Silo project.";
     case "unverified":
-      return "It isn't linked to any of your catalogs, so Silo can't verify it or check it for updates. Only run it if you trust its source. To update it, upload the new version.";
+      return "It isn't linked to any of your catalogs, so Ramedia Server can't verify it or check it for updates. Only run it if you trust its source. To update it, upload the new version.";
     default:
-      return "Silo has not reviewed this plugin. It comes from a repository you added, so only run it if you trust its source.";
+      return "Ramedia Server has not reviewed this plugin. It comes from a repository you added, so only run it if you trust its source.";
   }
 }
 

@@ -13,7 +13,7 @@ func newSnapshot(name string) Snapshot {
 }
 
 func TestRenderIndexHTMLEscapesTitle(t *testing.T) {
-	in := []byte(`<title>Silo</title></head>`)
+	in := []byte(`<title>Ramedia Server</title></head>`)
 	out := string(RenderIndexHTML(in, newSnapshot(`A&B<script>`)))
 	if strings.Contains(out, "<script>") {
 		t.Fatalf("title not escaped: %q", out)
@@ -51,8 +51,8 @@ func TestRenderIndexHTMLAgainstRealShell(t *testing.T) {
 	if err != nil {
 		t.Skipf("index.html not available: %v", err)
 	}
-	if !strings.Contains(string(data), "<title>Silo</title>") {
-		t.Fatalf("web/index.html no longer contains the expected <title>Silo</title>; update RenderIndexHTML")
+	if !strings.Contains(string(data), "<title>Ramedia Server</title>") {
+		t.Fatalf("web/index.html no longer contains the expected <title>Ramedia Server</title>; update RenderIndexHTML")
 	}
 	if !strings.Contains(string(data), indexFaviconLink) {
 		t.Fatalf("web/index.html no longer contains the expected favicon link %q; update indexFaviconLink", indexFaviconLink)

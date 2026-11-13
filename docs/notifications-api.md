@@ -748,7 +748,7 @@ sent. The dispatcher and retention policy above close the worker uncertainty and
 receipt/payload retention items; the migration must precede dispatching nodes.
 
 
-## Metadata premiere reminders (Ramindex extension)
+## Metadata premiere reminders (Ramedia Server extension)
 
 The `/api/v2/premieres` surface requires the authenticated account and a verified
 profile. `GET /capabilities` reports availability, with ordinary capability ETag

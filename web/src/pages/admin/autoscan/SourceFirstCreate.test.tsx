@@ -122,7 +122,7 @@ async function addFirstWebhookSource() {
   const remote = screen.getByRole("textbox", { name: "Sonarr/Radarr root folder" });
   await user.clear(remote);
   await user.type(remote, "/data/media/tv");
-  const local = screen.getByRole("textbox", { name: "Path Silo uses" });
+  const local = screen.getByRole("textbox", { name: "Path Ramedia Server uses" });
   await user.clear(local);
   await user.type(local, "/mnt/media/tv");
   await user.click(screen.getByRole("button", { name: "Create and continue" }));

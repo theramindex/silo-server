@@ -88,7 +88,7 @@ export function PlaybackStep() {
   return (
     <StepFrame
       title="Playback"
-      lede="When a device can't play a file as-is, Silo converts it on the fly. A GPU makes that cheap; without one it runs on the CPU."
+      lede="When a device can't play a file as-is, Ramedia Server converts it on the fly. A GPU makes that cheap; without one it runs on the CPU."
       onSubmit={handleSubmit}
       busy={busy}
       onSkip={skip}
@@ -98,7 +98,7 @@ export function PlaybackStep() {
         <SettingField
           label="Video transcoding"
           type="toggle"
-          description="Off never re-encodes video. Silo still repackages files and converts audio for devices that need it."
+          description="Off never re-encodes video. Ramedia Server still repackages files and converts audio for devices that need it."
           value={transcodeEnabled ? "true" : "false"}
           onChange={(v) => form.setValue("playback.transcode_enabled", v)}
         />
@@ -124,7 +124,7 @@ export function PlaybackStep() {
 
       <StepSection
         title="HDR tone mapping"
-        caption="Converts HDR video to SDR for screens that can't show HDR. Each path has to be allowed before Silo will use it."
+        caption="Converts HDR video to SDR for screens that can't show HDR. Each path has to be allowed before Ramedia Server will use it."
       >
         <SettingField
           label="On the GPU"

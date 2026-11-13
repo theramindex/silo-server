@@ -118,7 +118,7 @@ export default function GeneralSettings() {
           <SettingField
             label="Server name"
             dirty={form.isDirty("branding.server_name")}
-            hint="Silo"
+            hint="Ramedia Server"
             value={form.getValue("branding.server_name")}
             onChange={(v) => form.setValue("branding.server_name", v)}
             restartRequired={restartKeys.has("branding.server_name")}
@@ -140,7 +140,7 @@ export default function GeneralSettings() {
           dirty={anyDirty(NETWORK_KEYS)}
         >
           <SettingField
-            label="Silo public URL"
+            label="Ramedia Server public URL"
             dirty={form.isDirty("server.public_url")}
             description="The HTTPS address users open. Used for websocket origins and links in email notifications."
             hint="https://silo.example.com"
@@ -160,7 +160,7 @@ export default function GeneralSettings() {
           <SettingField
             label="Local network address"
             dirty={form.isDirty(LOCAL_URL_KEY)}
-            description="Where devices on your home network reach Silo directly: the host's IP and the port Silo listens on, or the published port under Docker. Signed-in apps switch to it on their own while they can reach it, over an encrypted connection. Leave empty when apps already find the server on the local network."
+            description="Where devices on your home network reach Ramedia Server directly: the host's IP and the port Ramedia Server listens on, or the published port under Docker. Signed-in apps switch to it on their own while they can reach it, over an encrypted connection. Leave empty when apps already find the server on the local network."
             hint="http://192.168.1.20:8080"
             value={form.getValue(LOCAL_URL_KEY)}
             onChange={(v) => form.setValue(LOCAL_URL_KEY, v)}

@@ -130,7 +130,7 @@ export function FeaturesStep() {
     >
       <StepSection>
         <SettingField
-          label="Skip markers from TheIntroDB and Silo"
+          label="Skip markers from TheIntroDB and Ramedia Server"
           type="toggle"
           description="TheIntroDB and Silo's marker service find intros, credits, recaps, and other segments you can skip. TheIntroDB is installed by default. Online markers are preferred over local detection."
           value={onlineMarkersEnabled ? "true" : "false"}
@@ -142,7 +142,7 @@ export function FeaturesStep() {
             type="select"
             description={
               onlineMarkerStorage === "stored"
-                ? "Silo saves markers from enabled providers such as TheIntroDB. The Sync online markers task fetches missing markers and refreshes saved markers daily at 03:00 (server time) by default."
+                ? "Ramedia Server saves markers from enabled providers such as TheIntroDB. The Sync online markers task fetches missing markers and refreshes saved markers daily at 03:00 (server time) by default."
                 : "Fetch markers when needed without saving them to your library. Scheduled online sync is disabled."
             }
             options={[
@@ -164,7 +164,7 @@ export function FeaturesStep() {
           onChange={(value) => setLocalMarkers(value === "true")}
         />
         <SettingField
-          label="Share markers with Silo"
+          label="Share markers with Ramedia Server"
           type="toggle"
           description={MARKER_SHARING_DISCLOSURE}
           value={shareMarkers ? "true" : "false"}

@@ -310,8 +310,8 @@ export default function AdminCatalogMaintenance() {
                       </SelectContent>
                     </Select>
                     <p className="text-muted-foreground text-xs">
-                      Silo will load the selected seed directly from the configured operational S3
-                      bucket.
+                      Ramedia Server will load the selected seed directly from the configured
+                      operational S3 bucket.
                     </p>
                   </div>
                 ) : importSource === "bucket_artifact" ? (
@@ -383,7 +383,7 @@ export default function AdminCatalogMaintenance() {
                     />
                     <p className="text-muted-foreground text-xs">
                       Paste a public <span className="font-mono">.json.gz</span> catalog seed URL.
-                      Silo will download it server-side before importing.
+                      Ramedia Server will download it server-side before importing.
                     </p>
                   </div>
                 )}

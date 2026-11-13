@@ -177,7 +177,7 @@ export default function AdminSidebar({
           aria-label="Go to app home"
           className="focus-visible:ring-ring/50 inline-flex rounded-md transition-opacity hover:opacity-85 focus-visible:ring-[3px] focus-visible:outline-none"
         >
-          <SiloBrand className="h-12 w-[112px]" />
+          <SiloBrand className="h-12 w-[144px]" />
         </Link>
       </div>
       {onSearch ? (

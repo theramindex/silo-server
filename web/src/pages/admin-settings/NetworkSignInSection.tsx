@@ -124,7 +124,7 @@ function NetworkSignInRow({ installation }: { installation: PluginInstallation }
             write(
               { auto_provision: checked },
               checked
-                ? `New ${label} users get a Silo account at first sign-in.`
+                ? `New ${label} users get a Ramedia Server account at first sign-in.`
                 : `Only accounts already connected to ${label} can sign in.`,
             )
           }
@@ -146,13 +146,14 @@ function NetworkSignInRow({ installation }: { installation: PluginInstallation }
           <p>
             Roles come from grants in your tailnet policy: a{" "}
             <code className="font-mono">siloserver.org/cap/silo</code> grant with{" "}
-            <code className="font-mono">{`{"role":"admin"}`}</code> makes someone a Silo admin, and{" "}
-            <code className="font-mono">{`{"role":"user"}`}</code> a regular user. Anyone who can
-            edit the tailnet policy can make themselves a Silo admin. Without a grant, a
-            person&apos;s role is left as it is, so removing someone&apos;s admin grant doesn&apos;t
-            demote them: grant them <code className="font-mono">{`{"role":"user"}`}</code> instead.
-            Policy changes apply at the next sign-in or access re-check. An account that also signs
-            in through your main sign-in provider takes its role from that provider.
+            <code className="font-mono">{`{"role":"admin"}`}</code> makes someone a Ramedia Server
+            admin, and <code className="font-mono">{`{"role":"user"}`}</code> a regular user. Anyone
+            who can edit the tailnet policy can make themselves a Ramedia Server admin. Without a
+            grant, a person&apos;s role is left as it is, so removing someone&apos;s admin grant
+            doesn&apos;t demote them: grant them{" "}
+            <code className="font-mono">{`{"role":"user"}`}</code> instead. Policy changes apply at
+            the next sign-in or access re-check. An account that also signs in through your main
+            sign-in provider takes its role from that provider.
           </p>
           <pre className="bg-muted overflow-x-auto rounded-md p-3 font-mono">{GRANT_EXAMPLE}</pre>
           <p>

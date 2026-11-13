@@ -503,7 +503,7 @@ export default function AppSidebar({ onNavigate, collapsed = false, swap }: AppS
             aria-hidden={!showLabels}
             className={`sidebar-fade absolute left-5 ${showLabels ? "opacity-100" : "opacity-0"}`}
           >
-            <SiloBrand variant="wordmark" className="h-12 w-[112px]" />
+            <SiloBrand variant="wordmark" className="h-12 w-[144px]" />
           </span>
           <span
             aria-hidden={showLabels}
@@ -966,7 +966,6 @@ export default function AppSidebar({ onNavigate, collapsed = false, swap }: AppS
               {renderAppNavList(pluginNavLinks)}
             </div>
           )}
-
         </nav>
 
         {/* Footer */}

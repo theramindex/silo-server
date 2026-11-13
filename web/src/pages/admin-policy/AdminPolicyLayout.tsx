@@ -20,7 +20,7 @@ function resolveTab(value: string | null) {
 const PIPELINE_STEPS = [
   {
     icon: PackageCheck,
-    title: "Silo decides the baseline",
+    title: "Ramedia Server decides the baseline",
     detail: "Built-in rules ship with every release: profile restrictions, ratings, limits.",
   },
   {
@@ -85,7 +85,7 @@ export default function AdminPolicyLayout() {
     <div className="space-y-6 pb-4 sm:pb-6">
       <PageHeader
         title="Policy"
-        subtitle="Household access rules: what Silo allows by default, and where you tighten it."
+        subtitle="Household access rules: what Ramedia Server allows by default, and where you tighten it."
       />
 
       {capability.isLoading && (

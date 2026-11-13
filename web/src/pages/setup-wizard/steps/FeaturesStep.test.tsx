@@ -112,7 +112,7 @@ describe("FeaturesStep", () => {
       render(<FeaturesStep />);
 
       await userEvent.click(
-        screen.getByRole("switch", { name: "Skip markers from TheIntroDB and Silo" }),
+        screen.getByRole("switch", { name: "Skip markers from TheIntroDB and Ramedia Server" }),
       );
 
       expect(setValue).toHaveBeenCalledWith("markers.mode", nextMode);
@@ -139,7 +139,7 @@ describe("FeaturesStep", () => {
     render(<FeaturesStep />);
 
     expect(setValue).toHaveBeenCalledWith("markers.share_by_default", "true");
-    expect(screen.getByRole("switch", { name: "Share markers with Silo" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "Share markers with Ramedia Server" })).toBeChecked();
   });
 
   it("keeps a saved sharing choice", () => {
@@ -147,7 +147,7 @@ describe("FeaturesStep", () => {
     render(<FeaturesStep />);
 
     expect(setValue).not.toHaveBeenCalledWith("markers.share_by_default", expect.anything());
-    expect(screen.getByRole("switch", { name: "Share markers with Silo" })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Share markers with Ramedia Server" })).not.toBeChecked();
   });
 
   it("blocks completion when settings failed to load", () => {

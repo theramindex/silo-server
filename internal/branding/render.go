@@ -71,7 +71,7 @@ func (s Snapshot) RenderKey() string {
 
 // Favicon link literal as it appears in web/index.html. Kept in sync with that
 // file; RenderIndexHTML rewrites it to a custom favicon when one is set.
-const indexFaviconLink = `<link rel="icon" href="/favicon.ico" sizes="any" />`
+const indexFaviconLink = `<link rel="icon" href="/favicon.ico?v=ramedia" sizes="any" />`
 
 // RenderIndexHTML injects branding into the SPA shell: the browser tab title
 // and, when configured, the custom favicon link and a theme-color meta tag.
@@ -83,7 +83,7 @@ func RenderIndexHTML(index []byte, snap Snapshot) []byte {
 	out := string(index)
 
 	out = strings.Replace(out,
-		"<title>Silo</title>",
+		"<title>Ramedia Server</title>",
 		"<title>"+html.EscapeString(snap.ServerName)+"</title>",
 		1,
 	)

@@ -289,7 +289,7 @@ describe("AdminUserSignIn linking by subject", () => {
   });
 
   it.each([
-    ["identity_linked_elsewhere", 409, "already connected to another Silo account"],
+    ["identity_linked_elsewhere", 409, "already connected to another Ramedia Server account"],
     ["permission_denied", 403, "Only the server owner can change another admin's sign-in."],
     ["validation_failed", 422, "raw validation_failed"],
   ])("explains a %s refusal", async (type, status, text) => {
@@ -308,7 +308,9 @@ describe("AdminUserSignIn password and break-glass", () => {
   it("sets a temporary password on an account without password sign-in", async () => {
     const user = userEvent.setup();
     mount();
-    expect(screen.getByText("Off: alice can't sign in with a Silo password.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Off: alice can't sign in with a Ramedia Server password."),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Set a password" }));
     const dialog = await screen.findByRole("dialog", { name: "Set a password" });
     const input = within(dialog).getByLabelText("New password");

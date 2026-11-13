@@ -88,7 +88,7 @@ describe("describePlanTerminal", () => {
     ).toEqual({
       title: "No playable version found",
       message:
-        "Silo couldn't find a way to play this file on this device. Try another version if one is available.",
+        "Ramedia Server couldn't find a way to play this file on this device. Try another version if one is available.",
     });
   });
 
@@ -123,7 +123,7 @@ describe("describePlanTerminal", () => {
       describePlanTerminal({ reason: "some_future_reason", message: "", retryable: false }),
     ).toEqual({
       title: "Playback unavailable",
-      message: "Silo could not start playback.",
+      message: "Ramedia Server could not start playback.",
     });
   });
 });
@@ -170,10 +170,10 @@ describe("describePlaybackTransportError", () => {
     const error = new PlayerFetchError(502, "Bad Gateway");
 
     expect(describePlaybackTransportError(error)?.message).toBe(
-      "Silo could not start playback right now. Please try again.",
+      "Ramedia Server could not start playback right now. Please try again.",
     );
     expect(describePlaybackTransportError(error, "update")?.message).toBe(
-      "Silo could not update playback right now. Please try again.",
+      "Ramedia Server could not update playback right now. Please try again.",
     );
   });
 

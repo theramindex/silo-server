@@ -371,8 +371,8 @@ export default function CompatibilityProxiesSettings() {
               )}
               {missingPrerequisites.length > 0 && (
                 <span className="text-muted-foreground text-sm">
-                  Silo cannot download it until these commands are installed on the server:{" "}
-                  {missingPrerequisites.map((item) => item.command).join(", ")}
+                  Ramedia Server cannot download it until these commands are installed on the
+                  server: {missingPrerequisites.map((item) => item.command).join(", ")}
                 </span>
               )}
               {pinnedJellyfinWebInstalled && (
@@ -474,7 +474,7 @@ export default function CompatibilityProxiesSettings() {
             />
             <SettingField
               label="Web player install folder"
-              description="The default is the folder Silo manages."
+              description="The default is the folder Ramedia Server manages."
               value={form.getValue("jellyfin_compat.web_install_dir")}
               onChange={(v) => form.setValue("jellyfin_compat.web_install_dir", v)}
               restartRequired={restartKeys.has("jellyfin_compat.web_install_dir")}

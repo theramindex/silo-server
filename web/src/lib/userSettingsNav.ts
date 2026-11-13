@@ -394,7 +394,7 @@ export const USER_SETTINGS_GROUPS: UserSettingsNavGroup[] = [
         path: "connect-apps",
         label: "Connect Apps",
         icon: Cast,
-        description: "Sign-in details for Silo and Jellyfin-compatible apps.",
+        description: "Sign-in details for Ramedia Server and Jellyfin-compatible apps.",
         keywords: [
           "jellyfin",
           "infuse",
@@ -409,7 +409,7 @@ export const USER_SETTINGS_GROUPS: UserSettingsNavGroup[] = [
           "pin",
         ],
         settings: settingIndex(
-          "Silo app or website",
+          "Ramedia Server and compatible apps",
           "Jellyfin-compatible app",
           "Server",
           "Username",

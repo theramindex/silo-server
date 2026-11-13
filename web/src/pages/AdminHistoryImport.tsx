@@ -576,7 +576,7 @@ function TokenDialog({
               <p className="text-muted-foreground text-sm">
                 {isPlex
                   ? "Paste your Plex auth token directly."
-                  : "This key is used to discover users on the server and import their watch history into Silo."}
+                  : "This key is used to discover users on the server and import their watch history into Ramedia Server."}
               </p>
               <div className="space-y-1.5">
                 <Label htmlFor="admin-token">API key / Token</Label>
@@ -820,12 +820,12 @@ function DiscoverDialog({
               {mappingTarget && (
                 <div className="surface-panel-subtle space-y-4 rounded-xl border-0 p-4">
                   <p className="text-sm font-medium">
-                    Map <span className="text-primary">{mappingTarget.name}</span> to a Silo user
-                    and profile:
+                    Map <span className="text-primary">{mappingTarget.name}</span> to a Ramedia
+                    Server user and profile:
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Silo user</Label>
+                      <Label className="text-xs">Ramedia Server user</Label>
                       <Select
                         value={userId}
                         onValueChange={(v) => {
@@ -1148,7 +1148,7 @@ function MappingsSection({
                 <TableHead className="hidden sm:table-cell">
                   <ArrowRight className="h-3.5 w-3.5" />
                 </TableHead>
-                <TableHead>Silo user</TableHead>
+                <TableHead>Ramedia Server user</TableHead>
 
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
@@ -1532,7 +1532,7 @@ function AdminHistoryImportPage() {
     <div className="space-y-8 pb-4 sm:pb-6">
       <PageHeader
         title="History Import"
-        subtitle="Import watch history from external servers into Silo user profiles."
+        subtitle="Import watch history from external servers into Ramedia Server user profiles."
       />
 
       {/* Source selector */}
@@ -1638,8 +1638,8 @@ function PlexAdminImportLimits() {
           Plex admin imports only bring over finished plays
         </p>
         <p>
-          Silo reads this server&apos;s play history, which records each title a person played
-          through, and when. It can&apos;t see anything else, so these are not imported:
+          Ramedia Server reads this server&apos;s play history, which records each title a person
+          played through, and when. It can&apos;t see anything else, so these are not imported:
         </p>
         <ul className="list-disc space-y-0.5 pl-5">
           <li>Resume points for titles still in progress</li>

@@ -77,7 +77,7 @@ describe("pluginPresentation", () => {
     expect(sourceLabel("external")).toBe("External source");
     expect(tierNotice("silo")).toBeNull();
     expect(tierNotice("approved_community")).toMatch(/Reviewed by Silo maintainers/);
-    expect(tierNotice("external")).toMatch(/Silo has not reviewed this plugin/);
+    expect(tierNotice("external")).toMatch(/Ramedia Server has not reviewed this plugin/);
     expect(sourceLabel("unverified")).toBe("Unverified");
     expect(tierNotice("unverified")).toMatch(/can't verify it or check it for updates/);
   });

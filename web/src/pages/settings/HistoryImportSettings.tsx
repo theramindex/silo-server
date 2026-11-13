@@ -359,7 +359,7 @@ export default function HistoryImportSettings() {
     <div className="space-y-6">
       <PageHeader
         title="History Import"
-        subtitle="Import watch history from an external media server into a Silo profile."
+        subtitle="Import watch history from an external media server into a Ramedia Server profile."
       />
 
       {/* ── New import ──────────────────────────────────── */}

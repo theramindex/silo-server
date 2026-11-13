@@ -406,8 +406,8 @@ export function BoxSetFields({ form }: { form: LibraryFormController }) {
             />
           </div>
           <p className="text-muted-foreground text-xs">
-            Box sets appear once Silo has looked up your movies&apos; collections, which runs in the
-            background after you save.
+            Box sets appear once Ramedia Server has looked up your movies&apos; collections, which
+            runs in the background after you save.
           </p>
         </div>
       )}

@@ -378,7 +378,7 @@ describe("Edit source dialog", () => {
     await user.click(within(dialog).getByRole("tab", { name: "Match paths" }));
     await user.click(within(dialog).getByRole("button", { name: "Add a mapping" }));
     const froms = within(dialog).getAllByRole("textbox", { name: "Path the source reports" });
-    const tos = within(dialog).getAllByRole("textbox", { name: "Path Silo uses" });
+    const tos = within(dialog).getAllByRole("textbox", { name: "Path Ramedia Server uses" });
     await user.type(froms[1]!, "/data/movies");
     await user.type(tos[1]!, "/mnt/media/movies");
 
@@ -647,7 +647,7 @@ describe("Add source dialog", () => {
       "/data/tv",
     );
     await user.type(
-      within(dialog).getByRole("textbox", { name: "Path Silo uses" }),
+      within(dialog).getByRole("textbox", { name: "Path Ramedia Server uses" }),
       "/mnt/media/tv",
     );
     await user.type(
@@ -734,7 +734,7 @@ describe("Add source dialog", () => {
     const dialog = await openAdd(user, /^Sonarr\/Radarr Webhook/);
     const silo = () =>
       within(dialog)
-        .getAllByRole("textbox", { name: "Path Silo uses" })
+        .getAllByRole("textbox", { name: "Path Ramedia Server uses" })
         .map((input) => (input as HTMLInputElement).value);
     expect(silo()).toEqual(["/mnt/media"]);
 

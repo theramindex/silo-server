@@ -240,8 +240,8 @@ export function HomeLayoutImportDialog({ onClose, libraries }: HomeLayoutImportD
         <DialogHeader>
           <DialogTitle>Import home layout</DialogTitle>
           <DialogDescription>
-            Load a layout exported from another profile or another Silo server. You'll see what
-            changes before anything is saved.
+            Load a layout exported from another profile or another Ramedia Server server. You'll see
+            what changes before anything is saved.
           </DialogDescription>
         </DialogHeader>
 

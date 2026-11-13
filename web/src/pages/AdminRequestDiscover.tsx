@@ -66,7 +66,7 @@ function RestoreDefaultsDialog({
   const bullets: Array<[LucideIcon, string]> = [
     [Rows3, "The built-in rows and Studios, Networks and Genres come back, in their first order."],
     [Trash2, "Rows you added are deleted."],
-    [RotateCcw, "The page follows Silo's defaults again until you change it."],
+    [RotateCcw, "The page follows Ramedia Server's defaults again until you change it."],
   ];
   return (
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
@@ -74,7 +74,7 @@ function RestoreDefaultsDialog({
         <DialogHeader>
           <DialogTitle>Restore Discover to the default rows?</DialogTitle>
           <DialogDescription>
-            Everyone&apos;s Discover page goes back to the rows Silo starts with.
+            Everyone&apos;s Discover page goes back to the rows Ramedia Server starts with.
           </DialogDescription>
         </DialogHeader>
         <ul
@@ -213,7 +213,7 @@ function DiscoverLayoutEditor() {
           <p className="text-muted-foreground max-w-3xl text-sm">
             {layout.customized
               ? "You've changed this page from the default."
-              : "This is the default layout, which follows Silo's defaults until you change it."}{" "}
+              : "This is the default layout, which follows Ramedia Server's defaults until you change it."}{" "}
             Apps released before custom rows show only the trending and popular rows, merged into
             two.
             {full ? ` A page holds at most ${layout.max_rows} rows.` : null}
