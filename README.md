@@ -114,11 +114,16 @@ for profile scope, timing, deduplication, and capability discovery.
 
 ## Build Ramedia Server
 
+The deployed build is maintained on [`feat/web-premiere-deploy`](https://github.com/theramindex/silo-server/tree/feat/web-premiere-deploy);
+`main` tracks upstream integration and can differ from the deployed fork.
+
 The product name is Ramedia Server; repository, executable, API and plugin IDs
 retain their Silo-compatible names. Build from this fork with the root Dockerfile
 for an existing PostgreSQL/Redis deployment. To build the bundled image:
 
 ```sh
+git clone --branch feat/web-premiere-deploy https://github.com/theramindex/silo-server.git
+cd silo-server
 docker build -t ramedia-server:base .
 docker build -f omnibus/Dockerfile --build-arg SILO_IMAGE=ramedia-server:base -t ramedia-server:local .
 ```
