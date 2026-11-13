@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="assets/icon.png" alt="Silo logo" width="112" height="112">
+  <img src="assets/ramedia-mark.svg" alt="Ramedia Server logo" width="112" height="112">
 </p>
 
-<h1 align="center">Silo</h1>
+<h1 align="center">Ramedia Server</h1>
+
+<p align="center">An independent fork of <a href="https://github.com/Silo-Server/silo-server">Silo</a>, maintained by Ramindex.</p>
 
 <p align="center">
   A self-hosted media server for films, series, audiobooks, ebooks, podcasts, and manga.
@@ -18,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick start</a>
+  <a href="#ramedia-server-builds">Build Ramedia Server</a>
   · <a href="https://siloserver.org/docs">Documentation</a>
   · <a href="docs/release-versioning.md">Builds &amp; releases</a>
   · <a href="https://discord.gg/siloserver">Discord</a>
@@ -42,7 +44,7 @@ release date. The broader capabilities below include those beta
 implementations, not a promise that every media type is supported in 1.0.
 Existing library data is preserved when upgrading.
 
-## What Silo does
+## What Ramedia Server does
 
 <table>
   <tr>
@@ -83,7 +85,28 @@ Existing library data is preserved when upgrading.
   </tr>
 </table>
 
-## Quick start
+## Ramedia Server builds
+
+The deployed Ramedia Server build is maintained on
+[`feat/web-premiere-deploy`](https://github.com/theramindex/silo-server/tree/feat/web-premiere-deploy).
+`main` tracks upstream integration and can differ from the deployed fork. The
+product name is Ramedia Server; repository, executable, protocol, and plugin IDs
+retain their existing Silo-compatible identities.
+
+```sh
+git clone --branch feat/web-premiere-deploy https://github.com/theramindex/silo-server.git
+cd silo-server
+docker build -t ramedia-server:base .
+docker build -f omnibus/Dockerfile --build-arg SILO_IMAGE=ramedia-server:base -t ramedia-server:local .
+```
+
+Use the root image with an existing PostgreSQL/Redis stack, or the bundled image
+with the documented omnibus configuration. See [branding and compatibility](docs/ramedia-server.md).
+
+## Upstream installation reference
+
+The following is the upstream Silo installation reference. For Ramedia Server,
+build the deployment branch above and select that image in your configuration.
 
 Requires Docker Compose 2.24 or newer. The default Compose file runs the
 omnibus image: Silo with a bundled PostgreSQL (with pgvector) and Redis, plus
