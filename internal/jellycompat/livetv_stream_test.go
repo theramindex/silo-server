@@ -4,6 +4,7 @@ package jellycompat
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -855,5 +856,37 @@ func TestLiveHLSRelayPromotedHostsUsePublicPool(t *testing.T) {
 	}
 	if strings.Join(served, ",") != strings.Join(want, ",") {
 		t.Errorf("pools used = %v, want %v", served, want)
+	}
+}
+
+type failedLiveNegotiationStore struct{ CompatPlaybackStore }
+
+func (failedLiveNegotiationStore) PutNegotiated(PlaybackSession) error {
+	return errors.New("playback store unavailable")
+}
+
+func TestLivePlaybackInfoReleasesSlotWhenNegotiationCannotBeStored(t *testing.T) {
+	p := newLiveProvider(t)
+	env, _ := newLiveStreamEnv(t, p, liveTVStream{URL: p.URL + "/101.ts", Container: "ts", Mode: "server", Leased: true})
+	playback, _ := newSubtitleSelectionHandler(t)
+	playback.playbackStore = failedLiveNegotiationStore{NewPlaybackSessionStore(time.Hour, nil)}
+	h := newLiveTVHandlers(env.bridge, "test", nil, nil, playback)
+	router := chi.NewRouter()
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			session := &Session{Token: liveTokenP1, StreamAppUserID: 1, ProfileID: "p1", PseudoUserID: PseudoUserID(1, "p1")}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), compatSessionKey, session)))
+		})
+	})
+	router.Post("/Items/{id}/PlaybackInfo", h.wrapPlaybackInfo(func(http.ResponseWriter, *http.Request) { t.Fatal("live request fell through") }))
+	rec, _ := livePlaybackInfo(t, router, liveChannelIDFor("m3u:news.hd"), liveTVProfileTV)
+	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") == "" || strings.Contains(rec.Body.String(), "PlaySessionId") {
+		t.Fatalf("failed negotiation handed out a play: %d %s", rec.Code, rec.Body.String())
+	}
+	if len(env.bridge.plays) != 0 {
+		t.Fatal("failed negotiation kept a live play")
+	}
+	if calls := env.routes.callsTo(liveTVPathSessionStop); len(calls) != 1 {
+		t.Fatalf("released %d slots, want 1", len(calls))
 	}
 }

@@ -12,7 +12,7 @@ import (
 const liveTVEnvVar = "SILO_JELLYCOMPAT_LIVETV"
 
 // liveTVEnvOff lists the values of liveTVEnvVar that turn the bridge off.
-var liveTVEnvOff = []string{"off", "false", "0", "disabled"} //nolint:goconst // accepted spellings, listed verbatim.
+var liveTVEnvOff = []string{"off", "false", "0", "disabled"}
 
 // LiveTVEnabledFromEnv reports whether the Live TV bridge should be built.
 // getenv is os.Getenv in production.

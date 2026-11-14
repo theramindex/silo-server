@@ -459,6 +459,7 @@ func TestLiveTVInfoErrorWithoutCopy(t *testing.T) {
 	}
 }
 
+//nolint:funlen // Each table entry is a distinct provider URL or protocol boundary; keep the shared route assertions with the cases.
 func TestLiveTVResolveStreamValidatesHost(t *testing.T) {
 	const streamHostJSON = `{"contractVersion":1,"name":"Dispatcharr","streamHosts":["a.example:9191"]}`
 

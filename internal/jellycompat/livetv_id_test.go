@@ -100,3 +100,17 @@ func TestLiveProgramIDRoundTrip(t *testing.T) {
 		t.Error("a start before the epoch should not encode")
 	}
 }
+
+func TestLiveIDsRejectInstallationOverflow(t *testing.T) {
+	for _, id := range []int{-1, 0, 1 << 32, 1<<32 + 17} {
+		for name, encoded := range map[string]string{
+			"channel": encodeLiveChannelID(id, "news"),
+			"folder":  encodeLiveFolderID(id, "News"),
+			"program": encodeLiveProgramID(id, "news", liveProgramEpoch),
+		} {
+			if encoded != "" {
+				t.Errorf("%s encoded invalid installation %d as %s", name, id, encoded)
+			}
+		}
+	}
+}

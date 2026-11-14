@@ -361,12 +361,14 @@ func (h *liveTVHandlers) proxyLiveImage(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusNotFound, "NotFound", "Image not found")
 		return
 	}
+	// #nosec G704 -- logoClient admits declared provider hosts or public URLs; its guarded transports recheck dial addresses and redirects.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Failed to load image")
 		return
 	}
 	copyConditionalImageRequestHeaders(req.Header, r.Header)
+	// #nosec G704 -- the client selected by logoClient enforces the provider/public address policy on each connection.
 	resp, err := client.Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "UpstreamError", "Failed to load image")

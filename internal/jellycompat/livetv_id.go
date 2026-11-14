@@ -39,6 +39,9 @@ func liveChannelHash(channelID string) [8]byte {
 }
 
 func encodeLiveChannelID(installationID int, channelID string) string {
+	if installationID <= 0 || installationID > 1<<32-1 {
+		return ""
+	}
 	var raw [16]byte
 	raw[0] = byte(EncodedIDLiveChannel)
 	raw[1] = liveChannelTag
@@ -106,6 +109,9 @@ func liveChannelPrefixOf(channelID string) liveChannelPrefix {
 
 // encodeLiveProgramID returns "" for a start outside the encodable range.
 func encodeLiveProgramID(installationID int, channelID string, startUnix int64) string {
+	if installationID <= 0 || installationID > 1<<32-1 {
+		return ""
+	}
 	minutes := startUnix/60 - liveProgramEpoch/60
 	if startUnix < liveProgramEpoch || minutes > liveProgramMaxMinutes {
 		return ""
@@ -116,7 +122,7 @@ func encodeLiveProgramID(installationID int, channelID string, startUnix int64) 
 	binary.BigEndian.PutUint32(raw[2:6], uint32(installationID))
 	prefix := liveChannelPrefixOf(channelID)
 	copy(raw[8:13], prefix[:])
-	raw[13], raw[14], raw[15] = byte(minutes>>16), byte(minutes>>8), byte(minutes)
+	raw[13], raw[14], raw[15] = byte(minutes>>16&0xff), byte(minutes>>8&0xff), byte(minutes&0xff)
 	return uuid.UUID(raw).String()
 }
 

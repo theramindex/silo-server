@@ -166,42 +166,47 @@ func writeLiveWatch(raw, profileID, channelID, channelName string, now int64) (s
 	if channelName == "" {
 		channelName = channelID
 	}
-	entry, err := json.Marshal(struct {
+	entry, _ := json.Marshal(struct {
 		ItemKind string `json:"itemKind"`
 		ItemID   string `json:"itemId"`
 		ItemName string `json:"itemName"`
 		PlayedAt int64  `json:"playedAt"`
 		Plays    int    `json:"plays"`
 	}{"channel", channelID, channelName, now, plays})
-	if err != nil {
-		return "", err
-	}
 	watching[channelID] = entry
 
 	if plays >= liveTVAutoFavoritePlays && !readLiveProfilePrefs(raw, profileID).Favorites[channelID] {
-		var auto map[string]json.RawMessage
-		if v, has := top["autoFavorites"]; has {
-			if err := json.Unmarshal(v, &auto); err != nil {
-				return "", fmt.Errorf("livetv: preferences autoFavorites is not a JSON object: %w", err)
-			}
-		}
-		if auto == nil {
-			auto = map[string]json.RawMessage{}
-		}
-		auto[channelID] = json.RawMessage("true")
-		if top["autoFavorites"], err = json.Marshal(auto); err != nil {
+		if err := addLiveAutoFavorite(top, channelID); err != nil {
 			return "", err
 		}
 	}
+	top["recentChannels"], _ = json.Marshal(next)
+	var err error
 
-	if top["recentChannels"], err = json.Marshal(next); err != nil {
-		return "", err
-	}
 	if top["continueWatching"], err = json.Marshal(watching); err != nil {
 		return "", err
 	}
 	out, err := json.Marshal(top)
 	return string(out), err
+}
+
+func addLiveAutoFavorite(top map[string]json.RawMessage, channelID string) error {
+	var auto map[string]json.RawMessage
+	if v, has := top["autoFavorites"]; has {
+		if err := json.Unmarshal(v, &auto); err != nil {
+			return fmt.Errorf("livetv: preferences autoFavorites is not a JSON object: %w", err)
+		}
+	}
+	if auto == nil {
+		auto = map[string]json.RawMessage{}
+	}
+	auto[channelID] = json.RawMessage("true")
+	encoded, err := json.Marshal(auto)
+	if err != nil {
+		return err
+	}
+	top["autoFavorites"] = encoded
+	return nil
 }
 
 // writeLiveFavorite returns the document with channelID added to or removed from
@@ -221,32 +226,9 @@ func writeLiveFavorite(raw, profileID, channelID string, favorite bool) (string,
 			top = map[string]json.RawMessage{}
 		}
 	}
-	section := top
-	var profiles map[string]json.RawMessage
-	if profileID != "" {
-		if v, has := top["profiles"]; has {
-			if err := json.Unmarshal(v, &profiles); err != nil {
-				return "", fmt.Errorf("livetv: preferences profiles are not a JSON object: %w", err)
-			}
-		}
-		if profiles == nil {
-			profiles = map[string]json.RawMessage{}
-		}
-		var p map[string]json.RawMessage
-		if v, has := profiles[profileID]; has {
-			if err := json.Unmarshal(v, &p); err != nil {
-				return "", fmt.Errorf("livetv: preferences for profile %q are not a JSON object: %w", profileID, err)
-			}
-		}
-		if p == nil {
-			p = map[string]json.RawMessage{}
-			for _, k := range []string{"favorites", "favoriteOrder", "hiddenCategories"} {
-				if v, has := top[k]; has {
-					p[k] = v
-				}
-			}
-		}
-		section = p
+	section, profiles, err := liveFavoriteSection(top, profileID)
+	if err != nil {
+		return "", err
 	}
 
 	cur := readLiveProfilePrefsSection(section)
@@ -280,6 +262,38 @@ func writeLiveFavorite(raw, profileID, channelID string, favorite bool) (string,
 	}
 	out, err := json.Marshal(top)
 	return string(out), err
+}
+
+// liveFavoriteSection inherits legacy favorites only when a profile is absent.
+func liveFavoriteSection(top map[string]json.RawMessage, profileID string) (map[string]json.RawMessage, map[string]json.RawMessage, error) {
+	if profileID == "" {
+		return top, nil, nil
+	}
+	var profiles map[string]json.RawMessage
+
+	if v, has := top["profiles"]; has {
+		if err := json.Unmarshal(v, &profiles); err != nil {
+			return nil, nil, fmt.Errorf("livetv: preferences profiles are not a JSON object: %w", err)
+		}
+	}
+	if profiles == nil {
+		profiles = map[string]json.RawMessage{}
+	}
+	var p map[string]json.RawMessage
+	if v, has := profiles[profileID]; has {
+		if err := json.Unmarshal(v, &p); err != nil {
+			return nil, nil, fmt.Errorf("livetv: preferences for profile %q are not a JSON object: %w", profileID, err)
+		}
+	}
+	if p == nil {
+		p = map[string]json.RawMessage{}
+		for _, k := range []string{"favorites", "favoriteOrder", "hiddenCategories"} {
+			if v, has := top[k]; has {
+				p[k] = v
+			}
+		}
+	}
+	return p, profiles, nil
 }
 
 var errLiveTVPrefsUnavailable = errors.New("livetv: preferences store unavailable")

@@ -49,6 +49,9 @@ type liveFolderKey struct {
 }
 
 func encodeLiveFolderID(installationID int, path string) string {
+	if installationID <= 0 || installationID > 1<<32-1 {
+		return ""
+	}
 	var raw [16]byte
 	raw[0] = byte(EncodedIDLiveChannel)
 	raw[1] = liveFolderTag

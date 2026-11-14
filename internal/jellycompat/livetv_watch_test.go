@@ -48,8 +48,14 @@ func TestWriteLiveWatch(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if n := strings.Count(doc[strings.Index(doc, `"recentChannels"`):], `","`) + 1; n != liveTVRecentChannels {
-		t.Fatalf("recentChannels holds %d, want %d", n, liveTVRecentChannels)
+	var history struct {
+		Recent []string `json:"recentChannels"`
+	}
+	if err := json.Unmarshal([]byte(doc), &history); err != nil {
+		t.Fatal(err)
+	}
+	if len(history.Recent) != liveTVRecentChannels {
+		t.Fatalf("recentChannels holds %d, want %d", len(history.Recent), liveTVRecentChannels)
 	}
 
 	if _, err := writeLiveWatch(`{"continueWatching":[]}`, "", "a", "", 1); err == nil {

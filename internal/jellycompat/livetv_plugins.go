@@ -56,7 +56,7 @@ type pluginLiveTVRoutes struct {
 
 // NewPluginLiveTVRoutes returns a LiveTVRouteCaller that discovers livetv/v1
 // providers among the enabled plugins and calls their routes in-process.
-func NewPluginLiveTVRoutes(svc *plugins.Service, installations *plugins.InstallationStore) LiveTVRouteCaller {
+func NewPluginLiveTVRoutes(svc *plugins.Service, installations *plugins.InstallationStore) *pluginLiveTVRoutes {
 	return &pluginLiveTVRoutes{svc: svc, installations: installations, handle: handlePluginRoute}
 }
 

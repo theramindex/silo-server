@@ -50,7 +50,7 @@ func (f *fakeLiveTVPrefs) Get(_ context.Context, userID, installationID int) (ma
 
 func (f *fakeLiveTVPrefs) Set(_ context.Context, userID, installationID int, values map[string]string) error {
 	if f.setDelay > 0 {
-		time.Sleep(f.setDelay)
+		time.Sleep(f.setDelay) //nolint:forbidigo // Simulate slow storage so concurrent writes overlap; assertions check persisted state, not elapsed time.
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()

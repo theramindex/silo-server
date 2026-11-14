@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -83,7 +84,7 @@ func TestLiveTVProgramsGuideGrid(t *testing.T) {
 	}
 
 	calls := env.routes.callsTo(liveTVPathPrograms)
-	if len(calls) != 1 || calls[0].query["channel_ids"] != "m3u:news.hd,m3u:sports.one" || calls[0].query["start"] != fmt.Sprint(roundDownMinute(env.now)) || calls[0].query["limit"] != "" {
+	if len(calls) != 1 || calls[0].query["channel_ids"] != "m3u:news.hd,m3u:sports.one" || calls[0].query["start"] != strconv.FormatInt(roundDownMinute(env.now), 10) || calls[0].query["limit"] != "" {
 		t.Errorf("provider calls = %+v", calls)
 	}
 
@@ -103,7 +104,7 @@ func TestLiveTVProgramsRowsFilterByClass(t *testing.T) {
 		t.Fatalf("movies = %s", got)
 	}
 	calls := env.routes.callsTo(liveTVPathPrograms)
-	if len(calls) != 1 || calls[0].query["class"] != liveTVClassMovie || calls[0].query["channel_ids"] != "" || calls[0].query["limit"] != fmt.Sprint(liveProgramsMaxLimit) {
+	if len(calls) != 1 || calls[0].query["class"] != liveTVClassMovie || calls[0].query["channel_ids"] != "" || calls[0].query["limit"] != strconv.Itoa(liveProgramsMaxLimit) {
 		t.Errorf("provider calls = %+v", calls)
 	}
 
