@@ -17,6 +17,7 @@ func TestItemDetailToUpstreamOrdersByLocationWithinQuality(t *testing.T) {
 
 	tests := []struct {
 		name       string
+		itemType   string
 		configured bool
 		versions   []catalog.FileVersion
 		want       []int
@@ -57,6 +58,26 @@ func TestItemDetailToUpstreamOrdersByLocationWithinQuality(t *testing.T) {
 			},
 			want: []int{1, 2},
 		},
+		{
+			name:       "equal preferred location: video uses file ID",
+			itemType:   "movie",
+			configured: true,
+			versions: []catalog.FileVersion{
+				{FileID: 2, FilePath: ceph, VideoTracks: hd},
+				{FileID: 1, FilePath: ceph, VideoTracks: hd},
+			},
+			want: []int{1, 2},
+		},
+		{
+			name:       "equal preferred location: book keeps part order",
+			itemType:   "ebook",
+			configured: true,
+			versions: []catalog.FileVersion{
+				{FileID: 2, FilePath: ceph},
+				{FileID: 1, FilePath: ceph},
+			},
+			want: []int{2, 1},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -65,7 +86,7 @@ func TestItemDetailToUpstreamOrdersByLocationWithinQuality(t *testing.T) {
 			} else {
 				t.Cleanup(locationpref.Set(nil))
 			}
-			detail := itemDetailToUpstream(&catalog.ItemDetail{Versions: tt.versions})
+			detail := itemDetailToUpstream(&catalog.ItemDetail{Type: tt.itemType, Versions: tt.versions})
 			got := make([]int, 0, len(detail.Versions))
 			for _, v := range detail.Versions {
 				got = append(got, v.FileID)

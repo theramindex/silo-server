@@ -368,20 +368,20 @@ describe("AppSidebar", () => {
     expect(markup).toContain('href="/library/7?tab=library&amp;sort=year&amp;order=desc"');
   });
 
-  it("keeps a flat Apps list when fewer than 2 distinct categories exist", () => {
+  it("keeps plugin links in one Add-ons list across categories", () => {
     mockPluginInstallations = [
-      pluginInstallation(1, "alpha-app", "Alpha", "Tools/Utilities"),
-      pluginInstallation(2, "beta-app", "Beta", "Tools"),
+      pluginInstallation(1, "alpha-app", "Alpha", "Games/Utilities"),
+      pluginInstallation(2, "beta-app", "Beta", "Video"),
     ];
 
     const markup = renderSidebar("/");
 
-    expect(markup).toContain(">Apps<");
+    expect(markup).toContain(">Add-ons<");
     expect(markup).toContain(">Alpha<");
     expect(markup).toContain(">Beta<");
-    // Both plugins share the first category segment "Tools", so no
-    // per-category sub-headers should render.
-    expect(markup).not.toContain(">Tools<");
+    // Category labels must not repeat the plugin navigation.
+    expect(markup).not.toContain(">Games<");
+    expect(markup).not.toContain(">Video<");
     expect(markup).not.toContain(">Other<");
   });
 });

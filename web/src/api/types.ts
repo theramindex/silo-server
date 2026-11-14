@@ -1346,6 +1346,9 @@ export interface WatchDetail {
   effective_version_hdr?: boolean;
   effective_version_codec_video?: string;
   effective_version_edition_key?: string;
+  /** The item's backdrop (an episode's series backdrop), for loading screens. */
+  backdrop_url?: string;
+  backdrop_thumbhash?: string;
 }
 
 // Episodes
@@ -4071,6 +4074,8 @@ export interface PluginUpdateFailure {
   failed_at: string;
 }
 
+export type PluginSignature = V2Components["schemas"]["AdminPluginSignature"];
+
 export interface PluginInstallation {
   id: number;
   repository_id?: number | null;
@@ -4097,6 +4102,8 @@ export interface PluginInstallation {
   updates_paused: boolean;
   /** The last automatic update that failed; absent when the last check did not fail. */
   update_failure?: PluginUpdateFailure | null;
+  /** The release signature check of the installed package. */
+  signature: PluginSignature;
   legacy_metadata_import_types?: string[];
   created_at?: string;
   updated_at?: string;

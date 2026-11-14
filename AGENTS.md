@@ -48,7 +48,7 @@ prefer correctness and polish over new feature sprawl.
 Media enters through the scanner (`internal/scanner`, fed by `scanqueue`/`autoscan`), is
 classified by library kind (`librarykind`), ingested (`libraryingest`), and enriched by
 metadata plugins into the catalog: `media_items` keyed by deterministic content IDs
-(`contentid`), with `media_files` for the actual on-disk files. The catalog serves the v1 API
+(`contentid`), with `media_files` for the actual on-disk files. The catalog serves the native API
 and the home-screen sections (`sections`); `jellycompat` is a separate Jellyfin-protocol view
 over the same catalog. Playback resolves a play method (`internal/playback`) — direct play,
 direct stream, or transcode on a node from `nodepool` — and stream URLs are authorized by
@@ -67,9 +67,8 @@ server-side (`watchstate`, `userdb`, `settingsresolve`).
 - **Session** — ambiguous; always say which: playback session (`internal/playback`) or login
   session (`internal/auth`).
 - **jellycompat vs the native API** — jellycompat is the Jellyfin-protocol surface for ecosystem
-  clients; "the API" means Silo's native surface, which spans `/api/v1` (the frozen alpha
-  contract, served through the pre-1.0 bridge window) and `/api/v2` (the stable 1.0 target and the
-  native API going forward). See "API contract rules" below.
+  clients; "the API" means Silo's native surface, `/api/v2`. The alpha `/api/v1` contract is
+  retired. See "API contract rules" below.
 
 ## Priorities
 
@@ -136,6 +135,7 @@ Sibling repos are usually checked out side-by-side in the same parent directory.
 
 - `silo-android` — Android phone and TV clients.
 - `silo-apple` — iOS, tvOS, and macOS clients.
+- `silo-roku` — Roku client.
 - `silo-plugin-sdk` — public plugin SDK, protobuf contracts, generated plugin API, manifest
   helpers, runtime bootstrap.
 - `silo-plugins` — central plugin catalog / repository manifest.
@@ -151,8 +151,9 @@ done until each of these has been handled or ruled out:
 
 - The API change fits the current contract posture (see "API contract rules" below); new
   features still expose a capability endpoint.
-- Follow-up work is done or filed for both `silo-apple` and `silo-android` — prefer
-  coordinated multi-repo changes over leaving a platform behind.
+- Follow-up work is done or filed for `silo-apple`, `silo-android`, and `silo-roku`, and
+  for the web app when this change leaves it out, as "Cross-client parity" below
+  describes. Prefer coordinated multi-repo changes over leaving a platform behind.
 - jellycompat parity was considered (does the Jellyfin surface need the same behavior?).
 - The relevant `docs/*-api.md` is updated when the contract changes.
 
@@ -161,6 +162,69 @@ setting, default, label, setup step, or feature behavior it describes) is not do
 issue is open on `Silo-Server/siloserver.org`.
 [Update the user manual](CONTRIBUTING.md#update-the-user-manual) covers when to open one and
 what goes in it.
+
+## Cross-client parity
+
+Silo has four clients: Apple (`silo-apple`), Android (`silo-android`), Roku (`silo-roku`), and
+Web (this repository, under `web/`). A feature, fix, or other change a user can notice in one
+client is not done until each other client has been handled or ruled out. That covers web app
+changes made here and server changes that clients show. The change's author owns this, whether a
+person or an agent.
+
+For each client the change does not already update:
+
+- Rule it out when the change is specific to one platform (a browser layout fix, a web admin
+  page with no client counterpart), the client already behaves correctly, or the feature is
+  outside that client's scope (for example Roku's deferred features in `silo-roku/docs/spec.md`,
+  or ebooks on a TV client). Note the reason.
+- Otherwise, open an issue in that client's repository at minimum. Search its issues first and
+  add to an existing one rather than filing a duplicate. Title it
+  `Parity: <behavior> (from Silo-Server/silo-server#NNN)`, describe what users should get, link
+  this pull request, and point to the code or API that implements it here. A parity issue
+  follows up work already in review or merged, so it goes in Issues, not Discussions → Ideas.
+- Also open a pull request there when you can build and verify that client and its contribution
+  rules let you open one. Link it from the issue.
+
+Open parity issues when this pull request opens, so each one can link it. List the outcome on the
+pull request's `Other clients:` line, one entry per client:
+`Other clients: Apple Silo-Server/silo-apple#NNN; Android Silo-Server/silo-android#NNN; Roku N/A (not in the first release)`.
+Write `Other clients: N/A (no client-visible change)` when nothing a client shows changes.
+
+Agents open the parity issues without asking and apply [Writing](#writing) to them. Ask the
+developer before opening a pull request in another repository; approval to open one here does not
+cover the others.
+
+## Translations
+
+Every piece of text a user can see ships with its catalog entry and translations. That covers
+new UI text and changed wording, and also server text that clients translate: default section
+titles, new problem types and field-error codes, and settings manifest labels. A change that
+adds such text is not done until the catalog side is handled.
+[docs/architecture/i18n.md](docs/architecture/i18n.md) is the authority; the web call sites
+are in `web/src/i18n/README.md`.
+
+- Interface text lives in `Silo-Server/silo-translations` (`catalog/en.arb`), never in client
+  code. Add the key there with a `description`, typed `placeholders`, and `x-platforms` when
+  only some clients show it. Web text goes under `web.<area>.*`, and admin-only text under
+  `web.admin.*`. Reuse a key only when its English and meaning both match.
+- Never edit `web/src/locales/*.json` or `keys.ts` by hand. They are generated, and the next
+  `scripts/sync-translations --version` silently drops any key the catalog lacks, which breaks
+  the typecheck in whichever pull request syncs next.
+- The catalog pull request carries the translation pass for its keys (`make translate`, run as
+  silo-translations' CONTRIBUTING describes) as a separate commit, and merges first. Never
+  write translations by hand.
+- While the catalog change is unmerged, sync with `--local <checkout>`. Before the client
+  pull request merges, re-sync with `--version <release>` so `.silo-translations` names a
+  published release, not `local-<commit>`. Commit the generated files,
+  `.silo-translations`, and `.silo-translations-files` with the code that uses the keys.
+- Server text: a new default section title gets a `home.section.*` key and its constant in
+  `internal/sections/title_keys.go`; a new problem type or field code in
+  `internal/apiv2/problem.go` gets its `error.*` key; a manifest label change is re-imported
+  into the catalog, never edited there.
+- Data stays English: text that is stored, sent, matched, or compared is not translated. Only
+  the shown label is.
+- Check new web UI under the `en-XA` pseudo-locale (`vite dev` includes it). Any plain English
+  left on screen is unconverted text.
 
 ## Building and verifying
 
@@ -225,20 +289,19 @@ Run a final readability pass on other human-facing documents and status updates.
 
 ## API contract rules
 
-`/api/v2` is Silo's first stable native API and locks with Silo 1.0. `/api/v1` is a frozen alpha
-contract: it is carried unchanged through at least two published pre-1.0 bridge releases, and
-retiring it takes a separate maintainer decision (issue #886).
-[docs/architecture/api-contract.md](docs/architecture/api-contract.md) is the authority for the
-decision, the shared wire conventions, the release gates, and the retirement; this section is only
-the summary. V1 removals taken during alpha stay recorded in
-[docs/architecture/v1-scope.md](docs/architecture/v1-scope.md).
+`/api/v2` is Silo's native API and locks with Silo 1.0. The alpha `/api/v1` contract is retired:
+on the main API listener every `/api/v1` route answers a `410 Gone` tombstone carrying
+`client_upgrade_required`, except the retained `GET /api/v1/health` and `GET /api/v1/ready`
+probes. Do not add routes under `/api/v1`. The shared wire conventions and the release gates live
+in [docs/architecture/api-contract.md](docs/architecture/api-contract.md); that document is the
+authority and this section is only the summary. Program tracking: issue #135.
 
 What that means for a change today:
 
-- V1 feature development is frozen. Only critical fixes that keep the bridge usable land on
-  `/api/v1`; new contract work targets `/api/v2`.
-- A client-visible change during the bridge still needs coordination with `silo-apple` and
-  `silo-android`.
+- New contract work targets `/api/v2`, and a client-visible change still needs coordination with
+  `silo-apple` and `silo-android`.
+- [docs/architecture/v1-scope.md](docs/architecture/v1-scope.md) stays the historical record of
+  the alpha contract and its removals.
 
 At the 1.0 lock the additive-only rules bind `/api/v2`:
 
@@ -276,19 +339,21 @@ problems or can be reviewed and shipped separately.
 
 Before opening it, read [Open the pull request](CONTRIBUTING.md#open-the-pull-request) and follow
 it: a Conventional Commit title in plain language (`feat(playback): add realtime session hub`),
-the template, the `Closes` and `Related issue:` lines, and evidence for every change a user can
-see. End the body with the required AI disclosure, including the exact model identifier, agent
-harness, and any other AI tooling, as
-[AI-assisted contributions](CONTRIBUTING.md#ai-assisted-contributions) requires.
+the template, the `Closes` and `Related issue:` lines, and evidence: captures for a change a user
+can see, and the steps, build, and test or API results for one they can't. End the body with the
+required AI disclosure, including the exact model identifier, agent harness, and any other AI
+tooling, as [AI-assisted contributions](CONTRIBUTING.md#ai-assisted-contributions) requires.
 
 Pull requests are welcome from contributors who have had one merged in a Silo repository, or when
 a maintainer asks for one; the contribution-gate workflow closes others without review. A feature
 (`feat`) pull request from someone without triage or write access must also link an issue in the
-same repository labeled `accepted`. When working for someone in neither group, write an issue
-instead of opening a pull request, or post a feature idea in Discussions → Ideas; feature requests
-are not filed as issues. An AI agent contributing on behalf of a non-maintainer follows
-[docs/ai-contributions.md](docs/ai-contributions.md) for the required disclosure block and
-evidence standard.
+same repository labeled `accepted`. For anyone without triage or write access, the gate also closes
+drafts, and the evidence-deadline workflow closes a pull request whose `Evidence` check still asks
+for evidence 24 hours after it opens, so open it ready for review and publish evidence right away.
+When working for someone in neither group, write an issue instead of opening a pull request, or
+post a feature idea in Discussions → Ideas; feature requests are not filed as issues. An AI agent
+contributing on behalf of a non-maintainer follows [docs/ai-contributions.md](docs/ai-contributions.md)
+for the required disclosure block and evidence standard.
 
 Do not open a pull request against an issue someone else is working on. Read the issue's comments
 and linked pull requests first, and raise a likely collision with the user instead of racing the

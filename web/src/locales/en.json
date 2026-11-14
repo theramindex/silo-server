@@ -1925,6 +1925,16 @@
       "value": "Go Back"
     }
   ],
+  "player.scrubber.endsAt": [
+    {
+      "type": 0,
+      "value": "Ends "
+    },
+    {
+      "type": 1,
+      "value": "time"
+    }
+  ],
   "player.seekInterval.choice": [
     {
       "type": 6,
@@ -3605,6 +3615,78 @@
       "value": "Group action failed."
     }
   ],
+  "web.admin.access.groups.addUsers.addSelected": [
+    {
+      "type": 0,
+      "value": "Add selected"
+    }
+  ],
+  "web.admin.access.groups.addUsers.addSelectedCount": [
+    {
+      "type": 0,
+      "value": "Add "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " selected"
+    }
+  ],
+  "web.admin.access.groups.addUsers.description": [
+    {
+      "type": 0,
+      "value": "Regular accounts outside this group. Admin accounts can’t join groups."
+    }
+  ],
+  "web.admin.access.groups.addUsers.noGroup": [
+    {
+      "type": 0,
+      "value": "No group"
+    }
+  ],
+  "web.admin.access.groups.addUsers.noMatches": [
+    {
+      "type": 0,
+      "value": "No users match your search."
+    }
+  ],
+  "web.admin.access.groups.addUsers.none": [
+    {
+      "type": 0,
+      "value": "Every regular account is already here."
+    }
+  ],
+  "web.admin.access.groups.addUsers.search": [
+    {
+      "type": 0,
+      "value": "Search users"
+    }
+  ],
+  "web.admin.access.groups.addUsers.searchPlaceholder": [
+    {
+      "type": 0,
+      "value": "Search by username or email"
+    }
+  ],
+  "web.admin.access.groups.addUsers.title": [
+    {
+      "type": 0,
+      "value": "Add users to "
+    },
+    {
+      "type": 1,
+      "value": "group"
+    }
+  ],
+  "web.admin.access.groups.addUsers.unknownGroup": [
+    {
+      "type": 0,
+      "value": "Unknown group"
+    }
+  ],
   "web.admin.access.groups.allGroups": [
     {
       "type": 0,
@@ -3755,6 +3837,142 @@
       },
       "offset": 0,
       "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.changes.allPermissions": [
+    {
+      "type": 0,
+      "value": "All"
+    }
+  ],
+  "web.admin.access.groups.changes.allowed": [
+    {
+      "type": 0,
+      "value": "Allowed"
+    }
+  ],
+  "web.admin.access.groups.changes.audioTranscoding": [
+    {
+      "type": 0,
+      "value": "Audio transcoding"
+    }
+  ],
+  "web.admin.access.groups.changes.concurrentStreams": [
+    {
+      "type": 0,
+      "value": "Concurrent streams"
+    }
+  ],
+  "web.admin.access.groups.changes.concurrentTranscodes": [
+    {
+      "type": 0,
+      "value": "Concurrent transcodes"
+    }
+  ],
+  "web.admin.access.groups.changes.convertedDownloads": [
+    {
+      "type": 0,
+      "value": "Converted downloads"
+    }
+  ],
+  "web.admin.access.groups.changes.downloads": [
+    {
+      "type": 0,
+      "value": "Downloads"
+    }
+  ],
+  "web.admin.access.groups.changes.householdProfiles": [
+    {
+      "type": 0,
+      "value": "Household profiles"
+    }
+  ],
+  "web.admin.access.groups.changes.libraries": [
+    {
+      "type": 0,
+      "value": "Libraries"
+    }
+  ],
+  "web.admin.access.groups.changes.libraryId": [
+    {
+      "type": 0,
+      "value": "#"
+    },
+    {
+      "type": 1,
+      "value": "id"
+    }
+  ],
+  "web.admin.access.groups.changes.localBitrate": [
+    {
+      "type": 0,
+      "value": "Local stream bitrate"
+    }
+  ],
+  "web.admin.access.groups.changes.noLibraries": [
+    {
+      "type": 0,
+      "value": "No libraries"
+    }
+  ],
+  "web.admin.access.groups.changes.noPermissions": [
+    {
+      "type": 0,
+      "value": "None"
+    }
+  ],
+  "web.admin.access.groups.changes.notAllowed": [
+    {
+      "type": 0,
+      "value": "Not allowed"
+    }
+  ],
+  "web.admin.access.groups.changes.permissions": [
+    {
+      "type": 0,
+      "value": "Permissions"
+    }
+  ],
+  "web.admin.access.groups.changes.playbackQuality": [
+    {
+      "type": 0,
+      "value": "Playback quality"
+    }
+  ],
+  "web.admin.access.groups.changes.remoteBitrate": [
+    {
+      "type": 0,
+      "value": "Remote stream bitrate"
+    }
+  ],
+  "web.admin.access.groups.changes.requestApproval": [
+    {
+      "type": 0,
+      "value": "Request approval"
+    }
+  ],
+  "web.admin.access.groups.changes.requestLimit": [
+    {
+      "type": 0,
+      "value": "Request limit"
+    }
+  ],
+  "web.admin.access.groups.changes.requests": [
+    {
+      "type": 0,
+      "value": "Requests"
+    }
+  ],
+  "web.admin.access.groups.changes.unlimited": [
+    {
+      "type": 0,
+      "value": "Unlimited"
+    }
+  ],
+  "web.admin.access.groups.changes.videoTranscoding": [
+    {
+      "type": 0,
+      "value": "Video transcoding"
     }
   ],
   "web.admin.access.groups.conflict.message": [
@@ -4065,10 +4283,118 @@
       "value": "Loading access groups..."
     }
   ],
+  "web.admin.access.groups.members.addFailed": [
+    {
+      "type": 0,
+      "value": "Some users could not be added:"
+    }
+  ],
+  "web.admin.access.groups.members.addUsers": [
+    {
+      "type": 0,
+      "value": "Add users"
+    }
+  ],
+  "web.admin.access.groups.members.added": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Added "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " user to "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Added "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " users to "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.members.couldNotAdd": [
+    {
+      "type": 0,
+      "value": "could not be added"
+    }
+  ],
+  "web.admin.access.groups.members.couldNotMove": [
+    {
+      "type": 0,
+      "value": "could not be moved"
+    }
+  ],
   "web.admin.access.groups.members.empty": [
     {
       "type": 0,
       "value": "No members yet."
+    }
+  ],
+  "web.admin.access.groups.members.failure": [
+    {
+      "type": 1,
+      "value": "username"
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "reason"
+    }
+  ],
+  "web.admin.access.groups.members.groupChanged": [
+    {
+      "type": 0,
+      "value": "This account changed after you confirmed. Check the change and try again."
+    }
+  ],
+  "web.admin.access.groups.members.groupsLoadFailed": [
+    {
+      "type": 0,
+      "value": "Could not load access groups, so members can’t be moved yet. "
+    },
+    {
+      "type": 8,
+      "value": "retry",
+      "children": [
+        {
+          "type": 0,
+          "value": "Retry"
+        }
+      ]
     }
   ],
   "web.admin.access.groups.members.heading": [
@@ -4103,6 +4429,310 @@
     {
       "type": 0,
       "value": "Loading members..."
+    }
+  ],
+  "web.admin.access.groups.members.manageHelp": [
+    {
+      "type": 0,
+      "value": "Move members to another group, or add users to this one."
+    }
+  ],
+  "web.admin.access.groups.members.moveFailed": [
+    {
+      "type": 0,
+      "value": "Some users could not be moved:"
+    }
+  ],
+  "web.admin.access.groups.members.moveSelected": [
+    {
+      "type": 0,
+      "value": "Move selected"
+    }
+  ],
+  "web.admin.access.groups.members.moveSelectedCount": [
+    {
+      "type": 0,
+      "value": "Move "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " selected"
+    }
+  ],
+  "web.admin.access.groups.members.moveTarget": [
+    {
+      "type": 0,
+      "value": "Move selected members to"
+    }
+  ],
+  "web.admin.access.groups.members.moveTargetPlaceholder": [
+    {
+      "type": 0,
+      "value": "Move to group..."
+    }
+  ],
+  "web.admin.access.groups.members.moved": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Moved "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " user to "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Moved "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " users to "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.members.noMatches": [
+    {
+      "type": 0,
+      "value": "No members match your search."
+    }
+  ],
+  "web.admin.access.groups.members.search": [
+    {
+      "type": 0,
+      "value": "Search members"
+    }
+  ],
+  "web.admin.access.groups.members.selectMember": [
+    {
+      "type": 0,
+      "value": "Select "
+    },
+    {
+      "type": 1,
+      "value": "username"
+    }
+  ],
+  "web.admin.access.groups.members.selectedHidden": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected member isn’t shown, and a move includes it."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected members aren’t shown, and a move includes them."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.change": [
+    {
+      "type": 1,
+      "value": "label"
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "from"
+    },
+    {
+      "type": 0,
+      "value": " → "
+    },
+    {
+      "type": 1,
+      "value": "to"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.description": [
+    {
+      "type": 0,
+      "value": "Settings a user has overridden on their own account stay as they are. They get the new access right away, without being signed out."
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.fromGroup": [
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " from "
+    },
+    {
+      "type": 1,
+      "value": "group"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.fromNoGroup": [
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " from no group"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.fromUnknownGroup": [
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " from group #"
+    },
+    {
+      "type": 1,
+      "value": "id"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.loadingTerms": [
+    {
+      "type": 0,
+      "value": "Loading request settings…"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.move": [
+    {
+      "type": 0,
+      "value": "Move"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.moving": [
+    {
+      "type": 0,
+      "value": "Moving..."
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.noChanges": [
+    {
+      "type": 0,
+      "value": "No inherited settings change."
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.sourceUnknown": [
+    {
+      "type": 0,
+      "value": "Their current group couldn’t be loaded, so the settings that change are unknown."
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.termsFailed": [
+    {
+      "type": 0,
+      "value": "The groups’ request settings couldn’t be loaded, so the settings that change are unknown."
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.title": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Move "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " user to "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "?"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Move "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " users to "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "?"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.admin.access.groups.newGroup": [
@@ -22557,6 +23187,46 @@
     {
       "type": 0,
       "value": "Count not loaded"
+    }
+  ],
+  "web.admin.common.downloadAccess.conversionOff": [
+    {
+      "type": 0,
+      "value": "The server isn't preparing device-friendly copies, so every download is the original file. Turn it on in "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 0,
+          "value": "Settings → Downloads"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "web.admin.common.downloadAccess.serverOff": [
+    {
+      "type": 0,
+      "value": "Downloads are turned off for the whole server, so nobody can download. Turn them on in "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 0,
+          "value": "Settings → Downloads"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": "."
     }
   ],
   "web.admin.common.editorConflict.message": [
@@ -44114,6 +44784,34 @@
       "pluralType": "cardinal"
     }
   ],
+  "web.admin.libraries.list.hidePaths": [
+    {
+      "type": 0,
+      "value": "Hide paths"
+    }
+  ],
+  "web.admin.libraries.list.moreActions": [
+    {
+      "type": 0,
+      "value": "More actions for "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    }
+  ],
+  "web.admin.libraries.list.moveDown": [
+    {
+      "type": 0,
+      "value": "Move down"
+    }
+  ],
+  "web.admin.libraries.list.moveUp": [
+    {
+      "type": 0,
+      "value": "Move up"
+    }
+  ],
   "web.admin.libraries.list.neverScanned": [
     {
       "type": 0,
@@ -44142,6 +44840,12 @@
     {
       "type": 0,
       "value": "Scan Library"
+    }
+  ],
+  "web.admin.libraries.list.showPaths": [
+    {
+      "type": 0,
+      "value": "Show paths"
     }
   ],
   "web.admin.libraries.list.stopRefresh": [
@@ -50561,6 +51265,102 @@
     {
       "type": 0,
       "value": "Settings"
+    }
+  ],
+  "web.admin.plugins.signature.invalid": [
+    {
+      "type": 0,
+      "value": "Failed the check"
+    }
+  ],
+  "web.admin.plugins.signature.invalidBanner": [
+    {
+      "type": 8,
+      "value": "b",
+      "children": [
+        {
+          "type": 0,
+          "value": "The release signature check failed for "
+        },
+        {
+          "type": 1,
+          "value": "name"
+        },
+        {
+          "type": 0,
+          "value": "."
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": " The signature that came with this version doesn't prove which repository built it. The server log has the details."
+    }
+  ],
+  "web.admin.plugins.signature.label": [
+    {
+      "type": 0,
+      "value": "Release signature"
+    }
+  ],
+  "web.admin.plugins.signature.tileInvalid": [
+    {
+      "type": 0,
+      "value": "Signature failed"
+    }
+  ],
+  "web.admin.plugins.signature.tileVerified": [
+    {
+      "type": 0,
+      "value": "Signed release built from "
+    },
+    {
+      "type": 1,
+      "value": "repository"
+    }
+  ],
+  "web.admin.plugins.signature.unknown": [
+    {
+      "type": 0,
+      "value": "Not checked"
+    }
+  ],
+  "web.admin.plugins.signature.unsigned": [
+    {
+      "type": 0,
+      "value": "Not signed"
+    }
+  ],
+  "web.admin.plugins.signature.verified": [
+    {
+      "type": 0,
+      "value": "Built from "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 1,
+          "value": "repository"
+        }
+      ]
+    }
+  ],
+  "web.admin.plugins.signature.verifiedAt": [
+    {
+      "type": 0,
+      "value": "Verified "
+    },
+    {
+      "type": 1,
+      "value": "date"
+    }
+  ],
+  "web.admin.plugins.signature.verifiedNoRepository": [
+    {
+      "type": 0,
+      "value": "Verified"
     }
   ],
   "web.admin.plugins.source.approvedCommunity": [
@@ -57363,6 +58163,12 @@
       "value": "Disk ceiling (%)"
     }
   ],
+  "web.admin.settings.downloads.enabled.description": [
+    {
+      "type": 0,
+      "value": "The switch for the whole server. On, access groups and accounts decide who may download. Off, nobody can."
+    }
+  ],
   "web.admin.settings.downloads.enabled.label": [
     {
       "type": 0,
@@ -63150,7 +63956,7 @@
   "web.admin.settings.playback.transcoding.copyKeyframePlaylistDescription": [
     {
       "type": 0,
-      "value": "Experimental. When Silo copies a file's video, list every segment from the start, using the file's keyframes, instead of a playlist that grows as Silo copies. Stops Safari freezing partway through. A seek ahead of what Silo has copied waits for it to get there."
+      "value": "Experimental. When Silo copies a file's video, list every segment from the start, using the file's keyframes, instead of a playlist that grows as Silo copies. Stops Safari freezing partway through. A seek well past what Silo has copied starts the copy again from there."
     }
   ],
   "web.admin.settings.playback.transcoding.dir": [
@@ -79391,6 +80197,12 @@
       "value": "Downloads not allowed"
     }
   ],
+  "web.admin.users.detail.overview.access.downloadsServerOff": [
+    {
+      "type": 0,
+      "value": "Downloads are off for the whole server"
+    }
+  ],
   "web.admin.users.detail.overview.access.groupSource": [
     {
       "type": 1,
@@ -82145,6 +82957,16 @@
       "value": "Could not load users."
     }
   ],
+  "web.admin.users.list.moreActions": [
+    {
+      "type": 0,
+      "value": "More actions for "
+    },
+    {
+      "type": 1,
+      "value": "username"
+    }
+  ],
   "web.admin.users.list.nextPage": [
     {
       "type": 0,
@@ -82155,6 +82977,12 @@
     {
       "type": 0,
       "value": "No group"
+    }
+  ],
+  "web.admin.users.list.noMatches": [
+    {
+      "type": 0,
+      "value": "No users match your search or filter."
     }
   ],
   "web.admin.users.list.pageRange": [
@@ -115823,6 +116651,12 @@
       "value": "Audio"
     }
   ],
+  "web.player.audioMenu.onlyOneTrack": [
+    {
+      "type": 0,
+      "value": "Only one audio track"
+    }
+  ],
   "web.player.audioMenu.trackFallback": [
     {
       "type": 0,
@@ -115837,6 +116671,16 @@
     {
       "type": 0,
       "value": "Audio tracks"
+    }
+  ],
+  "web.player.audioMenu.triggerWithTrack": [
+    {
+      "type": 0,
+      "value": "Audio tracks, "
+    },
+    {
+      "type": 1,
+      "value": "track"
     }
   ],
   "web.player.bar.backgroundPlayback": [
@@ -116097,6 +116941,16 @@
       "value": " Mbps"
     }
   ],
+  "web.player.buffering.loadingFrom": [
+    {
+      "type": 0,
+      "value": "Loading from "
+    },
+    {
+      "type": 1,
+      "value": "time"
+    }
+  ],
   "web.player.buffering.undoCaption": [
     {
       "type": 0,
@@ -116113,6 +116967,26 @@
     {
       "type": 0,
       "value": "Chapters"
+    }
+  ],
+  "web.player.chaptersMenu.nowPlaying": [
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 8,
+      "value": "now",
+      "children": [
+        {
+          "type": 0,
+          "value": "Now playing"
+        }
+      ]
     }
   ],
   "web.player.chaptersMenu.trigger": [
@@ -116175,6 +117049,12 @@
       "value": "Exit fullscreen"
     }
   ],
+  "web.player.controls.exitFullscreenShortcut": [
+    {
+      "type": 0,
+      "value": "Exit fullscreen (F)"
+    }
+  ],
   "web.player.controls.fillScreen": [
     {
       "type": 0,
@@ -116185,6 +117065,18 @@
     {
       "type": 0,
       "value": "Fullscreen"
+    }
+  ],
+  "web.player.controls.fullscreenShortcut": [
+    {
+      "type": 0,
+      "value": "Fullscreen (F)"
+    }
+  ],
+  "web.player.controls.more": [
+    {
+      "type": 0,
+      "value": "More"
     }
   ],
   "web.player.controls.moreOptions": [
@@ -116211,6 +117103,12 @@
       "value": "Picture in Picture"
     }
   ],
+  "web.player.controls.pictureInPictureItem": [
+    {
+      "type": 0,
+      "value": "Picture in picture"
+    }
+  ],
   "web.player.controls.pictureInPictureShortcut": [
     {
       "type": 0,
@@ -116233,6 +117131,26 @@
     {
       "type": 0,
       "value": "Previous episode"
+    }
+  ],
+  "web.player.controls.remainingTime": [
+    {
+      "type": 0,
+      "value": "−"
+    },
+    {
+      "type": 1,
+      "value": "time"
+    }
+  ],
+  "web.player.controls.remainingTimeLabel": [
+    {
+      "type": 0,
+      "value": "Remaining "
+    },
+    {
+      "type": 1,
+      "value": "time"
     }
   ],
   "web.player.controls.skipBack": [
@@ -116923,6 +117841,12 @@
       "value": "Dropped frames"
     }
   ],
+  "web.player.info.heading": [
+    {
+      "type": 0,
+      "value": "Playback info"
+    }
+  ],
   "web.player.info.playMethod": [
     {
       "type": 0,
@@ -117127,6 +118051,94 @@
       "value": "title"
     }
   ],
+  "web.player.nextEpisode.playNow": [
+    {
+      "type": 0,
+      "value": "Play now"
+    }
+  ],
+  "web.player.nextEpisode.regionLabel": [
+    {
+      "type": 0,
+      "value": "Up next"
+    }
+  ],
+  "web.player.nextEpisode.seasonEpisode": [
+    {
+      "type": 0,
+      "value": "Season "
+    },
+    {
+      "type": 1,
+      "value": "season"
+    },
+    {
+      "type": 0,
+      "value": " · Episode "
+    },
+    {
+      "type": 1,
+      "value": "episode"
+    }
+  ],
+  "web.player.nextEpisode.upNextIn": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Up next in "
+            },
+            {
+              "type": 8,
+              "value": "num",
+              "children": [
+                {
+                  "type": 7
+                },
+                {
+                  "type": 0,
+                  "value": "s"
+                }
+              ]
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Up next in "
+            },
+            {
+              "type": 8,
+              "value": "num",
+              "children": [
+                {
+                  "type": 7
+                },
+                {
+                  "type": 0,
+                  "value": "s"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.player.postRoll.stillPlaying": [
+    {
+      "type": 0,
+      "value": "Still playing · Click to return"
+    }
+  ],
   "web.player.quality.auto": [
     {
       "type": 0,
@@ -117165,6 +118177,18 @@
       "value": "Selected"
     }
   ],
+  "web.player.quality.sourceFile": [
+    {
+      "type": 0,
+      "value": "Source file"
+    }
+  ],
+  "web.player.quality.streamingQuality": [
+    {
+      "type": 0,
+      "value": "Streaming quality"
+    }
+  ],
   "web.player.quality.title": [
     {
       "type": 0,
@@ -117175,6 +118199,42 @@
     {
       "type": 1,
       "value": "menu"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "speed"
+    }
+  ],
+  "web.player.quality.triggerWithValue": [
+    {
+      "type": 1,
+      "value": "menu"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "value"
+    }
+  ],
+  "web.player.quality.triggerWithValueAndSpeed": [
+    {
+      "type": 1,
+      "value": "menu"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "value"
     },
     {
       "type": 0,
@@ -117983,6 +119043,12 @@
       "value": "Silo couldn't read this file. It appears to be empty or damaged."
     }
   ],
+  "web.player.upNext.autoplay": [
+    {
+      "type": 0,
+      "value": "Auto-play"
+    }
+  ],
   "web.player.upNext.autoplayOff": [
     {
       "type": 0,
@@ -118043,6 +119109,18 @@
       "value": "series"
     }
   ],
+  "web.player.upNext.heading": [
+    {
+      "type": 0,
+      "value": "Up next"
+    }
+  ],
+  "web.player.upNext.headingShuffle": [
+    {
+      "type": 0,
+      "value": "Up next at random"
+    }
+  ],
   "web.player.upNext.minutesLeft": [
     {
       "type": 6,
@@ -118095,10 +119173,68 @@
       "value": "No Preview"
     }
   ],
+  "web.player.upNext.onDeckScrollBack": [
+    {
+      "type": 0,
+      "value": "Scroll On Deck back"
+    }
+  ],
+  "web.player.upNext.onDeckScrollForward": [
+    {
+      "type": 0,
+      "value": "Scroll On Deck forward"
+    }
+  ],
   "web.player.upNext.playingNext": [
     {
       "type": 0,
       "value": "Playing Next"
+    }
+  ],
+  "web.player.upNext.startsAfterCredits": [
+    {
+      "type": 0,
+      "value": "Starts on its own when the credits end"
+    }
+  ],
+  "web.player.upNext.startsIn": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Starts in "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": "s"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Starts in "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": "s"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.player.volume.label": [
@@ -135945,6 +137081,12 @@
       "value": "Enable captions"
     }
   ],
+  "web.subtitles.menu.heading": [
+    {
+      "type": 0,
+      "value": "Subtitles"
+    }
+  ],
   "web.subtitles.menu.noMatch": [
     {
       "type": 0,
@@ -135993,6 +137135,18 @@
       "value": "External"
     }
   ],
+  "web.subtitles.menu.subtitlesOffShortcut": [
+    {
+      "type": 0,
+      "value": "Subtitles off (C)"
+    }
+  ],
+  "web.subtitles.menu.subtitlesShortcut": [
+    {
+      "type": 0,
+      "value": "Subtitles (C)"
+    }
+  ],
   "web.subtitles.menu.syncHint": [
     {
       "type": 0,
@@ -136039,10 +137193,32 @@
       "value": "This server doesn't allow changing subtitle timing."
     }
   ],
+  "web.subtitles.menu.toolsLabel": [
+    {
+      "type": 0,
+      "value": "Subtitle tools"
+    }
+  ],
+  "web.subtitles.menu.tracksLabel": [
+    {
+      "type": 0,
+      "value": "Subtitle tracks"
+    }
+  ],
   "web.subtitles.menu.translateWithAi": [
     {
       "type": 0,
       "value": "Translate with AI…"
+    }
+  ],
+  "web.subtitles.menu.triggerWithValue": [
+    {
+      "type": 0,
+      "value": "Subtitles, "
+    },
+    {
+      "type": 1,
+      "value": "value"
     }
   ],
   "web.subtitles.quotaWindow.day": [

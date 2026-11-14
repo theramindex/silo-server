@@ -12,6 +12,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/cache"
 	"github.com/Silo-Server/silo-server/internal/catalog"
 	"github.com/Silo-Server/silo-server/internal/libraryingest"
+	"github.com/Silo-Server/silo-server/internal/librarykind"
 	"github.com/Silo-Server/silo-server/internal/models"
 	"github.com/Silo-Server/silo-server/internal/naming"
 	"github.com/Silo-Server/silo-server/internal/notifications"
@@ -31,6 +32,10 @@ type ItemRefreshMode string
 const (
 	ItemRefreshModeQuick    ItemRefreshMode = "quick"
 	ItemRefreshModeComplete ItemRefreshMode = "complete"
+	// ItemRefreshModeReset is a quick refresh that resets the target to its
+	// providers: it clears the target's locks and every value the providers
+	// lack (Reset to Provider in Edit Metadata).
+	ItemRefreshModeReset ItemRefreshMode = "reset"
 )
 
 var ErrScopeHasNoFiles = errors.New("cannot determine scan scope because this item has no indexed files")
@@ -440,6 +445,15 @@ type ItemRefreshArtworkCacher interface {
 	CacheTargetArtwork(ctx context.Context, targetContentID string) error
 }
 
+// ItemRefreshMetadataRefresher refreshes or resets an item's metadata
+// (metadata.MetadataService).
+type ItemRefreshMetadataRefresher interface {
+	RefreshItem(ctx context.Context, contentID string) error
+	RefreshItemForLibrary(ctx context.Context, contentID string, folderID int) error
+	RefreshTargetForLibrary(ctx context.Context, targetType, contentID string, folderID int) error
+	ResetTargetForLibrary(ctx context.Context, targetType, contentID string, folderID int) error
+}
+
 type ItemRefreshExecutor struct {
 	folderRepo      itemRefreshFolderRepo
 	fileRepo        itemRefreshFileRepo
@@ -450,14 +464,10 @@ type ItemRefreshExecutor struct {
 	episodeRepo     itemRefreshEpisodeRepo
 	ingester        ItemRefreshIngester
 	scanRuns        directScanRunRepository
-	refresher       interface {
-		RefreshItem(ctx context.Context, contentID string) error
-		RefreshItemForLibrary(ctx context.Context, contentID string, folderID int) error
-		RefreshTargetForLibrary(ctx context.Context, targetType, contentID string, folderID int) error
-	}
-	artworkCacher ItemRefreshArtworkCacher
-	eventBus      cache.EventBus
-	realtimeHub   *notifications.Hub
+	refresher       ItemRefreshMetadataRefresher
+	artworkCacher   ItemRefreshArtworkCacher
+	eventBus        cache.EventBus
+	realtimeHub     *notifications.Hub
 	// evictRails drops this node's cached home rails that list the given
 	// content IDs; tests replace it.
 	evictRails func(contentIDs ...string)
@@ -473,11 +483,7 @@ func NewItemRefreshExecutor(
 	episodeRepo itemRefreshEpisodeRepo,
 	ingester ItemRefreshIngester,
 	scanRuns directScanRunRepository,
-	refresher interface {
-		RefreshItem(ctx context.Context, contentID string) error
-		RefreshItemForLibrary(ctx context.Context, contentID string, folderID int) error
-		RefreshTargetForLibrary(ctx context.Context, targetType, contentID string, folderID int) error
-	},
+	refresher ItemRefreshMetadataRefresher,
 	eventBus cache.EventBus,
 	realtimeHub *notifications.Hub,
 ) *ItemRefreshExecutor {
@@ -527,7 +533,7 @@ func (e *ItemRefreshExecutor) Execute(ctx context.Context, req ItemRefreshReques
 		if e.fileRepo == nil || e.rootClaimRepo == nil || e.groupClaimRepo == nil {
 			return nil, fmt.Errorf("resolve scan scope: complete item refresh requires file, root claim, and group claim repositories")
 		}
-		if err := e.prepareCompleteRefresh(ctx, req); err != nil {
+		if err := e.prepareCompleteRefresh(ctx, folder, req); err != nil {
 			return nil, fmt.Errorf("prepare complete refresh: %w", err)
 		}
 	}
@@ -584,7 +590,11 @@ func (e *ItemRefreshExecutor) Execute(ctx context.Context, req ItemRefreshReques
 			refreshTargetType = "item"
 		}
 	}
-	if err := e.refresher.RefreshTargetForLibrary(ctx, refreshTargetType, refreshContentID, req.ScanFolderID); err != nil {
+	refreshTarget := e.refresher.RefreshTargetForLibrary
+	if req.Mode == ItemRefreshModeReset {
+		refreshTarget = e.refresher.ResetTargetForLibrary
+	}
+	if err := refreshTarget(ctx, refreshTargetType, refreshContentID, req.ScanFolderID); err != nil {
 		return nil, fmt.Errorf("refresh metadata: %w", err)
 	}
 	artworkWarning := ""
@@ -655,7 +665,7 @@ func (e *ItemRefreshExecutor) Execute(ctx context.Context, req ItemRefreshReques
 	}, nil
 }
 
-func (e *ItemRefreshExecutor) prepareCompleteRefresh(ctx context.Context, req ItemRefreshRequest) error {
+func (e *ItemRefreshExecutor) prepareCompleteRefresh(ctx context.Context, folder *models.MediaFolder, req ItemRefreshRequest) error {
 	if req.CanonicalRootPath != "" {
 		if err := e.rootClaimRepo.DeleteByFolderAndRoot(ctx, req.ScanFolderID, req.CanonicalRootPath); err != nil {
 			return fmt.Errorf("deleting root claim: %w", err)
@@ -665,6 +675,13 @@ func (e *ItemRefreshExecutor) prepareCompleteRefresh(ctx context.Context, req It
 		if err := e.groupClaimRepo.DeleteByFolderAndObservedPathPrefix(ctx, req.ScanFolderID, req.ScanPath); err != nil {
 			return fmt.Errorf("deleting group claims: %w", err)
 		}
+	}
+	// The podcast scanner finds a show by the files linked to it and rewrites
+	// the show and its episodes from their tags on every scan. Clearing those
+	// links would make it mint new show and episode IDs, detaching favorites,
+	// progress and history, so a podcast keeps its links (issue #3405).
+	if librarykind.IsPodcast(folder.Type) {
+		return nil
 	}
 	if _, err := e.fileRepo.ClearContentLinksByPathPrefix(ctx, req.ScanFolderID, req.ScanPath); err != nil {
 		return fmt.Errorf("clearing content links: %w", err)
@@ -725,8 +742,9 @@ func (e *ItemRefreshExecutor) resolveCompleteRefreshTargets(ctx context.Context,
 }
 
 func normalizeItemRefreshMode(mode ItemRefreshMode) ItemRefreshMode {
-	if mode == ItemRefreshModeComplete {
-		return ItemRefreshModeComplete
+	switch mode {
+	case ItemRefreshModeComplete, ItemRefreshModeReset:
+		return mode
 	}
 	return ItemRefreshModeQuick
 }

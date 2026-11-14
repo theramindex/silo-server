@@ -6,7 +6,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List the external sign-in identities linked to the caller's account. */
+    /**
+     * List the external sign-in identities linked to the caller's account.
+     * @description Every profile on the account may read the list. can_unlink answers for the profile X-Profile-Id names, or for a request that names none, by deleteAccountIdentity's rule: a profile other than the account's primary one reads false.
+     */
     get: operations["listAccountIdentities"];
     put?: never;
     post?: never;
@@ -28,7 +31,7 @@ export interface paths {
     post?: never;
     /**
      * Disconnect an external sign-in identity from the caller's account.
-     * @description Allowed only while the account can still sign in another way: its local password (with local password sign-in on, or as a break-glass account) or another identity; otherwise 409 last_sign_in_method. An API key or an impersonation session is refused with 403.
+     * @description How the account signs in belongs to the whole household, so only the account's household manager may disconnect an identity. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied. Allowed only while the account can still sign in another way: its local password (with local password sign-in on, or as a break-glass account) or another identity; otherwise 409 last_sign_in_method. An API key or an impersonation session is refused with 403 permission_denied.
      */
     delete: operations["deleteAccountIdentity"];
     options?: never;
@@ -13272,10 +13275,16 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List the account's webhook connections. */
+    /**
+     * List the account's webhook connections.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     get: operations["listWebhookConnections"];
     put?: never;
-    /** Create an external webhook connection. */
+    /**
+     * Create an external webhook connection.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     post: operations["createWebhookConnection"];
     delete?: never;
     options?: never;
@@ -13291,10 +13300,16 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
-    /** Update a webhook connection. */
+    /**
+     * Update a webhook connection.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     put: operations["updateWebhookConnection"];
     post?: never;
-    /** Delete a webhook connection. */
+    /**
+     * Delete a webhook connection.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     delete: operations["deleteWebhookConnection"];
     options?: never;
     head?: never;
@@ -13308,7 +13323,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List webhook events with stable pagination. */
+    /**
+     * List webhook events with stable pagination.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     get: operations["listWebhookEvents"];
     put?: never;
     post?: never;
@@ -13325,9 +13343,15 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Read external-user profile mappings. */
+    /**
+     * Read external-user profile mappings.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     get: operations["getWebhookMappings"];
-    /** Replace external-user profile mappings. */
+    /**
+     * Replace external-user profile mappings.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     put: operations["updateWebhookMappings"];
     post?: never;
     delete?: never;
@@ -13345,7 +13369,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Rotate the external receiver URL. */
+    /**
+     * Rotate the external receiver URL.
+     * @description Webhook sync connections are account-wide: a connection's receiver URL carries its secret, and its mappings choose which profile an external user's watch state is written to. Only the account's household manager may read or change them. X-Profile-Id must name the account's primary profile, with X-Profile-Token when that profile is PIN-protected (without it the request is 403 profile_verification_required); naming any other profile is 403 permission_denied, including on an admin account. A request without X-Profile-Id is accepted only from an admin account's API key, or from an admin account's login session while no profile on the account is PIN-protected or access-restricted; otherwise it is 403 permission_denied.
+     */
     post: operations["rotateWebhookConnection"];
     delete?: never;
     options?: never;
@@ -13476,7 +13503,7 @@ export interface components {
     };
     AccountIdentityCollection: {
       /**
-       * @description Whether deleteAccountIdentity would disconnect an identity now: the account has another identity, or its local password still signs in (the account's password sign-in is on, and local password sign-in is on for the server or the account is break-glass). False with no identity
+       * @description Whether deleteAccountIdentity would disconnect an identity now for the profile asking: that profile is the account's household manager (deleteAccountIdentity describes who is), and the account has another identity, or its local password still signs in (the account's password sign-in is on, and local password sign-in is on for the server or the account is break-glass). False with no identity
        * @example true
        */
       can_unlink: boolean;
@@ -15534,6 +15561,8 @@ export interface components {
       item_match_hints: boolean;
       /** @description listAdminCatalogItems returns genres, content_rating, studios, networks, ratings and dates on movies and series and air_date on episodes, and accepts include_people */
       item_metadata: boolean;
+      /** @description refreshAdminItemMetadata accepts mode reset, which resets an item, season or episode to its providers */
+      item_metadata_reset: boolean;
       /** @description Opaque revision of this document */
       revision: string;
       /**
@@ -18293,10 +18322,11 @@ export interface components {
     };
     AdminItemMetadataRefreshInputBody: {
       /**
+       * @description quick rescans the item's folder and refreshes its metadata; complete rebuilds the item from its files first; reset is a quick refresh that also clears the item's field locks and every field its providers have no value for, and fails without changing the item when a provider lookup, search or fallback-language lookup fails for any reason other than a not-found answer or an enrichment provider whose key is missing or rejected, or when the item is pinned unmatched; through a library whose metadata language is not the item's own, it keeps the item's own-language title, overview and tagline. getAdminCatalogCapabilities reports item_metadata_reset when reset is accepted; a server without it rejects reset with 422
        * @default quick
        * @enum {string}
        */
-      mode: "quick" | "complete";
+      mode: "quick" | "complete" | "reset";
     };
     AdminItemMetadataUpdate: {
       /** @description Season or episode air date; null clears it */
@@ -19977,6 +20007,8 @@ export interface components {
       repository_name?: string;
       routes: components["schemas"]["PluginRoute"][];
       runtime: components["schemas"]["AdminPluginRuntime"];
+      /** @description The release signature check of the installed package. */
+      signature: components["schemas"]["AdminPluginSignature"];
       /** @enum {string} */
       source_kind: "silo" | "approved_community" | "external";
       task_bindings: components["schemas"]["AdminPluginTaskBinding"][];
@@ -20097,6 +20129,23 @@ export interface components {
        * @enum {string}
        */
       state: "stopped" | "starting" | "running" | "backoff" | "failed";
+    };
+    AdminPluginSignature: {
+      /**
+       * Format: uri
+       * @description The repository the verified signature names. Present only when state is verified.
+       */
+      source_repo?: string;
+      /**
+       * @description verified: the release's Sigstore bundle proved it was built from source_repo at the version's tag. unsigned: there was nothing to check, as for an upload, an archive install, or a catalog entry without a signature. invalid: a signature was checked and did not prove that. unknown: not checked, as for an installation from before Silo checked signatures or an install whose check could not run.
+       * @enum {string}
+       */
+      state: "unknown" | "verified" | "unsigned" | "invalid";
+      /**
+       * Format: date-time
+       * @description When Silo verified the signature. Present only when state is verified.
+       */
+      verified_at?: string;
     };
     AdminPluginTaskBinding: {
       capability_id: string;
@@ -27204,6 +27253,7 @@ export interface components {
        * @example 120
        */
       file_id: string;
+      /** @description Absent for viewers without file-path visibility, except on audiobooks and ebooks */
       file_name?: string;
       /** @description Absent for viewers without file-path visibility */
       file_path?: string;
@@ -35601,6 +35651,7 @@ export interface components {
       default: boolean;
       embedded_title?: string;
       external: boolean;
+      /** @description An external track's file name; absent for viewers without file-path visibility, except on audiobooks and ebooks */
       file_name?: string;
       forced: boolean;
       hearing_impaired: boolean;
@@ -35807,8 +35858,9 @@ export interface components {
        * @example 42
        */
       file_id: string;
+      /** @description Absent for viewers without file-path visibility, except on audiobooks and ebooks */
       file_name?: string;
-      /** @description Only for accounts allowed to see paths */
+      /** @description Absent for viewers without file-path visibility */
       file_path?: string;
       /**
        * Format: int64
@@ -36284,6 +36336,7 @@ export interface components {
       default: boolean;
       embedded_title?: string;
       external: boolean;
+      /** @description An external track's file name; absent for viewers without file-path visibility, except on audiobooks and ebooks */
       file_name?: string;
       forced: boolean;
       hearing_impaired: boolean;
@@ -37358,7 +37411,12 @@ export interface operations {
   listAccountIdentities: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Optional. When present, it must name a profile of the authenticated account. */
+        "X-Profile-Id"?: string;
+        /** @description Verification proof for a PIN-locked profile, issued by POST /api/v2/profiles/{id}/verify-pin; required only when the declared profile is locked */
+        "X-Profile-Token"?: string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -37384,6 +37442,24 @@ export interface operations {
       };
       /** @description Unauthorized */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Found */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -37441,7 +37517,12 @@ export interface operations {
   deleteAccountIdentity: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Optional. When present, it must name a profile of the authenticated account. */
+        "X-Profile-Id"?: string;
+        /** @description Verification proof for a PIN-locked profile, issued by POST /api/v2/profiles/{id}/verify-pin; required only when the declared profile is locked */
+        "X-Profile-Token"?: string;
+      };
       path: {
         /** @description Identity id */
         id: string;

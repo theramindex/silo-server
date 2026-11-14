@@ -54,7 +54,7 @@ func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 	}))
 	defer producer.Close()
 	proxy := NewHTTPProxy(relayTestService{client: relayTestClient{producer.URL}, access: "authenticated"}, profileTestInstallationStore{})
-	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { proxy.ServeRoute(w, r, 1, true, false) }))
+	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { proxy.serveRoute(w, r, 1, true, false) }))
 	defer host.Close()
 	client := &http.Client{Timeout: 3 * time.Second}
 	req, _ := http.NewRequest("GET", host.URL+"/api/v2/plugin-content/plugins/1/media", nil)
@@ -105,7 +105,7 @@ func TestHTTPProxyRelayRejectsUntrustedTargetsAndPublicRoutes(t *testing.T) {
 			proxy := NewHTTPProxy(relayTestService{client: relayTestClient{tc.target}, access: tc.access}, profileTestInstallationStore{})
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/api/v2/plugin-content/plugins/1/media", nil)
-			proxy.ServeRoute(rec, req, 1, tc.authenticated, false)
+			proxy.serveRoute(rec, req, 1, tc.authenticated, false)
 			if rec.Code != tc.want || strings.Contains(rec.Body.String(), "private") {
 				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 			}

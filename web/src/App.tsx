@@ -641,7 +641,14 @@ function AppRoutes() {
                   <Route path="libraries" element={<LibrarySettings />} />
                   <Route path="history-import" element={<HistoryImportSettings />} />
                   <Route path="plex-webhooks" element={<LegacyWebhookSyncRedirect />} />
-                  <Route path="webhook-sync" element={<WebhookSyncSettings />} />
+                  <Route
+                    path="webhook-sync"
+                    element={
+                      <RequirePrimaryOrAdmin>
+                        <WebhookSyncSettings />
+                      </RequirePrimaryOrAdmin>
+                    }
+                  />
                   <Route path="watch-providers" element={<WatchProvidersSettings />} />
                   <Route path="subtitle-appearance" element={<SubtitleAppearanceSettings />} />
                   <Route path="home-screen" element={<HomeScreenSettings />} />
@@ -790,6 +797,13 @@ function AppRoutes() {
 
 function RealtimeEventChannels() {
   const actingAdmin = useIsActingAdmin();
+  const { user } = useAuth();
+  // An account with a delegated permission (metadata curation, marker editing)
+  // uses item tools that show admin text, so it needs that catalog chunk too.
+  const delegated = (user?.permissions?.length ?? 0) > 0;
+  useEffect(() => {
+    if (delegated) requestAdminMessages();
+  }, [delegated]);
 
   useEventChannel("catalog");
   useEventChannel("user_state");

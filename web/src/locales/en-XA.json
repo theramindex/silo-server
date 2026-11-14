@@ -1949,6 +1949,20 @@
       "value": "⟦Ĝö Ɓåçķ~~~⟧"
     }
   ],
+  "player.scrubber.endsAt": [
+    {
+      "type": 0,
+      "value": "⟦Éñđš "
+    },
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": "~~⟧"
+    }
+  ],
   "player.seekInterval.choice": [
     {
       "type": 6,
@@ -3641,6 +3655,82 @@
       "value": "⟦Ĝŕöûþ åçţîöñ ƒåîļéđ.~~~~~~~~⟧"
     }
   ],
+  "web.admin.access.groups.addUsers.addSelected": [
+    {
+      "type": 0,
+      "value": "⟦Åđđ šéļéçţéđ~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.addSelectedCount": [
+    {
+      "type": 0,
+      "value": "⟦Åđđ "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " šéļéçţéđ~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.description": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéĝûļåŕ åççöûñţš öûţšîđé ţĥîš ĝŕöûþ. Åđɱîñ åççöûñţš çåñ’ţ ĵöîñ ĝŕöûþš.~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.noGroup": [
+    {
+      "type": 0,
+      "value": "⟦Ñö ĝŕöûþ~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.noMatches": [
+    {
+      "type": 0,
+      "value": "⟦Ñö ûšéŕš ɱåţçĥ ýöûŕ šéåŕçĥ.~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.none": [
+    {
+      "type": 0,
+      "value": "⟦Éṽéŕý ŕéĝûļåŕ åççöûñţ îš åļŕéåđý ĥéŕé.~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.search": [
+    {
+      "type": 0,
+      "value": "⟦Šéåŕçĥ ûšéŕš~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.searchPlaceholder": [
+    {
+      "type": 0,
+      "value": "⟦Šéåŕçĥ ƀý ûšéŕñåɱé öŕ éɱåîļ~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.title": [
+    {
+      "type": 0,
+      "value": "⟦Åđđ ûšéŕš ţö "
+    },
+    {
+      "type": 1,
+      "value": "group"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.addUsers.unknownGroup": [
+    {
+      "type": 0,
+      "value": "⟦Ûñķñöŵñ ĝŕöûþ~~~~~~⟧"
+    }
+  ],
   "web.admin.access.groups.allGroups": [
     {
       "type": 0,
@@ -3815,6 +3905,146 @@
       },
       "offset": 0,
       "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.changes.allPermissions": [
+    {
+      "type": 0,
+      "value": "⟦Åļļ~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.allowed": [
+    {
+      "type": 0,
+      "value": "⟦Åļļöŵéđ~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.audioTranscoding": [
+    {
+      "type": 0,
+      "value": "⟦Åûđîö ţŕåñšçöđîñĝ~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.concurrentStreams": [
+    {
+      "type": 0,
+      "value": "⟦Çöñçûŕŕéñţ šţŕéåɱš~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.concurrentTranscodes": [
+    {
+      "type": 0,
+      "value": "⟦Çöñçûŕŕéñţ ţŕåñšçöđéš~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.convertedDownloads": [
+    {
+      "type": 0,
+      "value": "⟦Çöñṽéŕţéđ đöŵñļöåđš~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.downloads": [
+    {
+      "type": 0,
+      "value": "⟦Đöŵñļöåđš~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.householdProfiles": [
+    {
+      "type": 0,
+      "value": "⟦Ĥöûšéĥöļđ þŕöƒîļéš~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.libraries": [
+    {
+      "type": 0,
+      "value": "⟦Ļîƀŕåŕîéš~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.libraryId": [
+    {
+      "type": 0,
+      "value": "⟦#"
+    },
+    {
+      "type": 1,
+      "value": "id"
+    },
+    {
+      "type": 0,
+      "value": "~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.localBitrate": [
+    {
+      "type": 0,
+      "value": "⟦Ļöçåļ šţŕéåɱ ƀîţŕåţé~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.noLibraries": [
+    {
+      "type": 0,
+      "value": "⟦Ñö ļîƀŕåŕîéš~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.noPermissions": [
+    {
+      "type": 0,
+      "value": "⟦Ñöñé~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.notAllowed": [
+    {
+      "type": 0,
+      "value": "⟦Ñöţ åļļöŵéđ~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.permissions": [
+    {
+      "type": 0,
+      "value": "⟦Þéŕɱîššîöñš~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.playbackQuality": [
+    {
+      "type": 0,
+      "value": "⟦Þļåýƀåçķ ǫûåļîţý~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.remoteBitrate": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéɱöţé šţŕéåɱ ƀîţŕåţé~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.requestApproval": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéǫûéšţ åþþŕöṽåļ~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.requestLimit": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéǫûéšţ ļîɱîţ~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.requests": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéǫûéšţš~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.unlimited": [
+    {
+      "type": 0,
+      "value": "⟦Ûñļîɱîţéđ~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.changes.videoTranscoding": [
+    {
+      "type": 0,
+      "value": "⟦Ṽîđéö ţŕåñšçöđîñĝ~~~~~~~⟧"
     }
   ],
   "web.admin.access.groups.conflict.message": [
@@ -4145,10 +4375,138 @@
       "value": "⟦Ļöåđîñĝ åççéšš ĝŕöûþš...~~~~~~~~~~⟧"
     }
   ],
+  "web.admin.access.groups.members.addFailed": [
+    {
+      "type": 0,
+      "value": "⟦Šöɱé ûšéŕš çöûļđ ñöţ ƀé åđđéđ:~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.addUsers": [
+    {
+      "type": 0,
+      "value": "⟦Åđđ ûšéŕš~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.added": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Åđđéđ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ûšéŕ ţö "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "~~~~~~⟧"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Åđđéđ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ûšéŕš ţö "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "~~~~~~~⟧"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.members.couldNotAdd": [
+    {
+      "type": 0,
+      "value": "⟦çöûļđ ñöţ ƀé åđđéđ~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.couldNotMove": [
+    {
+      "type": 0,
+      "value": "⟦çöûļđ ñöţ ƀé ɱöṽéđ~~~~~~~~⟧"
+    }
+  ],
   "web.admin.access.groups.members.empty": [
     {
       "type": 0,
       "value": "⟦Ñö ɱéɱƀéŕš ýéţ.~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.failure": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "username"
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "reason"
+    },
+    {
+      "type": 0,
+      "value": "~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.groupChanged": [
+    {
+      "type": 0,
+      "value": "⟦Ţĥîš åççöûñţ çĥåñĝéđ åƒţéŕ ýöû çöñƒîŕɱéđ. Çĥéçķ ţĥé çĥåñĝé åñđ ţŕý åĝåîñ.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.groupsLoadFailed": [
+    {
+      "type": 0,
+      "value": "⟦Çöûļđ ñöţ ļöåđ åççéšš ĝŕöûþš, šö ɱéɱƀéŕš çåñ’ţ ƀé ɱöṽéđ ýéţ. "
+    },
+    {
+      "type": 8,
+      "value": "retry",
+      "children": [
+        {
+          "type": 0,
+          "value": "Ŕéţŕý"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
     }
   ],
   "web.admin.access.groups.members.heading": [
@@ -4187,6 +4545,358 @@
     {
       "type": 0,
       "value": "⟦Ļöåđîñĝ ɱéɱƀéŕš...~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.manageHelp": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé ɱéɱƀéŕš ţö åñöţĥéŕ ĝŕöûþ, öŕ åđđ ûšéŕš ţö ţĥîš öñé.~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.moveFailed": [
+    {
+      "type": 0,
+      "value": "⟦Šöɱé ûšéŕš çöûļđ ñöţ ƀé ɱöṽéđ:~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.moveSelected": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé šéļéçţéđ~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.moveSelectedCount": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " šéļéçţéđ~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.moveTarget": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé šéļéçţéđ ɱéɱƀéŕš ţö~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.moveTargetPlaceholder": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé ţö ĝŕöûþ...~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.moved": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Ṁöṽéđ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ûšéŕ ţö "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "~~~~~~⟧"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Ṁöṽéđ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ûšéŕš ţö "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "~~~~~~~⟧"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.members.noMatches": [
+    {
+      "type": 0,
+      "value": "⟦Ñö ɱéɱƀéŕš ɱåţçĥ ýöûŕ šéåŕçĥ.~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.search": [
+    {
+      "type": 0,
+      "value": "⟦Šéåŕçĥ ɱéɱƀéŕš~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.selectMember": [
+    {
+      "type": 0,
+      "value": "⟦Šéļéçţ "
+    },
+    {
+      "type": 1,
+      "value": "username"
+    },
+    {
+      "type": 0,
+      "value": "~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.members.selectedHidden": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦"
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " šéļéçţéđ ɱéɱƀéŕ îšñ’ţ šĥöŵñ, åñđ å ɱöṽé îñçļûđéš îţ.~~~~~~~~~~~~~~~~~~~~~~⟧"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦"
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " šéļéçţéđ ɱéɱƀéŕš åŕéñ’ţ šĥöŵñ, åñđ å ɱöṽé îñçļûđéš ţĥéɱ.~~~~~~~~~~~~~~~~~~~~~~~⟧"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.change": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "label"
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "from"
+    },
+    {
+      "type": 0,
+      "value": " → "
+    },
+    {
+      "type": 1,
+      "value": "to"
+    },
+    {
+      "type": 0,
+      "value": "~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.description": [
+    {
+      "type": 0,
+      "value": "⟦Šéţţîñĝš å ûšéŕ ĥåš öṽéŕŕîđđéñ öñ ţĥéîŕ öŵñ åççöûñţ šţåý åš ţĥéý åŕé. Ţĥéý ĝéţ ţĥé ñéŵ åççéšš ŕîĝĥţ åŵåý, ŵîţĥöûţ ƀéîñĝ šîĝñéđ öûţ.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.fromGroup": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " ƒŕöɱ "
+    },
+    {
+      "type": 1,
+      "value": "group"
+    },
+    {
+      "type": 0,
+      "value": "~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.fromNoGroup": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " ƒŕöɱ ñö ĝŕöûþ~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.fromUnknownGroup": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " ƒŕöɱ ĝŕöûþ #"
+    },
+    {
+      "type": 1,
+      "value": "id"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.loadingTerms": [
+    {
+      "type": 0,
+      "value": "⟦Ļöåđîñĝ ŕéǫûéšţ šéţţîñĝš…~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.move": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.moving": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽîñĝ...~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.noChanges": [
+    {
+      "type": 0,
+      "value": "⟦Ñö îñĥéŕîţéđ šéţţîñĝš çĥåñĝé.~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.sourceUnknown": [
+    {
+      "type": 0,
+      "value": "⟦Ţĥéîŕ çûŕŕéñţ ĝŕöûþ çöûļđñ’ţ ƀé ļöåđéđ, šö ţĥé šéţţîñĝš ţĥåţ çĥåñĝé åŕé ûñķñöŵñ.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.termsFailed": [
+    {
+      "type": 0,
+      "value": "⟦Ţĥé ĝŕöûþš’ ŕéǫûéšţ šéţţîñĝš çöûļđñ’ţ ƀé ļöåđéđ, šö ţĥé šéţţîñĝš ţĥåţ çĥåñĝé åŕé ûñķñöŵñ.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.access.groups.moveConfirm.title": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Ṁöṽé "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ûšéŕ ţö "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "?~~~~~~⟧"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Ṁöṽé "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ûšéŕš ţö "
+            },
+            {
+              "type": 1,
+              "value": "group"
+            },
+            {
+              "type": 0,
+              "value": "?~~~~~~~⟧"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.admin.access.groups.newGroup": [
@@ -24453,6 +25163,46 @@
     {
       "type": 0,
       "value": "⟦Çöûñţ ñöţ ļöåđéđ~~~~~~~⟧"
+    }
+  ],
+  "web.admin.common.downloadAccess.conversionOff": [
+    {
+      "type": 0,
+      "value": "⟦Ţĥé šéŕṽéŕ îšñ'ţ þŕéþåŕîñĝ đéṽîçé-ƒŕîéñđļý çöþîéš, šö éṽéŕý đöŵñļöåđ îš ţĥé öŕîĝîñåļ ƒîļé. Ţûŕñ îţ öñ îñ "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 0,
+          "value": "Šéţţîñĝš → Đöŵñļöåđš"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": ".~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.common.downloadAccess.serverOff": [
+    {
+      "type": 0,
+      "value": "⟦Đöŵñļöåđš åŕé ţûŕñéđ öƒƒ ƒöŕ ţĥé ŵĥöļé šéŕṽéŕ, šö ñöƀöđý çåñ đöŵñļöåđ. Ţûŕñ ţĥéɱ öñ îñ "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 0,
+          "value": "Šéţţîñĝš → Đöŵñļöåđš"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": ".~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
     }
   ],
   "web.admin.common.editorConflict.message": [
@@ -48102,6 +48852,38 @@
       "pluralType": "cardinal"
     }
   ],
+  "web.admin.libraries.list.hidePaths": [
+    {
+      "type": 0,
+      "value": "⟦Ĥîđé þåţĥš~~~~⟧"
+    }
+  ],
+  "web.admin.libraries.list.moreActions": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöŕé åçţîöñš ƒöŕ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~~⟧"
+    }
+  ],
+  "web.admin.libraries.list.moveDown": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé đöŵñ~~~~⟧"
+    }
+  ],
+  "web.admin.libraries.list.moveUp": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöṽé ûþ~~~⟧"
+    }
+  ],
   "web.admin.libraries.list.neverScanned": [
     {
       "type": 0,
@@ -48130,6 +48912,12 @@
     {
       "type": 0,
       "value": "⟦Šçåñ Ļîƀŕåŕý~~~~~⟧"
+    }
+  ],
+  "web.admin.libraries.list.showPaths": [
+    {
+      "type": 0,
+      "value": "⟦Šĥöŵ þåţĥš~~~~⟧"
     }
   ],
   "web.admin.libraries.list.stopRefresh": [
@@ -55185,6 +55973,118 @@
     {
       "type": 0,
       "value": "⟦Šéţţîñĝš~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.invalid": [
+    {
+      "type": 0,
+      "value": "⟦Ƒåîļéđ ţĥé çĥéçķ~~~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.invalidBanner": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 8,
+      "value": "b",
+      "children": [
+        {
+          "type": 0,
+          "value": "Ţĥé ŕéļéåšé šîĝñåţûŕé çĥéçķ ƒåîļéđ ƒöŕ "
+        },
+        {
+          "type": 1,
+          "value": "name"
+        },
+        {
+          "type": 0,
+          "value": "."
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": " Ţĥé šîĝñåţûŕé ţĥåţ çåɱé ŵîţĥ ţĥîš ṽéŕšîöñ đöéšñ'ţ þŕöṽé ŵĥîçĥ ŕéþöšîţöŕý ƀûîļţ îţ. Ţĥé šéŕṽéŕ ļöĝ ĥåš ţĥé đéţåîļš.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.label": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéļéåšé šîĝñåţûŕé~~~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.tileInvalid": [
+    {
+      "type": 0,
+      "value": "⟦Šîĝñåţûŕé ƒåîļéđ~~~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.tileVerified": [
+    {
+      "type": 0,
+      "value": "⟦Šîĝñéđ ŕéļéåšé ƀûîļţ ƒŕöɱ "
+    },
+    {
+      "type": 1,
+      "value": "repository"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.unknown": [
+    {
+      "type": 0,
+      "value": "⟦Ñöţ çĥéçķéđ~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.unsigned": [
+    {
+      "type": 0,
+      "value": "⟦Ñöţ šîĝñéđ~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.verified": [
+    {
+      "type": 0,
+      "value": "⟦Ɓûîļţ ƒŕöɱ "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 1,
+          "value": "repository"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": "~~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.verifiedAt": [
+    {
+      "type": 0,
+      "value": "⟦Ṽéŕîƒîéđ "
+    },
+    {
+      "type": 1,
+      "value": "date"
+    },
+    {
+      "type": 0,
+      "value": "~~~~⟧"
+    }
+  ],
+  "web.admin.plugins.signature.verifiedNoRepository": [
+    {
+      "type": 0,
+      "value": "⟦Ṽéŕîƒîéđ~~~~⟧"
     }
   ],
   "web.admin.plugins.source.approvedCommunity": [
@@ -62519,6 +63419,12 @@
       "value": "⟦Đîšķ çéîļîñĝ (%)~~~~~~~⟧"
     }
   ],
+  "web.admin.settings.downloads.enabled.description": [
+    {
+      "type": 0,
+      "value": "⟦Ţĥé šŵîţçĥ ƒöŕ ţĥé ŵĥöļé šéŕṽéŕ. Öñ, åççéšš ĝŕöûþš åñđ åççöûñţš đéçîđé ŵĥö ɱåý đöŵñļöåđ. Öƒƒ, ñöƀöđý çåñ.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
   "web.admin.settings.downloads.enabled.label": [
     {
       "type": 0,
@@ -68610,7 +69516,7 @@
   "web.admin.settings.playback.transcoding.copyKeyframePlaylistDescription": [
     {
       "type": 0,
-      "value": "⟦Éẋþéŕîɱéñţåļ. Ŵĥéñ Šîļö çöþîéš å ƒîļé'š ṽîđéö, ļîšţ éṽéŕý šéĝɱéñţ ƒŕöɱ ţĥé šţåŕţ, ûšîñĝ ţĥé ƒîļé'š ķéýƒŕåɱéš, îñšţéåđ öƒ å þļåýļîšţ ţĥåţ ĝŕöŵš åš Šîļö çöþîéš. Šţöþš Šåƒåŕî ƒŕééžîñĝ þåŕţŵåý ţĥŕöûĝĥ. Å šééķ åĥéåđ öƒ ŵĥåţ Šîļö ĥåš çöþîéđ ŵåîţš ƒöŕ îţ ţö ĝéţ ţĥéŕé.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
+      "value": "⟦Éẋþéŕîɱéñţåļ. Ŵĥéñ Šîļö çöþîéš å ƒîļé'š ṽîđéö, ļîšţ éṽéŕý šéĝɱéñţ ƒŕöɱ ţĥé šţåŕţ, ûšîñĝ ţĥé ƒîļé'š ķéýƒŕåɱéš, îñšţéåđ öƒ å þļåýļîšţ ţĥåţ ĝŕöŵš åš Šîļö çöþîéš. Šţöþš Šåƒåŕî ƒŕééžîñĝ þåŕţŵåý ţĥŕöûĝĥ. Å šééķ ŵéļļ þåšţ ŵĥåţ Šîļö ĥåš çöþîéđ šţåŕţš ţĥé çöþý åĝåîñ ƒŕöɱ ţĥéŕé.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
     }
   ],
   "web.admin.settings.playback.transcoding.dir": [
@@ -86135,6 +87041,12 @@
       "value": "⟦Đöŵñļöåđš ñöţ åļļöŵéđ~~~~~~~~~⟧"
     }
   ],
+  "web.admin.users.detail.overview.access.downloadsServerOff": [
+    {
+      "type": 0,
+      "value": "⟦Đöŵñļöåđš åŕé öƒƒ ƒöŕ ţĥé ŵĥöļé šéŕṽéŕ~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
   "web.admin.users.detail.overview.access.groupSource": [
     {
       "type": 0,
@@ -89157,6 +90069,20 @@
       "value": "⟦Çöûļđ ñöţ ļöåđ ûšéŕš.~~~~~~~~~⟧"
     }
   ],
+  "web.admin.users.list.moreActions": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöŕé åçţîöñš ƒöŕ "
+    },
+    {
+      "type": 1,
+      "value": "username"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~~⟧"
+    }
+  ],
   "web.admin.users.list.nextPage": [
     {
       "type": 0,
@@ -89167,6 +90093,12 @@
     {
       "type": 0,
       "value": "⟦Ñö ĝŕöûþ~~~~⟧"
+    }
+  ],
+  "web.admin.users.list.noMatches": [
+    {
+      "type": 0,
+      "value": "⟦Ñö ûšéŕš ɱåţçĥ ýöûŕ šéåŕçĥ öŕ ƒîļţéŕ.~~~~~~~~~~~~~~~⟧"
     }
   ],
   "web.admin.users.list.pageRange": [
@@ -125783,6 +126715,12 @@
       "value": "⟦Åûđîö~~⟧"
     }
   ],
+  "web.player.audioMenu.onlyOneTrack": [
+    {
+      "type": 0,
+      "value": "⟦Öñļý öñé åûđîö ţŕåçķ~~~~~~~~⟧"
+    }
+  ],
   "web.player.audioMenu.trackFallback": [
     {
       "type": 0,
@@ -125801,6 +126739,20 @@
     {
       "type": 0,
       "value": "⟦Åûđîö ţŕåçķš~~~~~⟧"
+    }
+  ],
+  "web.player.audioMenu.triggerWithTrack": [
+    {
+      "type": 0,
+      "value": "⟦Åûđîö ţŕåçķš, "
+    },
+    {
+      "type": 1,
+      "value": "track"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~⟧"
     }
   ],
   "web.player.bar.backgroundPlayback": [
@@ -126073,6 +127025,20 @@
       "value": " Ṁƀþš~~⟧"
     }
   ],
+  "web.player.buffering.loadingFrom": [
+    {
+      "type": 0,
+      "value": "⟦Ļöåđîñĝ ƒŕöɱ "
+    },
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~⟧"
+    }
+  ],
   "web.player.buffering.undoCaption": [
     {
       "type": 0,
@@ -126089,6 +127055,34 @@
     {
       "type": 0,
       "value": "⟦Çĥåþţéŕš~~~~⟧"
+    }
+  ],
+  "web.player.chaptersMenu.nowPlaying": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 8,
+      "value": "now",
+      "children": [
+        {
+          "type": 0,
+          "value": "Ñöŵ þļåýîñĝ"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~⟧"
     }
   ],
   "web.player.chaptersMenu.trigger": [
@@ -126151,6 +127145,12 @@
       "value": "⟦Éẋîţ ƒûļļšçŕééñ~~~~~~⟧"
     }
   ],
+  "web.player.controls.exitFullscreenShortcut": [
+    {
+      "type": 0,
+      "value": "⟦Éẋîţ ƒûļļšçŕééñ (Ƒ)~~~~~~~~⟧"
+    }
+  ],
   "web.player.controls.fillScreen": [
     {
       "type": 0,
@@ -126161,6 +127161,18 @@
     {
       "type": 0,
       "value": "⟦Ƒûļļšçŕééñ~~~~⟧"
+    }
+  ],
+  "web.player.controls.fullscreenShortcut": [
+    {
+      "type": 0,
+      "value": "⟦Ƒûļļšçŕééñ (Ƒ)~~~~~~⟧"
+    }
+  ],
+  "web.player.controls.more": [
+    {
+      "type": 0,
+      "value": "⟦Ṁöŕé~~⟧"
     }
   ],
   "web.player.controls.moreOptions": [
@@ -126187,6 +127199,12 @@
       "value": "⟦Þîçţûŕé îñ Þîçţûŕé~~~~~~~~⟧"
     }
   ],
+  "web.player.controls.pictureInPictureItem": [
+    {
+      "type": 0,
+      "value": "⟦Þîçţûŕé îñ þîçţûŕé~~~~~~~~⟧"
+    }
+  ],
   "web.player.controls.pictureInPictureShortcut": [
     {
       "type": 0,
@@ -126209,6 +127227,34 @@
     {
       "type": 0,
       "value": "⟦Þŕéṽîöûš éþîšöđé~~~~~~~⟧"
+    }
+  ],
+  "web.player.controls.remainingTime": [
+    {
+      "type": 0,
+      "value": "⟦−"
+    },
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": "~⟧"
+    }
+  ],
+  "web.player.controls.remainingTimeLabel": [
+    {
+      "type": 0,
+      "value": "⟦Ŕéɱåîñîñĝ "
+    },
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": "~~~~⟧"
     }
   ],
   "web.player.controls.skipBack": [
@@ -126931,6 +127977,12 @@
       "value": "⟦Đŕöþþéđ ƒŕåɱéš~~~~~~⟧"
     }
   ],
+  "web.player.info.heading": [
+    {
+      "type": 0,
+      "value": "⟦Þļåýƀåçķ îñƒö~~~~~~⟧"
+    }
+  ],
   "web.player.info.playMethod": [
     {
       "type": 0,
@@ -127139,6 +128191,106 @@
       "value": "~~~⟧"
     }
   ],
+  "web.player.nextEpisode.playNow": [
+    {
+      "type": 0,
+      "value": "⟦Þļåý ñöŵ~~~~⟧"
+    }
+  ],
+  "web.player.nextEpisode.regionLabel": [
+    {
+      "type": 0,
+      "value": "⟦Ûþ ñéẋţ~~~⟧"
+    }
+  ],
+  "web.player.nextEpisode.seasonEpisode": [
+    {
+      "type": 0,
+      "value": "⟦Šéåšöñ "
+    },
+    {
+      "type": 1,
+      "value": "season"
+    },
+    {
+      "type": 0,
+      "value": " · Éþîšöđé "
+    },
+    {
+      "type": 1,
+      "value": "episode"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~~~~⟧"
+    }
+  ],
+  "web.player.nextEpisode.upNextIn": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Ûþ ñéẋţ îñ "
+            },
+            {
+              "type": 8,
+              "value": "num",
+              "children": [
+                {
+                  "type": 7
+                },
+                {
+                  "type": 0,
+                  "value": "š"
+                }
+              ]
+            },
+            {
+              "type": 0,
+              "value": "~~~~~⟧"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Ûþ ñéẋţ îñ "
+            },
+            {
+              "type": 8,
+              "value": "num",
+              "children": [
+                {
+                  "type": 7
+                },
+                {
+                  "type": 0,
+                  "value": "š"
+                }
+              ]
+            },
+            {
+              "type": 0,
+              "value": "~~~~~⟧"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.player.postRoll.stillPlaying": [
+    {
+      "type": 0,
+      "value": "⟦Šţîļļ þļåýîñĝ · Çļîçķ ţö ŕéţûŕñ~~~~~~~~~~~~~⟧"
+    }
+  ],
   "web.player.quality.auto": [
     {
       "type": 0,
@@ -127185,6 +128337,18 @@
       "value": "⟦Šéļéçţéđ~~~~⟧"
     }
   ],
+  "web.player.quality.sourceFile": [
+    {
+      "type": 0,
+      "value": "⟦Šöûŕçé ƒîļé~~~~~⟧"
+    }
+  ],
+  "web.player.quality.streamingQuality": [
+    {
+      "type": 0,
+      "value": "⟦Šţŕéåɱîñĝ ǫûåļîţý~~~~~~~⟧"
+    }
+  ],
   "web.player.quality.title": [
     {
       "type": 0,
@@ -127211,6 +128375,58 @@
     {
       "type": 0,
       "value": "~⟧"
+    }
+  ],
+  "web.player.quality.triggerWithValue": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "menu"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "value"
+    },
+    {
+      "type": 0,
+      "value": "~⟧"
+    }
+  ],
+  "web.player.quality.triggerWithValueAndSpeed": [
+    {
+      "type": 0,
+      "value": "⟦"
+    },
+    {
+      "type": 1,
+      "value": "menu"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "value"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "speed"
+    },
+    {
+      "type": 0,
+      "value": "~~⟧"
     }
   ],
   "web.player.quality.version": [
@@ -128115,6 +129331,12 @@
       "value": "⟦Šîļö çöûļđñ'ţ ŕéåđ ţĥîš ƒîļé. Îţ åþþéåŕš ţö ƀé éɱþţý öŕ đåɱåĝéđ.~~~~~~~~~~~~~~~~~~~~~~~~~~⟧"
     }
   ],
+  "web.player.upNext.autoplay": [
+    {
+      "type": 0,
+      "value": "⟦Åûţö-þļåý~~~~⟧"
+    }
+  ],
   "web.player.upNext.autoplayOff": [
     {
       "type": 0,
@@ -128187,6 +129409,18 @@
       "value": "~~~~~~~⟧"
     }
   ],
+  "web.player.upNext.heading": [
+    {
+      "type": 0,
+      "value": "⟦Ûþ ñéẋţ~~~⟧"
+    }
+  ],
+  "web.player.upNext.headingShuffle": [
+    {
+      "type": 0,
+      "value": "⟦Ûþ ñéẋţ åţ ŕåñđöɱ~~~~~~~⟧"
+    }
+  ],
   "web.player.upNext.minutesLeft": [
     {
       "type": 6,
@@ -128247,10 +129481,68 @@
       "value": "⟦Ñö Þŕéṽîéŵ~~~~⟧"
     }
   ],
+  "web.player.upNext.onDeckScrollBack": [
+    {
+      "type": 0,
+      "value": "⟦Šçŕöļļ Öñ Đéçķ ƀåçķ~~~~~~~~⟧"
+    }
+  ],
+  "web.player.upNext.onDeckScrollForward": [
+    {
+      "type": 0,
+      "value": "⟦Šçŕöļļ Öñ Đéçķ ƒöŕŵåŕđ~~~~~~~~~⟧"
+    }
+  ],
   "web.player.upNext.playingNext": [
     {
       "type": 0,
       "value": "⟦Þļåýîñĝ Ñéẋţ~~~~~⟧"
+    }
+  ],
+  "web.player.upNext.startsAfterCredits": [
+    {
+      "type": 0,
+      "value": "⟦Šţåŕţš öñ îţš öŵñ ŵĥéñ ţĥé çŕéđîţš éñđ~~~~~~~~~~~~~~~~⟧"
+    }
+  ],
+  "web.player.upNext.startsIn": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Šţåŕţš îñ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": "š~~~~~⟧"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "⟦Šţåŕţš îñ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": "š~~~~~⟧"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.player.volume.label": [
@@ -147153,6 +148445,12 @@
       "value": "⟦Éñåƀļé çåþţîöñš~~~~~~⟧"
     }
   ],
+  "web.subtitles.menu.heading": [
+    {
+      "type": 0,
+      "value": "⟦Šûƀţîţļéš~~~~⟧"
+    }
+  ],
   "web.subtitles.menu.noMatch": [
     {
       "type": 0,
@@ -147199,6 +148497,18 @@
     {
       "type": 0,
       "value": "⟦Éẋţéŕñåļ~~~~⟧"
+    }
+  ],
+  "web.subtitles.menu.subtitlesOffShortcut": [
+    {
+      "type": 0,
+      "value": "⟦Šûƀţîţļéš öƒƒ (Ç)~~~~~~~⟧"
+    }
+  ],
+  "web.subtitles.menu.subtitlesShortcut": [
+    {
+      "type": 0,
+      "value": "⟦Šûƀţîţļéš (Ç)~~~~~~⟧"
     }
   ],
   "web.subtitles.menu.syncHint": [
@@ -147251,10 +148561,36 @@
       "value": "⟦Ţĥîš šéŕṽéŕ đöéšñ'ţ åļļöŵ çĥåñĝîñĝ šûƀţîţļé ţîɱîñĝ.~~~~~~~~~~~~~~~~~~~~~⟧"
     }
   ],
+  "web.subtitles.menu.toolsLabel": [
+    {
+      "type": 0,
+      "value": "⟦Šûƀţîţļé ţööļš~~~~~~⟧"
+    }
+  ],
+  "web.subtitles.menu.tracksLabel": [
+    {
+      "type": 0,
+      "value": "⟦Šûƀţîţļé ţŕåçķš~~~~~~⟧"
+    }
+  ],
   "web.subtitles.menu.translateWithAi": [
     {
       "type": 0,
       "value": "⟦Ţŕåñšļåţé ŵîţĥ ÅÎ…~~~~~~~~⟧"
+    }
+  ],
+  "web.subtitles.menu.triggerWithValue": [
+    {
+      "type": 0,
+      "value": "⟦Šûƀţîţļéš, "
+    },
+    {
+      "type": 1,
+      "value": "value"
+    },
+    {
+      "type": 0,
+      "value": "~~~~~⟧"
     }
   ],
   "web.subtitles.quotaWindow.day": [
