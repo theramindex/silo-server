@@ -158,15 +158,6 @@ function bestAttributes(
   };
 }
 
-/** The server's version order (sortFileVersions): rank, then HDR, then larger file. */
-function compareServerOrder(a: FileVersion, b: FileVersion): number {
-  return (
-    resolutionScore(b.resolution) - resolutionScore(a.resolution) ||
-    Number(b.hdr) - Number(a.hdr) ||
-    (b.file_size ?? 0) - (a.file_size ?? 0)
-  );
-}
-
 /**
  * The file Version Auto plays among one edition's first-part files. An
  * unmeasured file is a last resort, never evidence that it fits the cap.
@@ -175,9 +166,12 @@ export function selectDefaultVersion(
   versions: FileVersion[],
   qualityPreference?: string | null,
 ): FileVersion | null {
-  const ordered = [...versions].sort(compareServerOrder);
-  const known = ordered.filter((v) => resolutionScore(v.resolution) >= 0);
-  if (known.length === 0) return ordered[0] ?? null;
+  // Equal-quality files already include the server's storage preference.
+  // Re-ranking by file size here can replace a preferred local copy.
+  const known = versions
+    .filter((v) => resolutionScore(v.resolution) >= 0)
+    .sort((a, b) => resolutionScore(b.resolution) - resolutionScore(a.resolution));
+  if (known.length === 0) return versions[0] ?? null;
   const cap = resolutionScore(qualityPreference ?? "auto");
   if (cap < 0) return known[0] ?? null;
   const fits = known.find((v) => resolutionScore(v.resolution) <= cap);

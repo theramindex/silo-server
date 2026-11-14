@@ -110,22 +110,20 @@ describe("pickBestAttributes", () => {
   });
 });
 
-describe("selectDefaultVersion tie-break", () => {
-  // Same order as the server's sortFileVersions; audio never breaks a tie.
-  it.each([
-    [
-      "HDR before SDR",
-      { hdr: false, file_size: 9, codec_audio: "truehd" },
-      { hdr: true, file_size: 1, codec_audio: "aac" },
-    ],
-    ["larger file", { file_size: 1, codec_audio: "truehd" }, { file_size: 2, codec_audio: "aac" }],
-  ] as const)("prefers %s at the same resolution", (_name, first, second) => {
-    const files = [
-      makeVersion({ file_id: 1, resolution: "2160p", ...first }),
-      makeVersion({ file_id: 2, resolution: "2160p", ...second }),
-    ];
-    expect(selectDefaultVersion(files)?.file_id).toBe(2);
-  });
+describe("selectDefaultVersion server preference", () => {
+  it.each([undefined, "2160p", "1080p"])(
+    "preserves preferred storage ahead of a larger equal-quality copy with cap %s",
+    (quality) => {
+      // The server ranks preferred storage before file size within a quality.
+      const files = [
+        makeVersion({ file_id: 1, resolution: "2160p", hdr: true, file_size: 1 }),
+        makeVersion({ file_id: 2, resolution: "2160p", hdr: true, file_size: 9 }),
+        makeVersion({ file_id: 3, resolution: "1080p", file_size: 1 }),
+        makeVersion({ file_id: 4, resolution: "1080p", file_size: 9 }),
+      ];
+      expect(selectDefaultVersion(files, quality)?.file_id).toBe(quality === "1080p" ? 3 : 1);
+    },
+  );
 });
 
 describe("detail edition Auto", () => {
