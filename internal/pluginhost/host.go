@@ -342,7 +342,7 @@ func (h *Host) Start(ctx context.Context, req StartRequest) (*Client, error) {
 		return nil, fmt.Errorf("configure plugin runtime: %w", err)
 	}
 
-	client := newClient(req.InstallationID, rpcClient, liveManifest, startSeq)
+	client := newClient(req.InstallationID, rpcClient, liveManifest, startSeq, used)
 	client.ingressToken = ingressToken
 
 	monitorCtx, monitorCancel := context.WithCancel(context.Background())

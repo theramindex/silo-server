@@ -126,3 +126,5 @@ func TestPluginRouteBodyLimitFitsRPCMessage(t *testing.T) {
 		t.Fatalf("at-limit request encodes to %d bytes, over the %d-byte RPC limit", size, pluginRPCMaxMessageBytes)
 	}
 }
+
+func (*bodyLimitRouteClient) Retain() (func(), error) { return func() {}, nil }

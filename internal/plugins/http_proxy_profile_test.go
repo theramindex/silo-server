@@ -199,3 +199,5 @@ func TestContentHandlerKeepsRenewedCookiesOnStaticPagesOutOfSharedCaches(t *test
 		})
 	}
 }
+
+func (*profileTestRouteClient) Retain() (func(), error) { return func() {}, nil }

@@ -184,3 +184,5 @@ func TestContentHandlerRefusesOffOriginRedirects(t *testing.T) {
 		t.Fatalf("two Location spellings: status = %d, Location = %q; want 502 and none", rec.Code, rec.Header().Get("Location"))
 	}
 }
+
+func (*contentTestService) Retain() (func(), error) { return func() {}, nil }

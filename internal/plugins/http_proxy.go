@@ -19,6 +19,7 @@ import (
 )
 
 type httpRouteClient interface {
+	Retain() (func(), error)
 	Handle(ctx context.Context, req *pluginv1.HandleHTTPRequest) (*pluginv1.HandleHTTPResponse, error)
 }
 
@@ -142,6 +143,13 @@ func (p *HTTPProxy) serveRoute(w http.ResponseWriter, r *http.Request, installat
 		return
 	}
 
+	release, err := client.Retain()
+	if err != nil {
+		http.Error(w, "plugin routes unavailable", http.StatusBadGateway)
+		return
+	}
+	defer release()
+
 	body, status := readPluginRouteBody(w, r)
 	if status != http.StatusOK {
 		http.Error(w, http.StatusText(status), status)
@@ -151,7 +159,7 @@ func (p *HTTPProxy) serveRoute(w http.ResponseWriter, r *http.Request, installat
 	if _, _, userID, contextProfileID := pluginAccessUserFromContext(r.Context()); userID > 0 {
 		headers["X-Silo-User-Id"] = strconv.Itoa(userID)
 		if admin {
-			headers["X-Silo-User-Role"] = "admin"
+			headers["X-Silo-User-Role"] = relayAdminAccess
 		} else {
 			headers["X-Silo-User-Role"] = "user"
 		}

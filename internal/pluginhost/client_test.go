@@ -3,6 +3,7 @@ package pluginhost
 import (
 	"errors"
 	"testing"
+	"time"
 
 	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 	sdkruntime "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginsdk/runtime"
@@ -25,7 +26,7 @@ func makeTestClient(t *testing.T, capabilities []*pluginv1.CapabilityDescriptor)
 
 	rpc := sdkruntime.NewClient(conn)
 	manifest := &pluginv1.PluginManifest{Capabilities: capabilities}
-	return newClient(0, rpc, manifest, 0)
+	return newClient(0, rpc, manifest, 0, newActivity(time.Now))
 }
 
 func TestClient_ScheduledTask_CapabilityGate(t *testing.T) {

@@ -72,3 +72,5 @@ func TestHTTPProxyPluginContentIsNosniff(t *testing.T) {
 		t.Fatalf("asset: status = %d headers = %v body = %q", rec.Code, rec.Header(), rec.Body.String())
 	}
 }
+
+func (nosniffRouteClient) Retain() (func(), error) { return func() {}, nil }

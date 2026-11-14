@@ -21,6 +21,9 @@ the number of calls in flight:
   it is sent until it returns. Scheduled task runs, event deliveries, plugin
   HTTP routes, scan source polls and sign-in exchanges are all such calls. The
   idle period counts from the end of the last call.
+- A retained HTTP route response, including a loopback media relay. The HTTP
+  proxy retains the exact process before its RPC and releases it when delivery
+  finishes, fails, or the viewer disconnects. The idle period starts at release.
 - A plugin call back to the host (`RuntimeHost`), for the same span. A callback
   with no host call in flight is the only sign of work a plugin does on its
   own.

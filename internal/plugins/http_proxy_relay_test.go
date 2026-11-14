@@ -14,7 +14,19 @@ import (
 	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 )
 
-type relayTestClient struct{ target string }
+type relayTestClient struct {
+	target   string
+	active   *atomic.Bool
+	released chan struct{}
+}
+
+func (c relayTestClient) Retain() (func(), error) {
+	if c.active == nil {
+		return func() {}, nil
+	}
+	c.active.Store(true)
+	return func() { c.active.Store(false); close(c.released) }, nil
+}
 
 func (c relayTestClient) Handle(context.Context, *pluginv1.HandleHTTPRequest) (*pluginv1.HandleHTTPResponse, error) {
 	return &pluginv1.HandleHTTPResponse{StatusCode: 200, Headers: map[string]string{"X-Silo-Relay-URL": c.target}}, nil
@@ -36,8 +48,13 @@ func (s relayTestService) HTTPRoutesClient(context.Context, int, string) (httpRo
 }
 func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 	stopped := make(chan struct{})
+	released := make(chan struct{})
+	var active atomic.Bool
 	producer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer close(stopped)
+		if !active.Load() {
+			t.Error("plugin lifetime was not held while relaying")
+		}
 		if r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" {
 			t.Error("caller credentials reached relay producer")
 		}
@@ -53,7 +70,7 @@ func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 		<-r.Context().Done()
 	}))
 	defer producer.Close()
-	proxy := NewHTTPProxy(relayTestService{client: relayTestClient{producer.URL}, access: "authenticated"}, profileTestInstallationStore{})
+	proxy := NewHTTPProxy(relayTestService{client: relayTestClient{target: producer.URL, active: &active, released: released}, access: "authenticated"}, profileTestInstallationStore{})
 	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { proxy.serveRoute(w, r, 1, true, false) }))
 	defer host.Close()
 	client := &http.Client{Timeout: 3 * time.Second}
@@ -82,6 +99,14 @@ func TestHTTPProxyRelaysLiveBytesAndCancelsTheProducer(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("closing the player did not cancel the producer")
 	}
+	select {
+	case <-released:
+	case <-time.After(3 * time.Second):
+		t.Fatal("closing the player did not release the plugin lifetime")
+	}
+	if active.Load() {
+		t.Fatal("closed relay kept the plugin active")
+	}
 }
 func TestHTTPProxyRelayRejectsUntrustedTargetsAndPublicRoutes(t *testing.T) {
 	var hits atomic.Int32
@@ -102,7 +127,7 @@ func TestHTTPProxyRelayRejectsUntrustedTargetsAndPublicRoutes(t *testing.T) {
 		{"redirect", redirect.URL, "authenticated", true, 502},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			proxy := NewHTTPProxy(relayTestService{client: relayTestClient{tc.target}, access: tc.access}, profileTestInstallationStore{})
+			proxy := NewHTTPProxy(relayTestService{client: relayTestClient{target: tc.target}, access: tc.access}, profileTestInstallationStore{})
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/api/v2/plugin-content/plugins/1/media", nil)
 			proxy.serveRoute(rec, req, 1, tc.authenticated, false)

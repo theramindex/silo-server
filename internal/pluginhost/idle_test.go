@@ -9,6 +9,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,6 +51,7 @@ func idleTestHost(t *testing.T, clock *idleClock, installationID int) (*Host, *i
 		activity:       newActivity(clock.Now),
 		installationID: installationID,
 	}
+	inst.client.activity = inst.activity
 	host.instances[installationID] = inst
 	return host, inst, exited
 }
@@ -349,5 +352,38 @@ func TestIdleStopRefusesACallbackAfterTheDecision(t *testing.T) {
 	}
 	if status.Code(err) != codes.Unavailable || ran {
 		t.Fatalf("callback during the idle stop: err = %v, handler ran = %v; want Unavailable without running it", err, ran)
+	}
+}
+
+// A route can finish its RPC while its HTTP stream is still being delivered.
+// Retaining that process prevents idle teardown, but does not pin it forever.
+func TestHTTPRouteLifetimeDelaysIdleStopUntilReleased(t *testing.T) {
+	clock := &idleClock{now: time.Unix(1000, 0)}
+	host, inst, _ := idleTestHost(t, clock, 7)
+	inst.client.capabilities[capabilityKey("http_routes.v1", "routes")] = &pluginv1.CapabilityDescriptor{Type: "http_routes.v1", Id: "routes"}
+	routes, err := inst.client.HTTPRoutes("routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := routes.Retain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	clock.Advance(4 * testIdlePeriod)
+	if host.stopIfIdle(context.Background(), 7, inst) {
+		t.Fatal("stopped a retained HTTP route")
+	}
+	release()
+	release() // Releasing twice must not strand the idle counter below zero.
+	if host.stopIfIdle(context.Background(), 7, inst) {
+		t.Fatal("stopped before a full idle period after the response closed")
+	}
+	clock.Advance(testIdlePeriod)
+	if !host.stopIfIdle(context.Background(), 7, inst) {
+		t.Fatal("closed HTTP route kept the plugin running")
+	}
+	if _, err := routes.Retain(); !errors.Is(err, ErrClientNotFound) {
+		t.Fatalf("retaining a stopped process: %v", err)
 	}
 }

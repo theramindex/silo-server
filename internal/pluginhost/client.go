@@ -25,6 +25,7 @@ type Client struct {
 	startSeq       uint64
 	ingressToken   string
 	manifest       *pluginv1.PluginManifest
+	activity       *activity
 	rpc            *sdkruntime.Client
 	capabilities   map[string]*pluginv1.CapabilityDescriptor
 
@@ -82,8 +83,9 @@ type AuthProviderClient struct {
 }
 
 type HTTPRoutesClient struct {
-	client  pluginv1.HttpRoutesClient
-	timeout time.Duration
+	activity *activity
+	client   pluginv1.HttpRoutesClient
+	timeout  time.Duration
 }
 
 type WatchSyncProviderClient struct {
@@ -102,7 +104,7 @@ type NetworkAccessProviderClient struct {
 // IngressToken identifies the process that answers these provider RPCs.
 func (c *NetworkAccessProviderClient) IngressToken() string { return c.ingressToken }
 
-func newClient(installationID int, rpc *sdkruntime.Client, manifest *pluginv1.PluginManifest, startSeq uint64) *Client {
+func newClient(installationID int, rpc *sdkruntime.Client, manifest *pluginv1.PluginManifest, startSeq uint64, used *activity) *Client {
 	capabilities := make(map[string]*pluginv1.CapabilityDescriptor, len(manifest.GetCapabilities()))
 	for _, capability := range manifest.GetCapabilities() {
 		capabilities[capabilityKey(capability.GetType(), capability.GetId())] = capability
@@ -110,6 +112,7 @@ func newClient(installationID int, rpc *sdkruntime.Client, manifest *pluginv1.Pl
 
 	return &Client{
 		installationID: installationID,
+		activity:       used,
 		startSeq:       startSeq,
 		manifest:       proto.CloneOf(manifest),
 		rpc:            rpc,
@@ -251,8 +254,9 @@ func (c *Client) HTTPRoutes(capabilityID string) (*HTTPRoutesClient, error) {
 		return nil, err
 	}
 	return &HTTPRoutesClient{
-		client:  c.rpc.HttpRoutes(),
-		timeout: DefaultRouteTimeout,
+		activity: c.activity,
+		client:   c.rpc.HttpRoutes(),
+		timeout:  DefaultRouteTimeout,
 	}, nil
 }
 
@@ -492,6 +496,20 @@ func (c *AuthProviderClient) EndSessionUrl(ctx context.Context, req *pluginv1.Au
 	callCtx, cancel := ensureDeadline(ctx, c.timeout)
 	defer cancel()
 	return c.checks.EndSessionUrl(callCtx, req)
+}
+
+// Retain keeps this process active while an HTTP response is delivered outside
+// the RPC, including loopback streams. The caller releases it on every exit.
+// Admission shares the idle-stop lock so a stopping process cannot be revived.
+func (c *HTTPRoutesClient) Retain() (func(), error) {
+	c.activity.mu.Lock()
+	defer c.activity.mu.Unlock()
+	if c.activity.stopping {
+		return nil, ErrClientNotFound
+	}
+	c.activity.inFlight++
+	c.activity.last = c.activity.now()
+	return sync.OnceFunc(c.activity.end), nil
 }
 
 func (c *HTTPRoutesClient) Handle(ctx context.Context, req *pluginv1.HandleHTTPRequest) (*pluginv1.HandleHTTPResponse, error) {
